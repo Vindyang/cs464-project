@@ -8,7 +8,8 @@ import {
   Settings, 
   LayoutDashboard, 
   Plus, 
-  HardDrive
+  HardDrive,
+  Activity
 } from "lucide-react";
 
 interface SidebarProps {
@@ -17,45 +18,59 @@ interface SidebarProps {
 }
 
 export function Sidebar({ className, onUploadClick }: SidebarProps) {
-  // We'll need to use a hook later for active route, 
-  // but for now we can just mock or use next/navigation
-  
   return (
-    <div className={cn("pb-12 w-64 border-r bg-background", className)}>
-      <div className="space-y-4 py-4">
+    <div className={cn("pb-12 w-64 border-r border-sidebar-border bg-sidebar flex flex-col", className)}>
+      <div className="space-y-4 py-4 flex-1">
         <div className="px-3 py-2">
-          <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight flex items-center gap-2">
-            <Cloud className="w-5 h-5 text-foreground" />
-            Nebula Drive
-          </h2>
+          <div className="mb-6 px-4 flex items-center gap-2 font-semibold tracking-tight text-sidebar-foreground">
+            <div className="relative flex h-6 w-6 items-center justify-center border border-sidebar-foreground/20 rounded-sm">
+               <div className="h-2 w-2 bg-sidebar-primary rounded-[1px]" />
+            </div>
+            <span>ZERO-STORE</span>
+          </div>
+          
           <div className="space-y-1">
-             <Button variant="secondary" className="w-full justify-start mt-4 mb-4" onClick={onUploadClick}>
+             <Button 
+                className="w-full justify-center mb-6 bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90 rounded-[2px] h-9 text-sm font-medium" 
+                onClick={onUploadClick}
+             >
                 <Plus className="mr-2 h-4 w-4" />
-                New Upload
+                Upload File
              </Button>
              
             <NavItem href="/dashboard" icon={LayoutDashboard}>
               Dashboard
             </NavItem>
-            <NavItem href="/dashboard/files" icon={Folder}>
+            <NavItem href="/nodes" icon={Activity}>
+              Nodes
+            </NavItem>
+            <NavItem href="/files" icon={Folder}>
               My Files
             </NavItem>
-            <NavItem href="/dashboard/providers" icon={HardDrive}>
+            <NavItem href="/providers" icon={HardDrive}>
               Providers
             </NavItem>
-            <NavItem href="/dashboard/settings" icon={Settings}>
+            <NavItem href="/settings" icon={Settings}>
               Settings
             </NavItem>
           </div>
         </div>
         
-        <div className="px-3 py-2">
-          <h2 className="mb-2 px-4 text-xs font-semibold tracking-tight text-muted-foreground">
-            Storage Status
-          </h2>
-          {/* We can put the global storage widget here later */}
-          <div className="px-4 text-sm text-muted-foreground">
-             <p>2 Providers connected</p>
+        <div className="px-3 py-2 mt-auto">
+          <div className="rounded-sm border border-sidebar-border bg-sidebar-accent/50 p-4">
+            <h3 className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono mb-2">
+                Storage Used
+            </h3>
+            <div className="flex items-baseline gap-1">
+                <span className="text-2xl font-semibold text-foreground">4.2</span>
+                <span className="text-sm text-muted-foreground">TB</span>
+            </div>
+            <div className="w-full bg-sidebar-border h-1 mt-2 rounded-full overflow-hidden">
+                <div className="h-full bg-sidebar-primary w-[35%]" />
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-2">
+                35% of 12.0 TB Used
+            </p>
           </div>
         </div>
       </div>
@@ -64,15 +79,25 @@ export function Sidebar({ className, onUploadClick }: SidebarProps) {
 }
 
 function NavItem({ href, icon: Icon, children }: { href: string; icon: any; children: React.ReactNode }) {
-  // In a real app, check isActive
-  const isActive = false; 
+  const pathname = usePathname();
+  // Simple active check: exact match or starts with (for nested routes)
+  // Special case for dashboard root
+  const isActive = href === "/dashboard" 
+    ? pathname === "/dashboard" || pathname === "/"
+    : pathname.startsWith(href);
   
   return (
-    <Button variant={isActive ? "secondary" : "ghost"} className="w-full justify-start" asChild>
-      <Link href={href}>
-        <Icon className="mr-2 h-4 w-4" />
-        {children}
-      </Link>
-    </Button>
+    <Link 
+      href={href}
+      className={cn(
+        "flex items-center gap-3 rounded-[2px] px-3 py-2 text-sm transition-all",
+        isActive 
+          ? "bg-sidebar-accent text-sidebar-foreground font-medium" 
+          : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50"
+      )}
+    >
+      <Icon className={cn("h-4 w-4", isActive ? "text-sidebar-foreground" : "text-muted-foreground")} />
+      {children}
+    </Link>
   );
 }

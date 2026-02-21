@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { UserCircle } from "lucide-react";
 import Link from "next/link";
+import { GridBackground } from "@/components/ui/grid-background";
 
 export default function DashboardLayout({
   children,
@@ -25,14 +26,15 @@ export default function DashboardLayout({
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen overflow-hidden bg-background relative isolate">
+      <GridBackground />
       <Sidebar 
-          className="hidden md:block" 
+          className="hidden md:block z-10" 
           onUploadClick={() => setUploadModalOpen(true)}
       />
       
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="flex items-center justify-between px-6 py-4 border-b">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-0">
+        <header className="flex items-center justify-between px-6 py-4 border-b bg-background/50 backdrop-blur-sm z-10 relative">
            <h1 className="text-xl font-semibold">Dashboard</h1>
            <div className="flex items-center gap-4">
               <span className="text-sm text-muted-foreground hidden sm:inline-block">
@@ -46,7 +48,7 @@ export default function DashboardLayout({
            </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-6 relative">
           {children}
         </main>
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useEffect } from "react"; // Added useEffect for params unwrapping
+import { use, useState, useEffect } from "react";
 import { mockFiles } from "@/lib/mocks/files";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +8,8 @@ import { Separator } from "@/components/ui/separator";
 import { ShardProgressBar, ShardStatus } from "@/components/dashboard/ShardProgressBar";
 import { ArrowLeft, Download, Trash2, Key, Share2 } from "lucide-react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 // Mock shard distribution for detail view
 const mockShards: ShardStatus[] = [
@@ -21,16 +22,43 @@ const mockShards: ShardStatus[] = [
 ];
 
 export default function FileDetailsPage({ params }: { params: Promise<{ id: string }> }) {
-  // CORRECT APPROACH for Next.js 15: params is a Promise, unlock it with React.use()
   const { id } = use(params); 
+  const router = useRouter();
   
   const file = mockFiles.find((f) => f.id === id);
 
   if (!file) {
-    // In a real app we'd trigger notFound(), 
-    // but for static export/mock consistency we might just show an error state
     return <div>File not found</div>;
   }
+
+  const handleDownload = () => {
+      toast.promise(
+          new Promise((resolve) => setTimeout(resolve, 2000)),
+          {
+              loading: "Reconstructing file from shards...",
+              success: "File downloaded successfully",
+              error: "Download failed"
+          }
+      );
+  };
+
+  const handleDelete = () => {
+      toast("Are you sure?", {
+          description: "This will permanently delete the file and all its shards.",
+          action: {
+              label: "Delete",
+              onClick: () => {
+                  toast.success("File deleted");
+                  router.push("/dashboard");
+              }
+          }
+      });
+  };
+  
+  const handleShare = () => {
+      navigator.clipboard.writeText(window.location.href);
+      toast.success("Link copied to clipboard");
+  };
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -42,11 +70,11 @@ export default function FileDetailsPage({ params }: { params: Promise<{ id: stri
         </Button>
         <h1 className="text-xl font-semibold truncate flex-1">{file.name}</h1>
         <div className="flex gap-2">
-            <Button variant="outline">
+            <Button variant="outline" onClick={handleDownload}>
                 <Download className="w-4 h-4 mr-2" />
                 Download
             </Button>
-            <Button variant="destructive">
+            <Button variant="destructive" onClick={handleDelete}>
                 <Trash2 className="w-4 h-4 mr-2" />
                 Delete
             </Button>
@@ -126,7 +154,7 @@ export default function FileDetailsPage({ params }: { params: Promise<{ id: stri
                  <CardTitle className="text-base">Actions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                 <Button variant="secondary" className="w-full justify-start">
+                 <Button variant="secondary" className="w-full justify-start" onClick={handleShare}>
                     <Share2 className="w-4 h-4 mr-2" />
                     Share File
                  </Button>

@@ -1,433 +1,804 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
 
-const App = () => {
-  const [isModalOpen, setIsModalOpen] = useState(true);
-  const [selectedNodes, setSelectedNodes] = useState(['AWS-US', 'GCP-GL', 'DBX-EU', 'ONE-US']);
-  const [encryptionStandard, setEncryptionStandard] = useState('AES-256-GCM (Standard)');
-  const [shardRedundancy, setShardRedundancy] = useState('9/6 (Standard Parity)');
-  const [privateKey, setPrivateKey] = useState('');
-  const [isDragging, setIsDragging] = useState(false);
+const customStyles = {
+  root: {
+    '--bg-canvas': '#FFFFFF',
+    '--bg-subtle': '#FAFAFA',
+    '--text-main': '#111111',
+    '--text-secondary': '#666666',
+    '--text-tertiary': '#999999',
+    '--accent-primary': '#004EEB',
+    '--accent-primary-hover': '#003CC5',
+    '--accent-secondary': '#FF8866',
+    '--border-color': '#E5E5E5',
+    '--grid-line': '#F5F5F5',
+    '--font-stack': "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+    '--font-mono': "'SF Mono', 'Roboto Mono', 'Menlo', monospace",
+    '--radius-sm': '2px',
+    '--radius-md': '4px',
+    '--space-unit': '8px'
+  },
+  body: {
+    backgroundColor: 'var(--bg-canvas)',
+    color: 'var(--text-main)',
+    fontFamily: 'var(--font-stack)',
+    WebkitFontSmoothing: 'antialiased',
+    lineHeight: '1.5',
+    height: '100vh',
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden'
+  },
+  gridBg: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    backgroundImage: 'linear-gradient(var(--grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--grid-line) 1px, transparent 1px)',
+    backgroundSize: '40px 40px',
+    zIndex: -1,
+    pointerEvents: 'none'
+  },
+  header: {
+    height: '64px',
+    borderBottom: '1px solid var(--border-color)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '0 24px',
+    background: 'var(--bg-canvas)',
+    zIndex: 10
+  },
+  brand: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    fontWeight: 600,
+    fontSize: '16px'
+  },
+  brandIcon: {
+    width: '24px',
+    height: '24px',
+    border: '1.5px solid var(--text-main)',
+    position: 'relative'
+  },
+  brandIconAfter: {
+    content: '""',
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    width: '8px',
+    height: '8px',
+    background: 'var(--accent-primary)'
+  },
+  main: {
+    flex: 1,
+    padding: '24px',
+    maxWidth: '1400px',
+    margin: '0 auto',
+    width: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '24px',
+    overflow: 'hidden'
+  },
+  pageHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end'
+  },
+  filtersBar: {
+    display: 'flex',
+    gap: '12px',
+    background: 'var(--bg-canvas)',
+    padding: '12px',
+    border: '1px solid var(--border-color)',
+    position: 'relative'
+  },
+  filterGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px'
+  },
+  inputMinimal: {
+    border: '1px solid var(--border-color)',
+    height: '32px',
+    padding: '0 8px',
+    fontSize: '13px',
+    fontFamily: 'var(--font-stack)',
+    background: 'var(--bg-subtle)',
+    outline: 'none'
+  },
+  nodesContainer: {
+    flex: 1,
+    overflowY: 'auto',
+    background: 'var(--bg-canvas)',
+    border: '1px solid var(--border-color)',
+    position: 'relative'
+  },
+  nodesTable: {
+    width: '100%',
+    borderCollapse: 'collapse',
+    textAlign: 'left'
+  },
+  tableHeader: {
+    position: 'sticky',
+    top: 0,
+    background: 'var(--bg-subtle)',
+    padding: '12px 20px',
+    borderBottom: '1px solid var(--border-color)',
+    zIndex: 5
+  },
+  tableCell: {
+    padding: '16px 20px',
+    borderBottom: '1px solid var(--grid-line)',
+    fontSize: '13px',
+    verticalAlign: 'middle'
+  },
+  statusPill: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    fontSize: '11px',
+    fontFamily: 'var(--font-mono)',
+    padding: '2px 8px',
+    background: 'var(--bg-subtle)',
+    border: '1px solid var(--border-color)',
+    borderRadius: '10px'
+  },
+  dot: {
+    width: '6px',
+    height: '6px',
+    borderRadius: '50%'
+  },
+  bandwidthMiniChart: {
+    width: '80px',
+    height: '16px',
+    display: 'flex',
+    alignItems: 'flex-end',
+    gap: '1px'
+  },
+  bar: {
+    flex: 1,
+    background: 'var(--accent-primary)',
+    opacity: 0.3
+  },
+  barActive: {
+    flex: 1,
+    background: 'var(--accent-primary)',
+    opacity: 0.8
+  }
+};
 
-  const nodes = ['AWS-US', 'GCP-GL', 'DBX-EU', 'B2-WEST', 'ONE-US', 'LOC-HUB', 'WAS-S3', 'AZR-VA'];
+const BrandIcon = () => (
+  <div style={customStyles.brandIcon}>
+    <div style={customStyles.brandIconAfter}></div>
+  </div>
+);
 
-  const toggleNode = (node) => {
-    if (selectedNodes.includes(node)) {
-      setSelectedNodes(selectedNodes.filter(n => n !== node));
-    } else {
-      setSelectedNodes([...selectedNodes, node]);
-    }
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = () => {
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-
-  const handleFileSelect = () => {
-    console.log('File browser opened');
-  };
-
-  const handleInitialize = () => {
-    console.log('Initializing sharding with:', {
-      encryptionStandard,
-      shardRedundancy,
-      selectedNodes,
-      privateKey
-    });
-  };
-
-  const customStyles = {
-    root: {
-      '--bg-canvas': '#FFFFFF',
-      '--bg-subtle': '#FAFAFA',
-      '--text-main': '#111111',
-      '--text-secondary': '#666666',
-      '--text-tertiary': '#999999',
-      '--accent-primary': '#004EEB',
-      '--accent-primary-hover': '#003CC5',
-      '--accent-secondary': '#FF8866',
-      '--border-color': '#E5E5E5',
-      '--grid-line': '#F5F5F5',
-      '--font-stack': "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-      '--font-mono': "'SF Mono', 'Roboto Mono', 'Menlo', monospace",
-      '--radius-sm': '2px',
-      '--radius-md': '4px'
-    },
-    body: {
-      backgroundColor: 'var(--bg-canvas)',
-      color: 'var(--text-main)',
-      fontFamily: 'var(--font-stack)',
-      WebkitFontSmoothing: 'antialiased',
-      height: '100vh',
-      display: 'flex',
-      flexDirection: 'column',
-      overflow: 'hidden',
-      margin: 0,
-      padding: 0
-    },
-    gridBg: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      width: '100%',
-      height: '100%',
-      backgroundImage: 'linear-gradient(var(--grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--grid-line) 1px, transparent 1px)',
-      backgroundSize: '40px 40px',
-      zIndex: -1,
-      pointerEvents: 'none'
-    },
-    header: {
-      height: '64px',
-      borderBottom: '1px solid var(--border-color)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: '0 24px',
-      background: 'var(--bg-canvas)',
-      zIndex: 10
-    },
-    brand: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '12px',
-      fontWeight: 600
-    },
-    brandIcon: {
-      width: '24px',
-      height: '24px',
-      border: '1.5px solid var(--text-main)',
-      position: 'relative'
-    },
-    brandIconAfter: {
-      position: 'absolute',
-      top: '50%',
-      left: '50%',
-      transform: 'translate(-50%, -50%)',
-      width: '8px',
-      height: '8px',
-      background: 'var(--accent-primary)'
-    },
-    nav: {
-      display: 'flex',
-      alignItems: 'center'
-    },
-    navLink: {
-      color: 'var(--text-secondary)',
-      textDecoration: 'none',
-      fontSize: '14px',
-      marginLeft: '24px'
-    },
-    main: {
-      flex: 1,
-      padding: '24px',
-      display: 'grid',
-      gridTemplateColumns: '280px 1fr 320px',
-      gap: '24px',
-      filter: isModalOpen ? 'blur(4px)' : 'none',
-      pointerEvents: isModalOpen ? 'none' : 'auto'
-    },
-    card: {
-      background: 'var(--bg-canvas)',
-      border: '1px solid var(--border-color)',
-      padding: '20px',
-      position: 'relative'
-    },
-    labelMono: {
-      fontFamily: 'var(--font-mono)',
-      fontSize: '11px',
-      textTransform: 'uppercase',
-      letterSpacing: '0.05em',
-      color: 'var(--text-secondary)'
-    },
-    modalOverlay: {
-      position: 'fixed',
-      inset: 0,
-      background: 'rgba(255, 255, 255, 0.85)',
-      backdropFilter: 'blur(2px)',
-      display: isModalOpen ? 'flex' : 'none',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 100
-    },
-    modal: {
-      width: '640px',
-      background: 'var(--bg-canvas)',
-      border: '1px solid var(--text-main)',
-      boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
-      position: 'relative',
-      animation: 'modalAppear 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
-    },
-    modalHeader: {
-      padding: '24px',
-      borderBottom: '1px solid var(--border-color)',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center'
-    },
-    modalBody: {
-      padding: '24px'
-    },
-    dropZone: {
-      border: isDragging ? '1px dashed var(--accent-primary)' : '1px dashed var(--border-color)',
-      background: isDragging ? 'rgba(0, 78, 235, 0.02)' : 'var(--bg-subtle)',
-      padding: '40px',
-      textAlign: 'center',
-      marginBottom: '24px',
-      transition: 'all 0.2s',
-      cursor: 'pointer'
-    },
-    configGrid: {
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
-      gap: '24px',
-      marginBottom: '24px'
-    },
-    configItem: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '8px'
-    },
-    select: {
-      height: '36px',
-      border: '1px solid var(--border-color)',
-      padding: '0 12px',
-      fontFamily: 'var(--font-stack)',
-      fontSize: '13px',
-      borderRadius: 'var(--radius-sm)',
-      background: 'white',
-      outline: 'none'
-    },
-    input: {
-      height: '36px',
-      border: '1px solid var(--border-color)',
-      padding: '0 12px',
-      fontFamily: 'var(--font-stack)',
-      fontSize: '13px',
-      borderRadius: 'var(--radius-sm)',
-      background: 'white',
-      outline: 'none'
-    },
-    distributionSelector: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(4, 1fr)',
-      gap: '8px',
-      marginTop: '4px'
-    },
-    distNode: {
-      border: '1px solid var(--border-color)',
-      padding: '8px',
-      fontSize: '10px',
-      textAlign: 'center',
-      fontFamily: 'var(--font-mono)',
-      cursor: 'pointer'
-    },
-    distNodeActive: {
-      borderColor: 'var(--accent-primary)',
-      background: 'rgba(0, 78, 235, 0.05)',
-      color: 'var(--accent-primary)'
-    },
-    modalFooter: {
-      padding: '20px 24px',
-      borderTop: '1px solid var(--border-color)',
-      display: 'flex',
-      justifyContent: 'flex-end',
-      gap: '12px',
-      background: 'var(--bg-subtle)'
-    },
-    btn: {
-      display: 'inline-flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '0 20px',
-      height: '40px',
-      fontSize: '14px',
-      fontWeight: 500,
-      cursor: 'pointer',
-      borderRadius: 'var(--radius-sm)',
-      textDecoration: 'none',
-      transition: 'all 0.2s'
-    },
-    btnPrimary: {
-      background: 'var(--accent-primary)',
-      color: 'white',
-      border: 'none'
-    },
-    btnGhost: {
-      background: 'transparent',
-      border: '1px solid transparent',
-      color: 'var(--text-secondary)'
-    },
-    limitTag: {
-      fontSize: '11px',
-      color: 'var(--text-tertiary)',
-      marginTop: '8px'
-    },
-    cornerMark: {
-      position: 'absolute',
-      width: '8px',
-      height: '8px',
-      borderColor: 'var(--text-main)',
-      borderStyle: 'solid',
-      pointerEvents: 'none'
-    }
-  };
+const Header = () => {
+  const navigate = useNavigate();
 
   return (
-    <div style={customStyles.root}>
-      <style>{`
-        @keyframes modalAppear {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
-      <div style={customStyles.body}>
-        <div style={customStyles.gridBg}></div>
+    <header style={customStyles.header}>
+      <div style={customStyles.brand}>
+        <BrandIcon />
+        <span>ZERO-STORE</span>
+      </div>
+      <nav style={{ display: 'flex', alignItems: 'center' }}>
+        <Link
+          to="/"
+          style={{
+            color: 'var(--text-secondary)',
+            textDecoration: 'none',
+            fontSize: '14px',
+            marginLeft: '24px',
+            transition: 'color 0.2s'
+          }}
+        >
+          Dashboard
+        </Link>
+        <Link
+          to="/nodes"
+          style={{
+            color: 'var(--text-main)',
+            textDecoration: 'none',
+            fontSize: '14px',
+            marginLeft: '24px',
+            transition: 'color 0.2s'
+          }}
+        >
+          Nodes
+        </Link>
+        <Link
+          to="/settings"
+          style={{
+            color: 'var(--text-secondary)',
+            textDecoration: 'none',
+            fontSize: '14px',
+            marginLeft: '24px',
+            transition: 'color 0.2s'
+          }}
+        >
+          Settings
+        </Link>
+        <Link
+          to="/api"
+          style={{
+            color: 'var(--text-secondary)',
+            textDecoration: 'none',
+            fontSize: '14px',
+            marginLeft: '24px',
+            transition: 'color 0.2s'
+          }}
+        >
+          API
+        </Link>
+      </nav>
+      <div style={{ display: 'flex', gap: '12px' }}>
+        <button
+          onClick={() => navigate('/register-node')}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '0 20px',
+            height: '40px',
+            fontSize: '14px',
+            fontWeight: 500,
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            borderRadius: 'var(--radius-sm)',
+            backgroundColor: 'var(--accent-primary)',
+            color: 'white',
+            border: 'none'
+          }}
+        >
+          Register Node
+        </button>
+      </div>
+    </header>
+  );
+};
 
-        <header style={customStyles.header}>
-          <div style={customStyles.brand}>
-            <div style={customStyles.brandIcon}>
-              <div style={customStyles.brandIconAfter}></div>
-            </div>
-            <span>ZERO-STORE</span>
-          </div>
-          <nav style={customStyles.nav}>
-            <a href="#" style={{...customStyles.navLink, color: 'var(--text-main)'}}>Dashboard</a>
-            <a href="#" style={customStyles.navLink}>Nodes</a>
-            <a href="#" style={customStyles.navLink}>Settings</a>
-            <a href="#" style={customStyles.navLink}>API</a>
-          </nav>
-          <button 
-            style={{...customStyles.btn, ...customStyles.btnPrimary}}
-            onClick={() => setIsModalOpen(true)}
+const CardInnerMarks = () => (
+  <div style={{ position: 'absolute', width: '100%', height: '100%', pointerEvents: 'none' }}>
+    <div style={{
+      position: 'absolute',
+      top: '-1px',
+      left: '-1px',
+      width: '6px',
+      height: '6px',
+      borderTop: '1px solid var(--text-tertiary)',
+      borderLeft: '1px solid var(--text-tertiary)',
+      opacity: 0.5
+    }}></div>
+    <div style={{
+      position: 'absolute',
+      top: '-1px',
+      right: '-1px',
+      width: '6px',
+      height: '6px',
+      borderTop: '1px solid var(--text-tertiary)',
+      borderRight: '1px solid var(--text-tertiary)',
+      opacity: 0.5
+    }}></div>
+  </div>
+);
+
+const CardBottomMarks = () => (
+  <div style={{ position: 'absolute', width: '100%', height: '100%', pointerEvents: 'none' }}>
+    <div style={{
+      position: 'absolute',
+      bottom: '-1px',
+      left: '-1px',
+      width: '6px',
+      height: '6px',
+      borderBottom: '1px solid var(--text-tertiary)',
+      borderLeft: '1px solid var(--text-tertiary)',
+      opacity: 0.5
+    }}></div>
+    <div style={{
+      position: 'absolute',
+      bottom: '-1px',
+      right: '-1px',
+      width: '6px',
+      height: '6px',
+      borderBottom: '1px solid var(--text-tertiary)',
+      borderRight: '1px solid var(--text-tertiary)',
+      opacity: 0.5
+    }}></div>
+  </div>
+);
+
+const BandwidthChart = ({ bars }) => (
+  <div style={customStyles.bandwidthMiniChart}>
+    {bars.map((bar, index) => (
+      <div
+        key={index}
+        style={{
+          ...(bar.active ? customStyles.barActive : customStyles.bar),
+          height: bar.height
+        }}
+      ></div>
+    ))}
+  </div>
+);
+
+const StatusPill = ({ status, dotColor }) => (
+  <div style={customStyles.statusPill}>
+    <div style={{ ...customStyles.dot, background: dotColor }}></div>
+    {status}
+  </div>
+);
+
+const NodesPage = () => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All Nodes');
+  const [regionFilter, setRegionFilter] = useState('Global');
+  const [currentPage, setCurrentPage] = useState(2);
+
+  const nodes = [
+    {
+      id: 'nd-7721-fx',
+      status: 'ONLINE',
+      dotColor: '#10B981',
+      location: 'San Jose, US',
+      ip: '192.168.1.42',
+      uptime: '99.98%',
+      bandwidth: '125 / 84 Mbps',
+      capacity: '1.2 TB',
+      capacityPercent: '85%',
+      bars: [
+        { height: '40%', active: false },
+        { height: '60%', active: true },
+        { height: '90%', active: true },
+        { height: '70%', active: true },
+        { height: '30%', active: false }
+      ]
+    },
+    {
+      id: 'nd-0922-zk',
+      status: 'SYNCING',
+      dotColor: '#004EEB',
+      location: 'Frankfurt, DE',
+      ip: '45.12.88.19',
+      uptime: '94.12%',
+      bandwidth: '412 / 210 Mbps',
+      capacity: '512 GB',
+      capacityPercent: '12%',
+      bars: [
+        { height: '20%', active: true },
+        { height: '40%', active: true },
+        { height: '30%', active: true },
+        { height: '50%', active: true },
+        { height: '80%', active: true }
+      ]
+    },
+    {
+      id: 'nd-4410-rt',
+      status: 'ONLINE',
+      dotColor: '#10B981',
+      location: 'Tokyo, JP',
+      ip: '102.14.5.21',
+      uptime: '99.99%',
+      bandwidth: '88 / 42 Mbps',
+      capacity: '2.0 TB',
+      capacityPercent: '44%',
+      bars: [
+        { height: '20%', active: false },
+        { height: '20%', active: false },
+        { height: '40%', active: true },
+        { height: '30%', active: false },
+        { height: '10%', active: false }
+      ]
+    },
+    {
+      id: 'nd-1182-pp',
+      status: 'OFFLINE',
+      dotColor: '#EF4444',
+      location: 'London, UK',
+      ip: '81.4.22.1',
+      uptime: '82.44%',
+      bandwidth: '0 / 0 Mbps',
+      capacity: '1.0 TB',
+      capacityPercent: '100%',
+      bars: [
+        { height: '5%', active: false },
+        { height: '5%', active: false },
+        { height: '5%', active: false },
+        { height: '5%', active: false },
+        { height: '5%', active: false }
+      ]
+    },
+    {
+      id: 'nd-6601-sq',
+      status: 'ONLINE',
+      dotColor: '#10B981',
+      location: 'Sydney, AU',
+      ip: '203.4.1.99',
+      uptime: '99.95%',
+      bandwidth: '55 / 22 Mbps',
+      capacity: '4.0 TB',
+      capacityPercent: '12%',
+      bars: [
+        { height: '50%', active: true },
+        { height: '50%', active: true },
+        { height: '60%', active: true },
+        { height: '40%', active: true },
+        { height: '30%', active: true }
+      ]
+    },
+    {
+      id: 'nd-3290-bc',
+      status: 'ONLINE',
+      dotColor: '#10B981',
+      location: 'Singapore, SG',
+      ip: '175.22.3.4',
+      uptime: '99.90%',
+      bandwidth: '210 / 190 Mbps',
+      capacity: '2.5 TB',
+      capacityPercent: '98%',
+      bars: [
+        { height: '80%', active: true },
+        { height: '85%', active: true },
+        { height: '90%', active: true },
+        { height: '85%', active: true },
+        { height: '80%', active: true }
+      ]
+    }
+  ];
+
+  return (
+    <main style={customStyles.main}>
+      <div style={customStyles.pageHeader}>
+        <div>
+          <h1 style={{ fontSize: '24px' }}>Network Nodes</h1>
+          <p
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '11px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              color: 'var(--text-secondary)',
+              marginTop: '4px'
+            }}
           >
-            Upload File
-          </button>
-        </header>
+            142 Active Nodes / 2,408 Total Shards
+          </p>
+        </div>
 
-        <main style={customStyles.main}>
-          <section style={customStyles.card}>
-            <div style={customStyles.labelMono}>Storage Used</div>
-            <div style={{fontSize: '32px', fontWeight: 600}}>4.2TB</div>
-          </section>
-          <div style={customStyles.card}>
-            <div style={customStyles.labelMono}>Providers</div>
-            <div style={{height: '200px', border: '1px solid var(--border-color)', marginTop: '10px'}}></div>
+        <div style={customStyles.filtersBar}>
+          <CardInnerMarks />
+          <div style={customStyles.filterGroup}>
+            <span
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '9px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                color: 'var(--text-secondary)'
+              }}
+            >
+              Search
+            </span>
+            <input
+              type="text"
+              style={{ ...customStyles.inputMinimal, width: '180px' }}
+              placeholder="Node ID or IP..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
-          <section style={customStyles.card}>
-            <div style={customStyles.labelMono}>System Health</div>
-          </section>
-        </main>
-
-        <div style={customStyles.modalOverlay}>
-          <div style={customStyles.modal}>
-            <div style={{...customStyles.cornerMark, top: '-1px', left: '-1px', borderWidth: '1px 0 0 1px'}}></div>
-            <div style={{...customStyles.cornerMark, top: '-1px', right: '-1px', borderWidth: '1px 1px 0 0'}}></div>
-            <div style={{...customStyles.cornerMark, bottom: '-1px', left: '-1px', borderWidth: '0 0 1px 1px'}}></div>
-            <div style={{...customStyles.cornerMark, bottom: '-1px', right: '-1px', borderWidth: '0 1px 1px 0'}}></div>
-            
-            <div style={customStyles.modalHeader}>
-              <h2 style={{fontSize: '18px', fontWeight: 600}}>New File Upload</h2>
-              <div style={{...customStyles.labelMono, color: 'var(--accent-primary)'}}>Secure Session</div>
-            </div>
-
-            <div style={customStyles.modalBody}>
-              <div 
-                style={customStyles.dropZone}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onClick={handleFileSelect}
-              >
-                <div style={{...customStyles.labelMono, marginBottom: '8px', color: 'var(--accent-primary)'}}>Drag & Drop</div>
-                <div style={{fontSize: '14px', color: 'var(--text-main)'}}>Click to browse or drop files here</div>
-                <div style={customStyles.limitTag}>Maximum single file size: 2.0 GB</div>
-              </div>
-
-              <div style={customStyles.configGrid}>
-                <div style={customStyles.configItem}>
-                  <label style={customStyles.labelMono}>Encryption Standard</label>
-                  <select 
-                    style={customStyles.select}
-                    value={encryptionStandard}
-                    onChange={(e) => setEncryptionStandard(e.target.value)}
-                  >
-                    <option>AES-256-GCM (Standard)</option>
-                    <option>ChaCha20-Poly1305</option>
-                    <option>RSA-4096 (Vault only)</option>
-                  </select>
-                </div>
-                <div style={customStyles.configItem}>
-                  <label style={customStyles.labelMono}>Shard Redundancy</label>
-                  <select 
-                    style={customStyles.select}
-                    value={shardRedundancy}
-                    onChange={(e) => setShardRedundancy(e.target.value)}
-                  >
-                    <option>9/6 (Standard Parity)</option>
-                    <option>12/8 (High Availability)</option>
-                    <option>4/2 (Low Latency)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div style={{...customStyles.configItem, marginBottom: '24px'}}>
-                <label style={customStyles.labelMono}>Preferred Distribution</label>
-                <div style={customStyles.distributionSelector}>
-                  {nodes.map((node) => (
-                    <div 
-                      key={node}
-                      style={{
-                        ...customStyles.distNode,
-                        ...(selectedNodes.includes(node) ? customStyles.distNodeActive : {})
-                      }}
-                      onClick={() => toggleNode(node)}
-                    >
-                      {node}
-                    </div>
-                  ))}
-                </div>
-                <div style={customStyles.limitTag}>Minimum 4 providers required for selected redundancy.</div>
-              </div>
-
-              <div style={customStyles.configItem}>
-                <label style={customStyles.labelMono}>Private Access Key (Optional)</label>
-                <input 
-                  type="password" 
-                  placeholder="Leave blank for auto-generated key"
-                  style={customStyles.input}
-                  value={privateKey}
-                  onChange={(e) => setPrivateKey(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div style={customStyles.modalFooter}>
-              <button 
-                style={{...customStyles.btn, ...customStyles.btnGhost}}
-                onClick={() => setIsModalOpen(false)}
-              >
-                Cancel
-              </button>
-              <button 
-                style={{...customStyles.btn, ...customStyles.btnPrimary, padding: '0 32px'}}
-                onClick={handleInitialize}
-              >
-                Initialize Sharding
-              </button>
-            </div>
+          <div style={customStyles.filterGroup}>
+            <span
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '9px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                color: 'var(--text-secondary)'
+              }}
+            >
+              Status
+            </span>
+            <select
+              style={customStyles.inputMinimal}
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option>All Nodes</option>
+              <option>Online</option>
+              <option>Syncing</option>
+              <option>Offline</option>
+            </select>
+          </div>
+          <div style={customStyles.filterGroup}>
+            <span
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '9px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                color: 'var(--text-secondary)'
+              }}
+            >
+              Region
+            </span>
+            <select
+              style={customStyles.inputMinimal}
+              value={regionFilter}
+              onChange={(e) => setRegionFilter(e.target.value)}
+            >
+              <option>Global</option>
+              <option>North America</option>
+              <option>Europe</option>
+              <option>Asia Pacific</option>
+            </select>
           </div>
         </div>
       </div>
-    </div>
+
+      <div style={customStyles.nodesContainer}>
+        <CardInnerMarks />
+        <CardBottomMarks />
+        <table style={customStyles.nodesTable}>
+          <thead>
+            <tr>
+              <th
+                style={{
+                  ...customStyles.tableHeader,
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '11px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  color: 'var(--text-secondary)'
+                }}
+              >
+                Node ID
+              </th>
+              <th
+                style={{
+                  ...customStyles.tableHeader,
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '11px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  color: 'var(--text-secondary)'
+                }}
+              >
+                Status
+              </th>
+              <th
+                style={{
+                  ...customStyles.tableHeader,
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '11px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  color: 'var(--text-secondary)'
+                }}
+              >
+                Geolocation
+              </th>
+              <th
+                style={{
+                  ...customStyles.tableHeader,
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '11px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  color: 'var(--text-secondary)'
+                }}
+              >
+                Uptime
+              </th>
+              <th
+                style={{
+                  ...customStyles.tableHeader,
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '11px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  color: 'var(--text-secondary)'
+                }}
+              >
+                Bandwidth (Up/Down)
+              </th>
+              <th
+                style={{
+                  ...customStyles.tableHeader,
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '11px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  color: 'var(--text-secondary)'
+                }}
+              >
+                Capacity
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {nodes.map((node) => (
+              <tr
+                key={node.id}
+                style={{ transition: 'background 0.2s' }}
+                onMouseEnter={(e) => {
+                  const cells = e.currentTarget.querySelectorAll('td');
+                  cells.forEach((cell) => {
+                    cell.style.background = 'var(--bg-subtle)';
+                  });
+                }}
+                onMouseLeave={(e) => {
+                  const cells = e.currentTarget.querySelectorAll('td');
+                  cells.forEach((cell) => {
+                    cell.style.background = '';
+                  });
+                }}
+              >
+                <td
+                  style={{
+                    ...customStyles.tableCell,
+                    fontFamily: 'var(--font-mono)',
+                    color: 'var(--text-main)',
+                    fontWeight: 500
+                  }}
+                >
+                  {node.id}
+                </td>
+                <td style={customStyles.tableCell}>
+                  <StatusPill status={node.status} dotColor={node.dotColor} />
+                </td>
+                <td style={customStyles.tableCell}>
+                  {node.location}{' '}
+                  <span
+                    style={{
+                      color: 'var(--text-tertiary)',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '11px'
+                    }}
+                  >
+                    {node.ip}
+                  </span>
+                </td>
+                <td style={{ ...customStyles.tableCell, fontFamily: 'var(--font-mono)' }}>
+                  {node.uptime}
+                </td>
+                <td style={customStyles.tableCell}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span style={{ fontFamily: 'var(--font-mono)' }}>{node.bandwidth}</span>
+                    <BandwidthChart bars={node.bars} />
+                  </div>
+                </td>
+                <td style={{ ...customStyles.tableCell, fontFamily: 'var(--font-mono)' }}>
+                  {node.capacity}{' '}
+                  <span style={{ color: 'var(--text-tertiary)' }}>({node.capacityPercent})</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
+        <button
+          onClick={() => setCurrentPage(1)}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '32px',
+            width: '32px',
+            padding: 0,
+            fontSize: '14px',
+            fontWeight: 500,
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            borderRadius: 'var(--radius-sm)',
+            background: 'transparent',
+            border: '1px solid var(--border-color)',
+            color: 'var(--text-main)'
+          }}
+        >
+          1
+        </button>
+        <button
+          onClick={() => setCurrentPage(2)}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '32px',
+            width: '32px',
+            padding: 0,
+            fontSize: '14px',
+            fontWeight: 500,
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            borderRadius: 'var(--radius-sm)',
+            background: 'transparent',
+            border: '1px solid var(--accent-primary)',
+            color: 'var(--accent-primary)'
+          }}
+        >
+          2
+        </button>
+        <button
+          onClick={() => setCurrentPage(3)}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '32px',
+            width: '32px',
+            padding: 0,
+            fontSize: '14px',
+            fontWeight: 500,
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            borderRadius: 'var(--radius-sm)',
+            background: 'transparent',
+            border: '1px solid var(--border-color)',
+            color: 'var(--text-main)'
+          }}
+        >
+          3
+        </button>
+        <span
+          style={{
+            display: 'flex',
+            alignItems: 'flex-end',
+            padding: '0 4px',
+            color: 'var(--text-tertiary)'
+          }}
+        >
+          ...
+        </span>
+        <button
+          onClick={() => setCurrentPage(24)}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '32px',
+            width: '32px',
+            padding: 0,
+            fontSize: '14px',
+            fontWeight: 500,
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            borderRadius: 'var(--radius-sm)',
+            background: 'transparent',
+            border: '1px solid var(--border-color)',
+            color: 'var(--text-main)'
+          }}
+        >
+          24
+        </button>
+      </div>
+    </main>
+  );
+};
+
+const App = () => {
+  return (
+    <Router basename="/">
+      <div style={{ ...customStyles.root, ...customStyles.body }}>
+        <div style={customStyles.gridBg}></div>
+        <Header />
+        <Routes>
+          <Route path="/" element={<NodesPage />} />
+          <Route path="/nodes" element={<NodesPage />} />
+          <Route path="/settings" element={<NodesPage />} />
+          <Route path="/api" element={<NodesPage />} />
+          <Route path="/register-node" element={<NodesPage />} />
+        </Routes>
+      </div>
+    </Router>
   );
 };
 

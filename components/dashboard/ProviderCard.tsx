@@ -1,11 +1,10 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Cloud, Check, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
+import { Cloud, Check, Loader2, AlertTriangle, RefreshCw, HardDrive } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DashboardCard } from "../dashboard/DashboardCard";
 
-interface ProviderCardProps {
+export interface ProviderCardProps {
   id: string;
   name: string;
   status: "connected" | "disconnected" | "error";
@@ -32,79 +31,91 @@ export function ProviderCard({
   onRefresh,
 }: ProviderCardProps) {
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium flex items-center gap-2">
-          <Cloud className="w-4 h-4" />
-          {name}
-        </CardTitle>
+    <DashboardCard className="p-0 border-border-color bg-bg-canvas">
+      <div className="p-4 border-b border-border-color flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-bg-subtle rounded-[2px] flex items-center justify-center border border-border-color">
+             <Cloud className="w-4 h-4 text-text-secondary" />
+          </div>
+          <span className="font-semibold text-sm tracking-tight">{name}</span>
+        </div>
         <StatusBadge status={status} />
-      </CardHeader>
-      <CardContent>
+      </div>
+
+      <div className="p-4">
         {status === "connected" ? (
           <div className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>Storage Used</span>
-                <span>{used} / {total}</span>
+            <div>
+              <div className="flex justify-between text-[11px] uppercase tracking-wider text-text-secondary mb-2 font-mono">
+                <span>Usage</span>
+                <span>{percentage}%</span>
               </div>
-              <Progress value={percentage} className="h-2" />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="p-2 bg-muted rounded-md text-center">
-                <div className="font-semibold text-foreground">{shardCount}</div>
-                <div className="text-muted-foreground">Shards</div>
+              <div className="h-1 bg-bg-subtle overflow-hidden rounded-full">
+                <div 
+                   className="h-full bg-accent-primary transition-all duration-500" 
+                   style={{ width: `${percentage}%` }}
+                />
               </div>
-              <div className="p-2 bg-muted rounded-md text-center">
-                <div className="font-semibold text-foreground">Health</div>
-                <div className="text-muted-foreground">{lastCheck}</div>
+              <div className="flex justify-between text-xs text-text-secondary mt-1.5">
+                <span>{used} Used</span>
+                <span>{total} Total</span>
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-px bg-border-color border border-border-color rounded-[2px] overflow-hidden">
+               <div className="bg-bg-subtle/30 p-2 text-center">
+                  <div className="text-lg font-medium leading-none mb-1">{shardCount}</div>
+                  <div className="text-[10px] text-text-secondary uppercase tracking-wider">Shards</div>
+               </div>
+               <div className="bg-bg-subtle/30 p-2 text-center">
+                  <div className="text-lg font-medium leading-none mb-1">{lastCheck}</div>
+                  <div className="text-[10px] text-text-secondary uppercase tracking-wider">Ping</div>
+               </div>
+            </div>
+
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="flex-1" onClick={onDisconnect}>
+              <Button variant="outline" size="sm" className="flex-1 h-8 text-xs border-border-color text-text-main hover:bg-bg-subtle" onClick={onDisconnect}>
                 Disconnect
               </Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onRefresh}>
-                <RefreshCw className="w-4 h-4" />
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-text-secondary hover:text-text-main" onClick={onRefresh}>
+                <RefreshCw className="w-3.5 h-3.5" />
               </Button>
             </div>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-6 gap-3">
-             <p className="text-sm text-muted-foreground text-center">
-                Connect your account to enable redundancy
+          <div className="py-2 text-center">
+             <p className="text-xs text-text-secondary mb-4 leading-relaxed">
+                Connect your {name} account to list it as an available node.
              </p>
-             <Button size="sm" onClick={onConnect}>
-                Connect {name}
+             <Button size="sm" className="w-full h-8 bg-text-main text-bg-canvas hover:bg-text-main/90" onClick={onConnect}>
+                Connect Provider
              </Button>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </DashboardCard>
   );
 }
 
 function StatusBadge({ status }: { status: ProviderCardProps["status"] }) {
   const styles = {
-    connected: "bg-primary/10 text-primary hover:bg-primary/20",
-    disconnected: "bg-muted text-muted-foreground hover:bg-muted/80",
-    error: "bg-destructive/10 text-destructive hover:bg-destructive/20",
+    connected: "text-emerald-600 bg-emerald-50 border-emerald-200",
+    disconnected: "text-text-tertiary bg-bg-subtle border-border-color",
+    error: "text-red-600 bg-red-50 border-red-200",
   };
 
   const icons = {
     connected: Check,
-    disconnected: Loader2, // Or a plug icon
+    disconnected: HardDrive, 
     error: AlertTriangle,
   };
 
   const Icon = icons[status];
 
   return (
-    <Badge variant="outline" className={cn("gap-1.5", styles[status])}>
+    <div className={cn("inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[2px] border text-[10px] font-medium uppercase tracking-wide", styles[status])}>
       <Icon className="w-3 h-3" />
-      <span className="capitalize">{status}</span>
-    </Badge>
+      <span>{status}</span>
+    </div>
   );
 }

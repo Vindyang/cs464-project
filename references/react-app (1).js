@@ -1,435 +1,438 @@
-import React, { useState } from 'react';
-
-const customStyles = {
-  root: {
-    '--bg-canvas': '#FFFFFF',
-    '--bg-subtle': '#FAFAFA',
-    '--text-main': '#111111',
-    '--text-secondary': '#666666',
-    '--text-tertiary': '#999999',
-    '--accent-primary': '#004EEB',
-    '--accent-primary-hover': '#003CC5',
-    '--border-color': '#E5E5E5',
-    '--grid-line': '#F5F5F5',
-    '--font-stack': "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-    '--font-mono': "'SF Mono', 'Roboto Mono', 'Menlo', monospace",
-    '--radius-sm': '2px',
-    '--radius-md': '4px'
-  },
-  gridBg: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: '100%',
-    backgroundImage: 'linear-gradient(var(--grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--grid-line) 1px, transparent 1px)',
-    backgroundSize: '40px 40px',
-    zIndex: -1,
-    pointerEvents: 'none'
-  },
-  brandIcon: {
-    width: '24px',
-    height: '24px',
-    border: '1.5px solid var(--text-main)',
-    position: 'relative'
-  },
-  brandIconAfter: {
-    content: '""',
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
-    width: '8px',
-    height: '8px',
-    background: 'var(--accent-primary)'
-  },
-  cardBefore: {
-    content: '""',
-    position: 'absolute',
-    width: '6px',
-    height: '6px',
-    borderColor: 'var(--text-tertiary)',
-    borderStyle: 'solid',
-    pointerEvents: 'none',
-    opacity: 0.5,
-    top: '-1px',
-    left: '-1px',
-    borderWidth: '1px 0 0 1px'
-  },
-  cardAfter: {
-    content: '""',
-    position: 'absolute',
-    width: '6px',
-    height: '6px',
-    borderColor: 'var(--text-tertiary)',
-    borderStyle: 'solid',
-    pointerEvents: 'none',
-    opacity: 0.5,
-    top: '-1px',
-    right: '-1px',
-    borderWidth: '1px 1px 0 0'
-  }
-};
-
-const BrandIcon = () => (
-  <div style={customStyles.brandIcon}>
-    <div style={customStyles.brandIconAfter}></div>
-  </div>
-);
-
-const Header = ({ activeNav, onNavClick }) => (
-  <header style={{
-    height: '64px',
-    borderBottom: '1px solid var(--border-color)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '0 24px',
-    background: 'var(--bg-canvas)',
-    zIndex: 10
-  }}>
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: '12px',
-      fontWeight: 600,
-      fontSize: '16px'
-    }}>
-      <BrandIcon />
-      <span>ZERO-STORE</span>
-    </div>
-    <nav>
-      {['Dashboard', 'Nodes', 'Settings', 'API'].map((item) => (
-        <a
-          key={item}
-          href="#"
-          onClick={(e) => {
-            e.preventDefault();
-            onNavClick(item);
-          }}
-          style={{
-            color: activeNav === item ? 'var(--text-main)' : 'var(--text-secondary)',
-            textDecoration: 'none',
-            fontSize: '14px',
-            marginLeft: '24px',
-            fontWeight: activeNav === item ? 600 : 400
-          }}
-        >
-          {item}
-        </a>
-      ))}
-    </nav>
-    <div>
-      <a
-        href="#"
-        onClick={(e) => e.preventDefault()}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '0 20px',
-          height: '40px',
-          fontSize: '14px',
-          fontWeight: 500,
-          cursor: 'pointer',
-          transition: 'all 0.2s',
-          borderRadius: 'var(--radius-sm)',
-          textDecoration: 'none',
-          background: 'transparent',
-          border: '1px solid var(--border-color)',
-          color: 'var(--text-main)'
-        }}
-      >
-        Documentation
-      </a>
-    </div>
-  </header>
-);
-
-const StepItem = ({ number, title, description }) => (
-  <div style={{
-    display: 'flex',
-    gap: '16px',
-    marginBottom: '24px'
-  }}>
-    <div style={{
-      width: '24px',
-      height: '24px',
-      border: '1px solid var(--border-color)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontFamily: 'var(--font-mono)',
-      fontSize: '12px',
-      flexShrink: 0,
-      background: 'var(--bg-subtle)'
-    }}>
-      {number}
-    </div>
-    <div>
-      <h4 style={{
-        fontSize: '14px',
-        fontWeight: 600,
-        marginBottom: '4px'
-      }}>
-        {title}
-      </h4>
-      <p style={{
-        fontSize: '13px',
-        color: 'var(--text-secondary)'
-      }}>
-        {description}
-      </p>
-    </div>
-  </div>
-);
-
-const Card = ({ children, style = {} }) => (
-  <section style={{
-    background: 'var(--bg-canvas)',
-    border: '1px solid var(--border-color)',
-    padding: '32px',
-    position: 'relative',
-    ...style
-  }}>
-    <div style={customStyles.cardBefore}></div>
-    <div style={customStyles.cardAfter}></div>
-    {children}
-  </section>
-);
-
-const ProviderButton = ({ logo, name, onClick }) => {
-  const [isHovered, setIsHovered] = useState(false);
-
-  return (
-    <a
-      href="#"
-      onClick={(e) => {
-        e.preventDefault();
-        onClick(name);
-      }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      style={{
-        border: `1px solid ${isHovered ? 'var(--accent-primary)' : 'var(--border-color)'}`,
-        padding: '16px',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: '8px',
-        textDecoration: 'none',
-        color: 'var(--text-main)',
-        fontSize: '12px',
-        fontWeight: 500,
-        transition: 'all 0.2s',
-        background: isHovered ? 'white' : 'var(--bg-subtle)'
-      }}
-    >
-      <div style={{
-        width: '32px',
-        height: '32px',
-        background: 'white',
-        border: '1px solid var(--border-color)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontWeight: 700,
-        fontSize: '10px'
-      }}>
-        {logo}
-      </div>
-      {name}
-    </a>
-  );
-};
-
-const HomePage = () => {
-  const [selectedProvider, setSelectedProvider] = useState(null);
-
-  const providers = [
-    { logo: 'AWS', name: 'Amazon S3' },
-    { logo: 'GCP', name: 'Google Drive' },
-    { logo: 'DBX', name: 'Dropbox' },
-    { logo: 'B2', name: 'Backblaze B2' },
-    { logo: 'MS', name: 'Azure Blob' },
-    { logo: 'S3', name: 'Custom S3' }
-  ];
-
-  const handleProviderClick = (provider) => {
-    setSelectedProvider(provider);
-  };
-
-  const handleConnectProvider = () => {
-    if (selectedProvider) {
-      alert(`Connecting to ${selectedProvider}...`);
-    } else {
-      alert('Please select a provider first');
-    }
-  };
-
-  return (
-    <main style={{
-      flex: 1,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '40px'
-    }}>
-      <div style={{
-        width: '100%',
-        maxWidth: '840px',
-        display: 'grid',
-        gridTemplateColumns: '1.2fr 1fr',
-        gap: '24px'
-      }}>
-        <Card>
-          <span style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: '11px',
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            color: 'var(--text-secondary)',
-            marginBottom: '16px',
-            display: 'block'
-          }}>
-            Getting Started
-          </span>
-          <h1 style={{
-            fontSize: '32px',
-            fontWeight: 600,
-            letterSpacing: '-0.04em',
-            marginBottom: '16px'
-          }}>
-            Initialize your distributed vault.
-          </h1>
-          <p style={{
-            color: 'var(--text-secondary)',
-            fontSize: '15px',
-            lineHeight: 1.6,
-            marginBottom: '32px'
-          }}>
-            Zero-Store splits your data into encrypted shards and distributes them across multiple cloud providers. To begin, you must connect at least two storage nodes.
-          </p>
-
-          <div>
-            <StepItem
-              number="01"
-              title="Connect Providers"
-              description="Link AWS, GCP, or any S3-compatible storage to create your distribution network."
-            />
-            <StepItem
-              number="02"
-              title="Configure Redundancy"
-              description="Select your Reed-Solomon parity ratio to balance security and cost."
-            />
-            <StepItem
-              number="03"
-              title="Upload First Object"
-              description="Start storing files with client-side encryption and zero-knowledge privacy."
-            />
-          </div>
-
-          <div style={{
-            marginTop: '32px',
-            paddingTop: '24px',
-            borderTop: '1px solid var(--grid-line)',
-            fontSize: '12px',
-            color: 'var(--text-tertiary)'
-          }}>
-            System status: <span style={{ color: 'var(--accent-primary)' }}>WAITING_FOR_NODES</span>
-          </div>
-        </Card>
-
-        <Card style={{ background: 'var(--bg-subtle)' }}>
-          <span style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: '11px',
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            color: 'var(--text-secondary)',
-            marginBottom: '16px',
-            display: 'block'
-          }}>
-            Step 1: Add Node
-          </span>
-          <h2 style={{ fontSize: '18px', marginBottom: '20px' }}>Select a Provider</h2>
-          
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '12px',
-            marginTop: '24px'
-          }}>
-            {providers.map((provider) => (
-              <ProviderButton
-                key={provider.name}
-                logo={provider.logo}
-                name={provider.name}
-                onClick={handleProviderClick}
-              />
-            ))}
-          </div>
-
-          <div style={{ marginTop: '32px' }}>
-            <a
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                handleConnectProvider();
-              }}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '0 20px',
-                height: '40px',
-                fontSize: '14px',
-                fontWeight: 500,
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                borderRadius: 'var(--radius-sm)',
-                textDecoration: 'none',
-                backgroundColor: 'var(--accent-primary)',
-                color: 'white',
-                border: 'none',
-                width: '100%'
-              }}
-            >
-              Connect New Provider
-            </a>
-            <p style={{
-              fontSize: '12px',
-              color: 'var(--text-tertiary)',
-              textAlign: 'center',
-              marginTop: '16px'
-            }}>
-              Don't have a provider? <a href="#" onClick={(e) => e.preventDefault()} style={{ color: 'var(--accent-primary)', textDecoration: 'none' }}>Read our setup guide</a>
-            </p>
-          </div>
-        </Card>
-      </div>
-    </main>
-  );
-};
+import React, { useState, useEffect } from 'react';
 
 const App = () => {
-  const [activeNav, setActiveNav] = useState('Dashboard');
+  const [isModalOpen, setIsModalOpen] = useState(true);
+  const [selectedNodes, setSelectedNodes] = useState(['AWS-US', 'GCP-GL', 'DBX-EU', 'ONE-US']);
+  const [encryptionStandard, setEncryptionStandard] = useState('AES-256-GCM (Standard)');
+  const [shardRedundancy, setShardRedundancy] = useState('9/6 (Standard Parity)');
+  const [accessKey, setAccessKey] = useState('');
+
+  useEffect(() => {
+    const styleElement = document.createElement('style');
+    styleElement.textContent = `
+      :root {
+        --bg-canvas: #FFFFFF;
+        --bg-subtle: #FAFAFA;
+        --text-main: #111111;
+        --text-secondary: #666666;
+        --text-tertiary: #999999;
+        --accent-primary: #004EEB;
+        --accent-primary-hover: #003CC5;
+        --accent-secondary: #FF8866;
+        --border-color: #E5E5E5;
+        --grid-line: #F5F5F5;
+        --font-stack: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        --font-mono: 'SF Mono', 'Roboto Mono', 'Menlo', monospace;
+        --radius-sm: 2px;
+        --radius-md: 4px;
+      }
+
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+
+      body {
+        background-color: var(--bg-canvas);
+        color: var(--text-main);
+        font-family: var(--font-stack);
+        -webkit-font-smoothing: antialiased;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      @keyframes modalAppear {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+    `;
+    document.head.appendChild(styleElement);
+    return () => document.head.removeChild(styleElement);
+  }, []);
+
+  const nodes = [
+    'AWS-US', 'GCP-GL', 'DBX-EU', 'B2-WEST',
+    'ONE-US', 'LOC-HUB', 'WAS-S3', 'AZR-VA'
+  ];
+
+  const toggleNode = (node) => {
+    setSelectedNodes(prev =>
+      prev.includes(node)
+        ? prev.filter(n => n !== node)
+        : [...prev, node]
+    );
+  };
+
+  const handleInitializeSharding = () => {
+    console.log('Initializing sharding with:', {
+      encryptionStandard,
+      shardRedundancy,
+      selectedNodes,
+      accessKey
+    });
+    setIsModalOpen(false);
+  };
 
   return (
-    <div style={{
-      ...customStyles.root,
-      backgroundColor: 'var(--bg-canvas)',
-      color: 'var(--text-main)',
-      fontFamily: 'var(--font-stack)',
-      WebkitFontSmoothing: 'antialiased',
-      height: '100vh',
-      display: 'flex',
-      flexDirection: 'column',
-      overflow: 'hidden'
-    }}>
-      <div style={customStyles.gridBg}></div>
-      <Header activeNav={activeNav} onNavClick={setActiveNav} />
-      <HomePage />
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        backgroundImage: 'linear-gradient(var(--grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--grid-line) 1px, transparent 1px)',
+        backgroundSize: '40px 40px',
+        zIndex: -1,
+        pointerEvents: 'none'
+      }} />
+
+      <header style={{
+        height: '64px',
+        borderBottom: '1px solid var(--border-color)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '0 24px',
+        background: 'var(--bg-canvas)',
+        zIndex: 10
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontWeight: 600 }}>
+          <div style={{
+            width: '24px',
+            height: '24px',
+            border: '1.5px solid var(--text-main)',
+            position: 'relative'
+          }}>
+            <div style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: '8px',
+              height: '8px',
+              background: 'var(--accent-primary)'
+            }} />
+          </div>
+          <span>ZERO-STORE</span>
+        </div>
+        <nav>
+          <a href="#" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '14px', marginLeft: '24px' }}>Dashboard</a>
+          <a href="#" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '14px', marginLeft: '24px' }}>Nodes</a>
+          <a href="#" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '14px', marginLeft: '24px' }}>Settings</a>
+          <a href="#" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '14px', marginLeft: '24px' }}>API</a>
+        </nav>
+        <button
+          onClick={() => setIsModalOpen(true)}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '0 20px',
+            height: '40px',
+            fontSize: '14px',
+            fontWeight: 500,
+            cursor: 'pointer',
+            borderRadius: 'var(--radius-sm)',
+            background: 'var(--accent-primary)',
+            color: 'white',
+            border: 'none'
+          }}
+        >
+          Upload File
+        </button>
+      </header>
+
+      <main style={{
+        flex: 1,
+        padding: '24px',
+        display: 'grid',
+        gridTemplateColumns: '280px 1fr 320px',
+        gap: '24px',
+        filter: isModalOpen ? 'blur(4px)' : 'none',
+        pointerEvents: isModalOpen ? 'none' : 'auto'
+      }}>
+        <section style={{
+          background: 'var(--bg-canvas)',
+          border: '1px solid var(--border-color)',
+          padding: '20px',
+          position: 'relative'
+        }}>
+          <div style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: '11px',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+            color: 'var(--text-secondary)'
+          }}>Storage Used</div>
+          <div style={{ fontSize: '32px', fontWeight: 600 }}>4.2TB</div>
+        </section>
+        <div style={{
+          background: 'var(--bg-canvas)',
+          border: '1px solid var(--border-color)',
+          padding: '20px'
+        }}>
+          <div style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: '11px',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+            color: 'var(--text-secondary)'
+          }}>Providers</div>
+          <div style={{ height: '200px', border: '1px solid var(--border-color)', marginTop: '10px' }}></div>
+        </div>
+        <section style={{
+          background: 'var(--bg-canvas)',
+          border: '1px solid var(--border-color)',
+          padding: '20px',
+          position: 'relative'
+        }}>
+          <div style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: '11px',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+            color: 'var(--text-secondary)'
+          }}>System Health</div>
+        </section>
+      </main>
+
+      {isModalOpen && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(255, 255, 255, 0.85)',
+          backdropFilter: 'blur(2px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100
+        }}>
+          <div style={{
+            width: '640px',
+            background: 'var(--bg-canvas)',
+            border: '1px solid var(--text-main)',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+            position: 'relative',
+            animation: 'modalAppear 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+          }}>
+            <div style={{ position: 'absolute', top: '-1px', left: '-1px', width: '8px', height: '8px', borderTop: '1px solid var(--text-main)', borderLeft: '1px solid var(--text-main)' }} />
+            <div style={{ position: 'absolute', top: '-1px', right: '-1px', width: '8px', height: '8px', borderTop: '1px solid var(--text-main)', borderRight: '1px solid var(--text-main)' }} />
+            <div style={{ position: 'absolute', bottom: '-1px', left: '-1px', width: '8px', height: '8px', borderBottom: '1px solid var(--text-main)', borderLeft: '1px solid var(--text-main)' }} />
+            <div style={{ position: 'absolute', bottom: '-1px', right: '-1px', width: '8px', height: '8px', borderBottom: '1px solid var(--text-main)', borderRight: '1px solid var(--text-main)' }} />
+
+            <div style={{
+              padding: '24px',
+              borderBottom: '1px solid var(--border-color)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <h2 style={{ fontSize: '18px', fontWeight: 600 }}>New File Upload</h2>
+              <div style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '11px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                color: 'var(--accent-primary)'
+              }}>Secure Session</div>
+            </div>
+
+            <div style={{ padding: '24px' }}>
+              <div style={{
+                border: '1px dashed var(--border-color)',
+                background: 'var(--bg-subtle)',
+                padding: '40px',
+                textAlign: 'center',
+                marginBottom: '24px',
+                cursor: 'pointer'
+              }}>
+                <div style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '11px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  marginBottom: '8px',
+                  color: 'var(--accent-primary)'
+                }}>Drag & Drop</div>
+                <div style={{ fontSize: '14px', color: 'var(--text-main)' }}>Click to browse or drop files here</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '8px' }}>Maximum single file size: 2.0 GB</div>
+              </div>
+
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '24px',
+                marginBottom: '24px'
+              }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '11px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    color: 'var(--text-secondary)'
+                  }}>Encryption Standard</label>
+                  <select
+                    value={encryptionStandard}
+                    onChange={(e) => setEncryptionStandard(e.target.value)}
+                    style={{
+                      height: '36px',
+                      border: '1px solid var(--border-color)',
+                      padding: '0 12px',
+                      fontFamily: 'var(--font-stack)',
+                      fontSize: '13px',
+                      borderRadius: 'var(--radius-sm)',
+                      background: 'white',
+                      outline: 'none'
+                    }}
+                  >
+                    <option>AES-256-GCM (Standard)</option>
+                    <option>ChaCha20-Poly1305</option>
+                    <option>RSA-4096 (Vault only)</option>
+                  </select>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '11px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    color: 'var(--text-secondary)'
+                  }}>Shard Redundancy</label>
+                  <select
+                    value={shardRedundancy}
+                    onChange={(e) => setShardRedundancy(e.target.value)}
+                    style={{
+                      height: '36px',
+                      border: '1px solid var(--border-color)',
+                      padding: '0 12px',
+                      fontFamily: 'var(--font-stack)',
+                      fontSize: '13px',
+                      borderRadius: 'var(--radius-sm)',
+                      background: 'white',
+                      outline: 'none'
+                    }}
+                  >
+                    <option>9/6 (Standard Parity)</option>
+                    <option>12/8 (High Availability)</option>
+                    <option>4/2 (Low Latency)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
+                <label style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '11px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  color: 'var(--text-secondary)'
+                }}>Preferred Distribution</label>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(4, 1fr)',
+                  gap: '8px',
+                  marginTop: '4px'
+                }}>
+                  {nodes.map(node => (
+                    <div
+                      key={node}
+                      onClick={() => toggleNode(node)}
+                      style={{
+                        border: selectedNodes.includes(node) ? '1px solid var(--accent-primary)' : '1px solid var(--border-color)',
+                        background: selectedNodes.includes(node) ? 'rgba(0, 78, 235, 0.05)' : 'transparent',
+                        color: selectedNodes.includes(node) ? 'var(--accent-primary)' : 'var(--text-main)',
+                        padding: '8px',
+                        fontSize: '10px',
+                        textAlign: 'center',
+                        fontFamily: 'var(--font-mono)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {node}
+                    </div>
+                  ))}
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '8px' }}>
+                  Minimum 4 providers required for selected redundancy.
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '11px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  color: 'var(--text-secondary)'
+                }}>Private Access Key (Optional)</label>
+                <input
+                  type="password"
+                  placeholder="Leave blank for auto-generated key"
+                  value={accessKey}
+                  onChange={(e) => setAccessKey(e.target.value)}
+                  style={{
+                    height: '36px',
+                    border: '1px solid var(--border-color)',
+                    padding: '0 12px',
+                    fontFamily: 'var(--font-stack)',
+                    fontSize: '13px',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'white',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+            </div>
+
+            <div style={{
+              padding: '20px 24px',
+              borderTop: '1px solid var(--border-color)',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '12px',
+              background: 'var(--bg-subtle)'
+            }}>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '0 20px',
+                  height: '40px',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'transparent',
+                  border: '1px solid transparent',
+                  color: 'var(--text-secondary)'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleInitializeSharding}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '0 32px',
+                  height: '40px',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--accent-primary)',
+                  color: 'white',
+                  border: 'none'
+                }}
+              >
+                Initialize Sharding
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
