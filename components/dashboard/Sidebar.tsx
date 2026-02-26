@@ -1,15 +1,16 @@
+"use client";
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { 
-  Folder, 
-  Cloud, 
-  Settings, 
-  LayoutDashboard, 
-  Plus, 
+import {
+  Folder,
+  Settings,
+  LayoutDashboard,
+  Plus,
   HardDrive,
-  Activity
+  Activity,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -19,25 +20,35 @@ interface SidebarProps {
 
 export function Sidebar({ className, onUploadClick }: SidebarProps) {
   return (
-    <div className={cn("pb-12 w-64 border-r border-sidebar-border bg-sidebar flex flex-col", className)}>
-      <div className="space-y-4 py-4 flex-1">
-        <div className="px-3 py-2">
-          <div className="mb-6 px-4 flex items-center gap-2 font-semibold tracking-tight text-sidebar-foreground">
-            <div className="relative flex h-6 w-6 items-center justify-center border border-sidebar-foreground/20 rounded-sm">
-               <div className="h-2 w-2 bg-sidebar-primary rounded-[1px]" />
+    <div
+      className={cn(
+        "flex w-64 flex-col border-r bg-white",
+        className
+      )}
+    >
+      <div className="flex flex-1 flex-col space-y-4 py-4">
+        {/* Logo */}
+        <div className="px-6 py-2">
+          <div className="mb-6 flex items-center gap-2">
+            <div className="flex h-6 w-6 items-center justify-center border-2 border-black">
+              <div className="h-2 w-2 bg-black" />
             </div>
-            <span>ZERO-STORE</span>
+            <span className="font-mono text-sm font-bold tracking-wider">
+              NEBULA_DRIVE
+            </span>
           </div>
-          
+
+          {/* Upload Button */}
+          <Button
+            className="mb-6 w-full font-mono text-xs"
+            onClick={onUploadClick}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            UPLOAD FILE
+          </Button>
+
+          {/* Navigation */}
           <div className="space-y-1">
-             <Button 
-                className="w-full justify-center mb-6 bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90 rounded-[2px] h-9 text-sm font-medium" 
-                onClick={onUploadClick}
-             >
-                <Plus className="mr-2 h-4 w-4" />
-                Upload File
-             </Button>
-             
             <NavItem href="/dashboard" icon={LayoutDashboard}>
               Dashboard
             </NavItem>
@@ -55,22 +66,51 @@ export function Sidebar({ className, onUploadClick }: SidebarProps) {
             </NavItem>
           </div>
         </div>
-        
-        <div className="px-3 py-2 mt-auto">
-          <div className="rounded-sm border border-sidebar-border bg-sidebar-accent/50 p-4">
-            <h3 className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono mb-2">
-                Storage Used
+
+        {/* Storage Stats */}
+        <div className="mt-auto px-6">
+          <div className="border bg-neutral-50 p-4">
+            <h3 className="mb-3 font-mono text-[10px] uppercase tracking-wider text-neutral-500">
+              Storage Used
             </h3>
-            <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-semibold text-foreground">4.2</span>
-                <span className="text-sm text-muted-foreground">TB</span>
+
+            <div className="mb-2 flex items-baseline gap-1">
+              <span className="font-mono text-2xl font-bold">4.2</span>
+              <span className="font-mono text-xs text-neutral-500">TB</span>
+              <span className="ml-auto font-mono text-xs text-neutral-500">
+                / 12.0 TB
+              </span>
             </div>
-            <div className="w-full bg-sidebar-border h-1 mt-2 rounded-full overflow-hidden">
-                <div className="h-full bg-sidebar-primary w-[35%]" />
+
+            {/* Progress bar */}
+            <div className="mb-2 h-1.5 w-full overflow-hidden bg-neutral-200">
+              <div
+                className="h-full bg-black"
+                style={{ width: "35%" }}
+              />
             </div>
-            <p className="text-[10px] text-muted-foreground mt-2">
-                35% of 12.0 TB Used
-            </p>
+
+            <div className="flex items-center justify-between">
+              <p className="font-mono text-[10px] text-neutral-500">
+                35% utilized
+              </p>
+              <div className="flex items-center gap-1">
+                <div className="h-1.5 w-1.5 bg-black" />
+                <span className="font-mono text-[9px] uppercase tracking-wider">
+                  OK
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Provider Status */}
+          <div className="mt-4 space-y-2">
+            <h4 className="font-mono text-[10px] uppercase tracking-wider text-neutral-500">
+              Provider Status
+            </h4>
+            <ProviderStatus name="Google Drive" status="online" />
+            <ProviderStatus name="AWS S3" status="online" />
+            <ProviderStatus name="Dropbox" status="offline" />
           </div>
         </div>
       </div>
@@ -78,26 +118,63 @@ export function Sidebar({ className, onUploadClick }: SidebarProps) {
   );
 }
 
-function NavItem({ href, icon: Icon, children }: { href: string; icon: any; children: React.ReactNode }) {
+function NavItem({
+  href,
+  icon: Icon,
+  children,
+}: {
+  href: string;
+  icon: any;
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
-  // Simple active check: exact match or starts with (for nested routes)
-  // Special case for dashboard root
-  const isActive = href === "/dashboard" 
-    ? pathname === "/dashboard" || pathname === "/"
-    : pathname.startsWith(href);
-  
+  const isActive =
+    href === "/dashboard"
+      ? pathname === "/dashboard" || pathname === "/"
+      : pathname.startsWith(href);
+
   return (
-    <Link 
+    <Link
       href={href}
       className={cn(
-        "flex items-center gap-3 rounded-[2px] px-3 py-2 text-sm transition-all",
-        isActive 
-          ? "bg-sidebar-accent text-sidebar-foreground font-medium" 
-          : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50"
+        "flex items-center gap-3 px-3 py-2.5 font-mono text-xs uppercase tracking-wider transition-all",
+        isActive
+          ? "bg-black text-white"
+          : "text-neutral-600 hover:bg-neutral-100"
       )}
     >
-      <Icon className={cn("h-4 w-4", isActive ? "text-sidebar-foreground" : "text-muted-foreground")} />
+      <Icon className="h-4 w-4" />
       {children}
     </Link>
+  );
+}
+
+function ProviderStatus({
+  name,
+  status,
+}: {
+  name: string;
+  status: "online" | "offline";
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="font-mono text-[10px] text-neutral-600">{name}</span>
+      <div className="flex items-center gap-1.5">
+        <div
+          className={cn(
+            "h-1.5 w-1.5",
+            status === "online" ? "bg-black" : "bg-neutral-300"
+          )}
+        />
+        <span
+          className={cn(
+            "font-mono text-[9px] uppercase tracking-wider",
+            status === "online" ? "text-black" : "text-neutral-400"
+          )}
+        >
+          {status === "online" ? "OK" : "OFF"}
+        </span>
+      </div>
+    </div>
   );
 }

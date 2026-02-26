@@ -10,7 +10,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <div className="w-8 h-8 border-[2px] border-text-main relative flex items-center justify-center bg-bg-canvas">
              <div className="w-3 h-3 bg-accent-primary" />
           </div>
-          <span className="tracking-tight">ZERO-STORE</span>
+          <span className="tracking-tight">Nebula Drive </span>
         </Link>
         {children}
       </div>

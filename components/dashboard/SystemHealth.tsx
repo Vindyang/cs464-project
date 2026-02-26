@@ -1,44 +1,89 @@
 import { DashboardCard } from "./DashboardCard";
+import { Shield, Lock } from "lucide-react";
 
 export function SystemHealth() {
-  // 9 data shards, 6 parity shards (from reference)
+  // 6 total shards (4 data + 2 parity) as per project spec
   const shards = [
-    ...Array(9).fill('data'),
-    ...Array(6).fill('parity')
+    { type: "data", status: "healthy", index: 1 },
+    { type: "data", status: "healthy", index: 2 },
+    { type: "data", status: "healthy", index: 3 },
+    { type: "data", status: "healthy", index: 4 },
+    { type: "parity", status: "healthy", index: 5 },
+    { type: "parity", status: "healthy", index: 6 },
   ];
 
   return (
     <DashboardCard className="col-span-1 row-span-1">
-      <div className="flex justify-between items-baseline mb-5">
-        <span className="font-mono text-[11px] uppercase tracking-[0.05em] text-text-secondary">
-          Shard Health (R-S 9,6)
+      <div className="mb-5 flex items-baseline justify-between">
+        <span className="font-mono text-[10px] uppercase tracking-wider text-neutral-500">
+          Reed-Solomon (6,4)
         </span>
-        <span className="font-mono text-[11px] uppercase tracking-[0.05em] text-accent-primary">
-          Optimal
-        </span>
+        <div className="flex items-center gap-1.5">
+          <Shield className="h-3 w-3" />
+          <span className="font-mono text-[9px] uppercase tracking-wider">
+            OPTIMAL
+          </span>
+        </div>
       </div>
 
-      <div className="grid grid-cols-5 gap-1 my-5">
-        {shards.map((type, index) => (
-          <div 
-            key={index} 
-            className="aspect-square relative"
+      {/* Shard visualization */}
+      <div className="mb-6 grid grid-cols-3 gap-2">
+        {shards.map((shard) => (
+          <div
+            key={shard.index}
+            className="group relative aspect-square border transition-all hover:scale-105 hover:border-black"
             style={{
-              background: type === 'data' ? 'rgba(0, 78, 235, 0.05)' : 'rgba(255, 136, 102, 0.05)',
-              border: `1px solid ${type === 'data' ? 'var(--accent-primary)' : 'var(--accent-secondary)'}`,
+              backgroundColor:
+                shard.type === "data" ? "#fafafa" : "#f5f5f5",
             }}
           >
-            <div 
-                className="absolute top-0.5 right-0.5 w-0.5 h-0.5 opacity-50"
-                style={{ backgroundColor: 'currentColor' }} 
+            {/* Shard index */}
+            <div className="absolute left-1 top-1 font-mono text-[9px] text-neutral-400">
+              {shard.index}
+            </div>
+
+            {/* Status indicator */}
+            <div
+              className="absolute bottom-1 right-1 h-1 w-1"
+              style={{
+                backgroundColor: shard.status === "healthy" ? "#000" : "#d4d4d4",
+              }}
             />
+
+            {/* Shard type label (on hover) */}
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100">
+              <span className="font-mono text-[8px] uppercase tracking-wider text-black">
+                {shard.type}
+              </span>
+            </div>
           </div>
         ))}
       </div>
-      
-      <div className="text-xs text-text-secondary mt-3 leading-relaxed">
-        Encryption: <span className="font-mono text-text-main">AES-256-GCM</span><br />
-        Client-side verification active.
+
+      {/* Legend */}
+      <div className="mb-4 flex items-center justify-center gap-4 border-t pt-4">
+        <div className="flex items-center gap-2">
+          <div className="h-2 w-2 border bg-neutral-50" />
+          <span className="font-mono text-[10px] text-neutral-600">DATA (4)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="h-2 w-2 border bg-neutral-100" />
+          <span className="font-mono text-[10px] text-neutral-600">PARITY (2)</span>
+        </div>
+      </div>
+
+      {/* Encryption info */}
+      <div className="space-y-2 border bg-neutral-50 p-3">
+        <div className="flex items-center gap-2">
+          <Lock className="h-3 w-3" />
+          <span className="font-mono text-[10px] uppercase tracking-wider text-neutral-500">
+            Encryption
+          </span>
+        </div>
+        <div className="font-mono text-xs font-bold">AES-256-GCM</div>
+        <div className="font-mono text-[10px] text-neutral-600">
+          Client-side • Zero-knowledge
+        </div>
       </div>
     </DashboardCard>
   );
