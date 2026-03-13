@@ -6,8 +6,8 @@ interface ProviderStore {
   
   // Actions
   fetchProviders: () => void;
-  connectProvider: (id: string) => void;
-  disconnectProvider: (id: string) => void;
+  connectProvider: (providerId: string) => void;
+  disconnectProvider: (providerId: string) => void;
 }
 
 export const useProviderStore = create<ProviderStore>((set) => ({
@@ -18,18 +18,18 @@ export const useProviderStore = create<ProviderStore>((set) => ({
     set({ providers: mockProviders });
   },
 
-  connectProvider: (id) => {
+  connectProvider: (providerId) => {
     set((state) => ({
       providers: state.providers.map((p) =>
-        p.id === id ? { ...p, status: 'connected' } : p
+        p.providerId === providerId ? { ...p, status: 'connected' } : p
       ),
     }));
   },
 
-  disconnectProvider: (id) => {
+  disconnectProvider: (providerId) => {
     set((state) => ({
       providers: state.providers.map((p) =>
-        p.id === id ? { ...p, status: 'disconnected', percentage: 0, used: '0 GB', shardCount: 0 } : p
+        p.providerId === providerId ? { ...p, status: 'disconnected', quotaUsedBytes: 0, shardCount: 0 } : p
       ),
     }));
   },

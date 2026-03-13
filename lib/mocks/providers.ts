@@ -1,43 +1,47 @@
 export interface ProviderData {
-  id: string;
-  name: string;
-  status: "connected" | "disconnected" | "error";
-  used: string;
-  total: string;
-  percentage: number;
+  providerId: string;
+  displayName: string;
+  status: "connected" | "degraded" | "disconnected" | "error";
+  region: string;
+  latencyMs: number;
+  quotaUsedBytes: number;
+  quotaTotalBytes: number;
   shardCount: number;
-  lastCheck: string;
+  lastHealthCheckAt: string;
 }
 
 export const mockProviders: ProviderData[] = [
   {
-    id: 'google-drive',
-    name: 'Google Drive',
+    providerId: 'googleDrive',
+    displayName: 'Google Drive',
     status: 'connected',
-    used: '8.2 GB',
-    total: '15 GB',
-    percentage: 55,
+    region: 'global',
+    latencyMs: 45,
+    quotaUsedBytes: 8804682956, // 8.2 GB
+    quotaTotalBytes: 16106127360, // 15 GB
     shardCount: 142,
-    lastCheck: '5 mins ago',
+    lastHealthCheckAt: '5 mins ago',
   },
   {
-    id: 'aws-s3',
-    name: 'AWS S3',
+    providerId: 'awsS3',
+    displayName: 'AWS S3',
     status: 'connected',
-    used: '3.1 GB',
-    total: '5 GB',
-    percentage: 62,
+    region: 'us-east-1',
+    latencyMs: 24,
+    quotaUsedBytes: 3328599654, // 3.1 GB
+    quotaTotalBytes: 5368709120, // 5 GB
     shardCount: 138,
-    lastCheck: '5 mins ago',
+    lastHealthCheckAt: '5 mins ago',
   },
   {
-    id: 'dropbox',
-    name: 'Dropbox',
+    providerId: 'dropbox',
+    displayName: 'Dropbox',
     status: 'error',
-    used: '0 GB',
-    total: '2 GB',
-    percentage: 0,
+    region: 'eu-west',
+    latencyMs: 112,
+    quotaUsedBytes: 0,
+    quotaTotalBytes: 2147483648, // 2 GB
     shardCount: 0,
-    lastCheck: 'Failed 2h ago',
+    lastHealthCheckAt: 'Failed 2h ago',
   },
 ];

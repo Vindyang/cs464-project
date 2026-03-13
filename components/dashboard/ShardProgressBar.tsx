@@ -4,7 +4,7 @@ import { Check, Upload, Loader2, Pause, X } from "lucide-react";
 
 export interface ShardStatus {
   index: number;
-  provider: string;
+  providerId: string;
   status: "pending" | "uploading" | "complete" | "failed" | "paused";
   progress: number;
 }
@@ -30,7 +30,7 @@ export function ShardProgressBar({ shards, label }: ShardProgressBarProps) {
                 <span className="font-medium truncate">
                   Shard {shard.index + 1}
                   <span className="text-muted-foreground font-normal ml-1">
-                    → {shard.provider}
+                    → {shard.providerId}
                   </span>
                 </span>
                 <span className="text-muted-foreground tabular-nums">

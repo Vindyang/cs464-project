@@ -14,15 +14,15 @@ export default function ProvidersPage() {
   const [search, setSearch] = useState("");
   
   const providers = mockProviders.filter(p => 
-    p.name.toLowerCase().includes(search.toLowerCase())
+    p.displayName.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleConfig = (id: string) => {
+  const handleConfig = (providerId: string) => {
     // Navigate to provider details/config
-    router.push(`/dashboard/providers/${id}`);
+    router.push(`/dashboard/providers/${providerId}`);
   };
 
-  const handleRemove = (id: string) => {
+  const handleRemove = (providerId: string) => {
       toast("Disconnect Provider?", {
           description: "This will stop shards from being stored on this provider.",
           action: {

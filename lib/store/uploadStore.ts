@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 export interface ShardProgress {
   index: number;
-  provider: string;
+  providerId: string;
   status: 'pending' | 'uploading' | 'complete' | 'failed' | 'paused';
   progress: number; // 0-100
   uploadedBytes: number;
@@ -35,7 +35,7 @@ export const useUploadStore = create<UploadState>((set, get) => ({
     const fileId = Math.random().toString(36).substring(7);
     const initialShards: ShardProgress[] = Array(6).fill(null).map((_, i) => ({
         index: i,
-        provider: i % 2 === 0 ? 'Google Drive' : 'AWS S3', // Mock distribution
+        providerId: i % 2 === 0 ? 'googleDrive' : 'awsS3', // Mock distribution
         status: 'pending',
         progress: 0,
         uploadedBytes: 0
