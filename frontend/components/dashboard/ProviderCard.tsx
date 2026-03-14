@@ -5,39 +5,42 @@ import { cn } from "@/lib/utils";
 import { DashboardCard } from "../dashboard/DashboardCard";
 
 export interface ProviderCardProps {
-  id: string;
-  name: string;
-  status: "connected" | "disconnected" | "error";
-  used: string;
-  total: string;
-  percentage: number;
+  providerId: string;
+  displayName: string;
+  status: "connected" | "degraded" | "disconnected" | "error";
+  region: string;
+  latencyMs: number;
+  quotaUsedBytes: number;
+  quotaTotalBytes: number;
   shardCount: number;
-  lastCheck: string;
+  lastHealthCheckAt: string;
   onConnect: () => void;
   onDisconnect: () => void;
   onRefresh: () => void;
 }
 
 export function ProviderCard({
-  name,
+  displayName,
   status,
-  used,
-  total,
-  percentage,
+  quotaUsedBytes,
+  quotaTotalBytes,
   shardCount,
-  lastCheck,
+  latencyMs,
   onConnect,
   onDisconnect,
   onRefresh,
 }: ProviderCardProps) {
+  const percentage = quotaTotalBytes > 0 ? Math.round((quotaUsedBytes / quotaTotalBytes) * 100) : 0;
+  const formattedUsed = (quotaUsedBytes / (1024 * 1024 * 1024)).toFixed(1) + " GB";
+  const formattedTotal = (quotaTotalBytes / (1024 * 1024 * 1024)).toFixed(1) + " GB";
   return (
     <DashboardCard className="p-0 border-border-color bg-bg-canvas">
       <div className="p-4 border-b border-border-color flex justify-between items-center">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-bg-subtle rounded-[2px] flex items-center justify-center border border-border-color">
-             <Cloud className="w-4 h-4 text-text-secondary" />
+            <Cloud className="w-4 h-4 text-text-secondary" />
           </div>
-          <span className="font-semibold text-sm tracking-tight">{name}</span>
+          <span className="font-semibold text-sm tracking-tight">{displayName}</span>
         </div>
         <StatusBadge status={status} />
       </div>
@@ -51,26 +54,26 @@ export function ProviderCard({
                 <span>{percentage}%</span>
               </div>
               <div className="h-1 bg-bg-subtle overflow-hidden rounded-full">
-                <div 
-                   className="h-full bg-accent-primary transition-all duration-500" 
-                   style={{ width: `${percentage}%` }}
+                <div
+                  className="h-full bg-accent-primary transition-all duration-500"
+                  style={{ width: `${percentage}%` }}
                 />
               </div>
               <div className="flex justify-between text-xs text-text-secondary mt-1.5">
-                <span>{used} Used</span>
-                <span>{total} Total</span>
+                <span>{formattedUsed} Used</span>
+                <span>{formattedTotal} Total</span>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-px bg-border-color border border-border-color rounded-[2px] overflow-hidden">
-               <div className="bg-bg-subtle/30 p-2 text-center">
-                  <div className="text-lg font-medium leading-none mb-1">{shardCount}</div>
-                  <div className="text-[10px] text-text-secondary uppercase tracking-wider">Shards</div>
-               </div>
-               <div className="bg-bg-subtle/30 p-2 text-center">
-                  <div className="text-lg font-medium leading-none mb-1">{lastCheck}</div>
-                  <div className="text-[10px] text-text-secondary uppercase tracking-wider">Ping</div>
-               </div>
+              <div className="bg-bg-subtle/30 p-2 text-center">
+                <div className="text-lg font-medium leading-none mb-1">{shardCount}</div>
+                <div className="text-[10px] text-text-secondary uppercase tracking-wider">Shards</div>
+              </div>
+              <div className="bg-bg-subtle/30 p-2 text-center">
+                <div className="text-lg font-medium leading-none mb-1">{latencyMs}ms</div>
+                <div className="text-[10px] text-text-secondary uppercase tracking-wider">Ping</div>
+              </div>
             </div>
 
             <div className="flex gap-2">
@@ -84,12 +87,12 @@ export function ProviderCard({
           </div>
         ) : (
           <div className="py-2 text-center">
-             <p className="text-xs text-text-secondary mb-4 leading-relaxed">
-                Connect your {name} account to list it as an available node.
-             </p>
-             <Button size="sm" className="w-full h-8 bg-text-main text-bg-canvas hover:bg-text-main/90" onClick={onConnect}>
-                Connect Provider
-             </Button>
+            <p className="text-xs text-text-secondary mb-4 leading-relaxed">
+              Connect your {displayName} account to list it as an available node.
+            </p>
+            <Button size="sm" className="w-full h-8 bg-text-main text-bg-canvas hover:bg-text-main/90" onClick={onConnect}>
+              Connect Provider
+            </Button>
           </div>
         )}
       </div>
@@ -100,13 +103,15 @@ export function ProviderCard({
 function StatusBadge({ status }: { status: ProviderCardProps["status"] }) {
   const styles = {
     connected: "text-emerald-600 bg-emerald-50 border-emerald-200",
+    degraded: "text-amber-600 bg-amber-50 border-amber-200",
     disconnected: "text-text-tertiary bg-bg-subtle border-border-color",
     error: "text-red-600 bg-red-50 border-red-200",
   };
 
   const icons = {
     connected: Check,
-    disconnected: HardDrive, 
+    degraded: AlertTriangle,
+    disconnected: HardDrive,
     error: AlertTriangle,
   };
 

@@ -2,57 +2,15 @@ import { DashboardCard } from "./DashboardCard";
 import { cn } from "@/lib/utils";
 import { Cloud, Activity, HardDrive } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-const providers = [
-  {
-    icon: "GD",
-    name: "Google Drive",
-    region: "global",
-    latency: 45,
-    usage: 42,
-    status: "online",
-    shards: 248,
-  },
-  {
-    icon: "S3",
-    name: "AWS S3",
-    region: "us-east-1",
-    latency: 24,
-    usage: 78,
-    status: "online",
-    shards: 312,
-  },
-  {
-    icon: "DB",
-    name: "Dropbox",
-    region: "eu-west",
-    latency: 112,
-    usage: 15,
-    status: "warning",
-    shards: 89,
-  },
-  {
-    icon: "B2",
-    name: "Backblaze B2",
-    region: "us-west",
-    latency: 89,
-    usage: 91,
-    status: "online",
-    shards: 402,
-  },
-  {
-    icon: "OD",
-    name: "OneDrive",
-    region: "us-east",
-    latency: 320,
-    usage: 5,
-    status: "offline",
-    shards: 0,
-  },
-];
+import { useProviderStore } from "@/lib/store/providerStore";
 
 const statusConfig = {
   online: {
+    color: "#000000",
+    label: "ONLINE",
+    bg: "#ffffff",
+  },
+  connected: {
     color: "#000000",
     label: "ONLINE",
     bg: "#ffffff",
@@ -62,14 +20,39 @@ const statusConfig = {
     label: "DEGRADED",
     bg: "#fafafa",
   },
+  degraded: {
+    color: "#737373",
+    label: "DEGRADED",
+    bg: "#fafafa",
+  },
   offline: {
     color: "#d4d4d4",
     label: "OFFLINE",
     bg: "#f5f5f5",
   },
+  disconnected: {
+    color: "#d4d4d4",
+    label: "OFFLINE",
+    bg: "#f5f5f5",
+  },
+  error: {
+    color: "#737373",
+    label: "ERROR",
+    bg: "#fafafa",
+  },
+};
+
+const providerIcons: Record<string, string> = {
+  googleDrive: "GD",
+  awsS3: "S3",
+  dropbox: "DB",
+  backblazeB2: "B2",
+  oneDrive: "OD",
 };
 
 export function ProviderMatrix() {
+  const { providers } = useProviderStore();
+
   return (
     <div className="col-span-1 row-span-2 flex flex-col gap-6">
       <div className="mb-2 flex items-center justify-between">
@@ -110,11 +93,15 @@ export function ProviderMatrix() {
         {/* Table Rows */}
         {providers.map((provider, index) => {
           const config =
-            statusConfig[provider.status as keyof typeof statusConfig];
+            statusConfig[provider.status as keyof typeof statusConfig] || statusConfig.online;
+          
+          const usagePercent = provider.quotaTotalBytes > 0 
+            ? Math.round((provider.quotaUsedBytes / provider.quotaTotalBytes) * 100) 
+            : 0;
 
           return (
             <div
-              key={index}
+              key={provider.providerId}
               className={cn(
                 "grid grid-cols-[50px_2fr_120px_80px_100px_80px] items-center gap-4 px-4 py-4 transition-all hover:bg-neutral-50",
                 index < providers.length - 1 && "border-b"
@@ -129,13 +116,13 @@ export function ProviderMatrix() {
                   color: config.color,
                 }}
               >
-                {provider.icon}
+                {providerIcons[provider.providerId] || provider.displayName.substring(0, 2).toUpperCase()}
               </div>
 
               {/* Name */}
               <div>
                 <div className="font-mono text-sm font-medium">
-                  {provider.name}
+                  {provider.displayName}
                 </div>
                 <div
                   className="mt-0.5 inline-flex items-center gap-1.5"
@@ -160,19 +147,19 @@ export function ProviderMatrix() {
               <div className="flex items-center gap-1.5">
                 <Activity className="h-3 w-3 text-neutral-400" />
                 <span className="font-mono text-xs text-neutral-600">
-                  {provider.latency}ms
+                  {provider.latencyMs}ms
                 </span>
               </div>
 
               {/* Usage */}
               <div>
                 <div className="mb-1 font-mono text-[10px] text-neutral-500">
-                  {provider.usage}%
+                  {usagePercent}%
                 </div>
                 <div className="h-1 w-full overflow-hidden bg-neutral-200">
                   <div
                     className="h-full bg-black"
-                    style={{ width: `${provider.usage}%` }}
+                    style={{ width: `${usagePercent}%` }}
                   />
                 </div>
               </div>
@@ -181,7 +168,7 @@ export function ProviderMatrix() {
               <div className="flex items-center gap-1.5">
                 <HardDrive className="h-3 w-3 text-neutral-400" />
                 <span className="font-mono text-xs text-neutral-600">
-                  {provider.shards}
+                  {provider.shardCount}
                 </span>
               </div>
             </div>

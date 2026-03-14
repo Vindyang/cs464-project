@@ -13,12 +13,12 @@ import { toast } from "sonner";
 
 // Mock shard distribution for detail view
 const mockShards: ShardStatus[] = [
-  { index: 0, provider: "Google Drive", status: "complete", progress: 100 },
-  { index: 1, provider: "Google Drive", status: "complete", progress: 100 },
-  { index: 2, provider: "AWS S3", status: "complete", progress: 100 },
-  { index: 3, provider: "AWS S3", status: "complete", progress: 100 },
-  { index: 4, provider: "Google Drive", status: "complete", progress: 100 },
-  { index: 5, provider: "AWS S3", status: "complete", progress: 100 },
+  { index: 0, providerId: "googleDrive", status: "complete", progress: 100 },
+  { index: 1, providerId: "googleDrive", status: "complete", progress: 100 },
+  { index: 2, providerId: "awsS3", status: "complete", progress: 100 },
+  { index: 3, providerId: "awsS3", status: "complete", progress: 100 },
+  { index: 4, providerId: "googleDrive", status: "complete", progress: 100 },
+  { index: 5, providerId: "awsS3", status: "complete", progress: 100 },
 ];
 
 export default function FileDetailsPage({ params }: { params: Promise<{ id: string }> }) {

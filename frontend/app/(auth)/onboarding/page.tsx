@@ -16,10 +16,9 @@ export default function OnboardingPage() {
     mockProviders.map(p => ({
       ...p,
       status: "disconnected" as ProviderCardProps["status"],
-      used: "0 GB",
-      percentage: 0,
+      quotaUsedBytes: 0,
       shardCount: 0,
-      lastCheck: "Never"
+      latencyMs: 0
     }))
   );
 
@@ -27,23 +26,23 @@ export default function OnboardingPage() {
   const minProviders = 2;
   const isReady = connectedCount >= minProviders;
 
-  const handleConnect = (id: string) => {
+  const handleConnect = (providerId: string) => {
     // Simulate connection delay
     setProviders(prev => prev.map(p => {
-      if (p.id === id) {
+      if (p.providerId === providerId) {
         return { 
           ...p, 
           status: "connected",
-          lastCheck: "Just now" 
+          latencyMs: Math.floor(Math.random() * 100) + 20
         };
       }
       return p;
     }));
   };
 
-  const handleDisconnect = (id: string) => {
+  const handleDisconnect = (providerId: string) => {
     setProviders(prev => prev.map(p => 
-      p.id === id ? { ...p, status: "disconnected" } : p
+      p.providerId === providerId ? { ...p, status: "disconnected" } : p
     ));
   };
 
@@ -74,10 +73,10 @@ export default function OnboardingPage() {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {providers.map((provider) => (
             <ProviderCard
-              key={provider.id}
+              key={provider.providerId}
               {...provider}
-              onConnect={() => handleConnect(provider.id)}
-              onDisconnect={() => handleDisconnect(provider.id)}
+              onConnect={() => handleConnect(provider.providerId)}
+              onDisconnect={() => handleDisconnect(provider.providerId)}
               onRefresh={() => {}}
             />
           ))}
