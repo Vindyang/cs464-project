@@ -50,3 +50,12 @@ func (r *Registry) Get(id string) (StorageProvider, error) {
 	}
 	return p, nil
 }
+
+// IDs returns the registered provider IDs in insertion order is not guaranteed.
+func (r *Registry) IDs() []string {
+	ids := make([]string, 0, len(r.providers))
+	for id := range r.providers {
+		ids = append(ids, id)
+	}
+	return ids
+}
