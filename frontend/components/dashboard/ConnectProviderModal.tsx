@@ -40,7 +40,7 @@ export function ConnectProviderModal({ open, onClose }: ConnectProviderModalProp
     setLoading(providerId);
     try {
       const { authURL } = await getGDriveAuthorizeURL();
-      window.location.href = authURL;
+      window.location.assign(authURL);
     } catch {
       toast.error("Failed to start Google Drive connection");
       setLoading(null);
