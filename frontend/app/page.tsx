@@ -1,3 +1,4 @@
+import React from "react";
 import Link from "next/link";
 import { Shield, Lock, Database, ArrowRight, Terminal, Server, Layers, Cpu, Network } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -209,7 +210,7 @@ function FeatureCard({
   title,
   description,
 }: {
-  icon: any;
+  icon: React.ComponentType<{ className?: string }>;
   title: string;
   description: string;
 }) {
