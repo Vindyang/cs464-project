@@ -1,8 +1,8 @@
 "use client";
 
 import { NodeTable } from "@/components/dashboard/NodeTable";
-import { mockProviders } from "@/lib/mocks/providers";
-import { useState } from "react";
+import { useProviderStore } from "@/lib/store/providerStore";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Search, Filter, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,8 +12,13 @@ import { useRouter } from "next/navigation";
 export default function ProvidersPage() {
   const router = useRouter();
   const [search, setSearch] = useState("");
-  
-  const providers = mockProviders.filter(p => 
+  const { providers: allProviders, isLoading, fetchProviders } = useProviderStore();
+
+  useEffect(() => {
+    fetchProviders();
+  }, []);
+
+  const providers = allProviders.filter(p =>
     p.displayName.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -58,11 +63,15 @@ export default function ProvidersPage() {
          </div>
       </div>
 
-      <NodeTable 
-        providers={providers}
-        onConfig={handleConfig}
-        onRemove={handleRemove}
-      />
+      {isLoading ? (
+        <div className="p-12 text-center text-text-secondary font-mono text-sm">Loading providers...</div>
+      ) : (
+        <NodeTable
+          providers={providers}
+          onConfig={handleConfig}
+          onRemove={handleRemove}
+        />
+      )}
     </div>
   );
 }

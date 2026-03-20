@@ -1,21 +1,30 @@
 import { create } from 'zustand';
-import { mockProviders, ProviderData } from '@/lib/mocks/providers';
+import { ProviderData } from '@/lib/mocks/providers';
+import { getProviders } from '@/lib/api/providers';
 
 interface ProviderStore {
   providers: ProviderData[];
-  
-  // Actions
-  fetchProviders: () => void;
+  isLoading: boolean;
+  error: string | null;
+
+  fetchProviders: () => Promise<void>;
   connectProvider: (providerId: string) => void;
   disconnectProvider: (providerId: string) => void;
 }
 
 export const useProviderStore = create<ProviderStore>((set) => ({
-  providers: mockProviders,
+  providers: [],
+  isLoading: false,
+  error: null,
 
-  fetchProviders: () => {
-    // In a real app, this would be an async fetch
-    set({ providers: mockProviders });
+  fetchProviders: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const data = await getProviders();
+      set({ providers: data, isLoading: false });
+    } catch {
+      set({ error: 'Failed to load providers', isLoading: false });
+    }
   },
 
   connectProvider: (providerId) => {
@@ -29,7 +38,7 @@ export const useProviderStore = create<ProviderStore>((set) => ({
   disconnectProvider: (providerId) => {
     set((state) => ({
       providers: state.providers.map((p) =>
-        p.providerId === providerId ? { ...p, status: 'disconnected', quotaUsedBytes: 0, shardCount: 0 } : p
+        p.providerId === providerId ? { ...p, status: 'disconnected', quotaUsedBytes: 0 } : p
       ),
     }));
   },
