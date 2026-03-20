@@ -90,3 +90,67 @@ type ErrorResponse struct {
 	Message string `json:"message"`
 	Code    int    `json:"code"`
 }
+
+// RegisterFileRequest - POST /api/v1/shards/register
+type RegisterFileRequest struct {
+	OriginalName string `json:"original_name"`
+	OriginalSize int64  `json:"original_size"`
+	TotalChunks  int    `json:"total_chunks"`
+	N            int    `json:"n"`
+	K            int    `json:"k"`
+	ShardSize    int64  `json:"shard_size"`
+}
+
+// RegisterFileResponse - Response for POST /api/v1/shards/register
+type RegisterFileResponse struct {
+	FileID       string `json:"file_id"`
+	OriginalName string `json:"original_name"`
+	OriginalSize int64  `json:"original_size"`
+	TotalChunks  int    `json:"total_chunks"`
+	N            int    `json:"n"`
+	K            int    `json:"k"`
+	ShardSize    int64  `json:"shard_size"`
+	Status       string `json:"status"`
+}
+
+// RecordShardsRequest - POST /api/v1/shards/record
+type RecordShardsRequest struct {
+	FileID string      `json:"file_id"`
+	Shards []ShardInfo `json:"shards"`
+}
+
+// RecordShardsResponse - Response for POST /api/v1/shards/record
+type RecordShardsResponse struct {
+	FileID string      `json:"file_id"`
+	Shards []ShardInfo `json:"shards"`
+}
+
+// ShardInfo represents individual shard details in requests/responses
+type ShardInfo struct {
+	ShardID        string `json:"shard_id,omitempty"`
+	ChunkIndex     int    `json:"chunk_index"`
+	ShardIndex     int    `json:"shard_index"`
+	Type           string `json:"type"`
+	RemoteID       string `json:"remote_id"`
+	Provider       string `json:"provider"`
+	ChecksumSHA256 string `json:"checksum_sha256"`
+	Status         string `json:"status,omitempty"`
+}
+
+// GetShardMapResponse - GET /api/v1/shards/file/:fileId
+type GetShardMapResponse struct {
+	FileID       string      `json:"file_id"`
+	OriginalName string      `json:"original_name"`
+	OriginalSize int64       `json:"original_size"`
+	TotalChunks  int         `json:"total_chunks"`
+	N            int         `json:"n"`
+	K            int         `json:"k"`
+	ShardSize    int64       `json:"shard_size"`
+	Status       string      `json:"status"`
+	Shards       []ShardInfo `json:"shards"`
+}
+
+// MarkShardStatusRequest - PUT /api/v1/shards/:shardId/status
+type MarkShardStatusRequest struct {
+	Status string `json:"status"`
+}

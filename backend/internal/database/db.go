@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 // Config holds database configuration
@@ -16,7 +16,7 @@ type Config struct {
 // Connect establishes a connection to the PostgreSQL database
 func Connect(cfg Config) (*sqlx.DB, error) {
 	// Connect to database
-	db, err := sqlx.Connect("postgres", cfg.DatabaseURL)
+	db, err := sqlx.Connect("pgx", cfg.DatabaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
