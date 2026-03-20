@@ -43,6 +43,10 @@ func (r *Registry) Register(id string, provider StorageProvider) {
 	r.providers[id] = provider
 }
 
+func (r *Registry) Unregister(id string) {
+	delete(r.providers, id)
+}
+
 func (r *Registry) Get(id string) (StorageProvider, error) {
 	p, ok := r.providers[id]
 	if !ok {

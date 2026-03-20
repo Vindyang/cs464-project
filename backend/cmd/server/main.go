@@ -1,50 +1,67 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
 	"os"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
 	"github.com/vindyang/cs464-project/backend/internal/adapter"
 	"github.com/vindyang/cs464-project/backend/internal/adapter/gdrive"
-	"github.com/vindyang/cs464-project/backend/internal/adapter/s3"
+	"github.com/vindyang/cs464-project/backend/internal/db"
+	"github.com/vindyang/cs464-project/backend/internal/oauthhandler"
+	"golang.org/x/oauth2/google"
 )
+
+const driveScope = "https://www.googleapis.com/auth/drive.file"
 
 type App struct {
 	Registry *adapter.Registry
 }
 
 func main() {
-	// Load .env if present; silently ignored if absent (real env vars take precedence).
 	_ = godotenv.Load()
 
+	ctx := context.Background()
 	registry := adapter.NewRegistry()
 
-	// AWS S3 adapter (stubbed; no credentials required yet)
-	registry.Register("awsS3", s3.NewS3Adapter("my-bucket", "us-east-1"))
 
-	// Google Drive adapter — enabled only when OAuth2 credentials are provided.
-	// Set GDRIVE_OAUTH_CREDENTIALS_FILE (path to OAuth2 Desktop app credentials JSON),
-	// GDRIVE_TOKEN_FILE (path to stored token — run cmd/gdrive-auth to generate it),
-	// and GDRIVE_FOLDER_ID (Drive folder ID).
+	// Connect to Supabase
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		log.Fatal("DATABASE_URL must be set")
+	}
+	database, err := db.New(ctx, dbURL)
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+	defer database.Close()
+
+	// Restore Google Drive adapter from stored token if available
 	oauthCredsFile := os.Getenv("GDRIVE_OAUTH_CREDENTIALS_FILE")
-	tokenFile := os.Getenv("GDRIVE_TOKEN_FILE")
+	redirectURI := os.Getenv("GDRIVE_OAUTH_REDIRECT_URI")
 	folderID := os.Getenv("GDRIVE_FOLDER_ID")
-	if oauthCredsFile == "" || tokenFile == "" || folderID == "" {
-		log.Println("Warning: GDRIVE_OAUTH_CREDENTIALS_FILE, GDRIVE_TOKEN_FILE, or GDRIVE_FOLDER_ID not set; Google Drive adapter disabled")
-	} else {
-		gda, err := gdrive.NewGDriveAdapter(oauthCredsFile, tokenFile, folderID)
-		if err != nil {
-			log.Fatalf("Failed to initialize Google Drive adapter: %v", err)
+	if oauthCredsFile != "" && redirectURI != "" && folderID != "" {
+		if err := tryRestoreGDriveAdapter(ctx, database, registry, oauthCredsFile, redirectURI, folderID); err != nil {
+			log.Printf("Google Drive adapter not restored: %v", err)
 		}
-		registry.Register("googleDrive", gda)
+	}
+
+	// OAuth handler for Google Drive
+	oauthHandler, err := oauthhandler.New(database, registry)
+	if err != nil {
+		log.Fatalf("Failed to initialize OAuth handler: %v", err)
 	}
 
 	app := &App{Registry: registry}
 
 	http.HandleFunc("/api/providers", corsMiddleware(app.listProviders))
+	http.HandleFunc("/api/oauth/gdrive/authorize", corsMiddleware(oauthHandler.Authorize))
+	http.HandleFunc("/api/oauth/gdrive/callback", oauthHandler.Callback)
+	http.HandleFunc("/api/oauth/gdrive/disconnect", corsMiddleware(oauthHandler.Disconnect))
 
 	log.Println("Adapter service starting on :8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
@@ -52,10 +69,41 @@ func main() {
 	}
 }
 
+// tryRestoreGDriveAdapter loads a stored token from DB and registers the adapter.
+func tryRestoreGDriveAdapter(ctx context.Context, database *db.DB, registry *adapter.Registry, credsFile, redirectURI, folderID string) error {
+	tok, err := database.LoadProviderToken(ctx, "googleDrive")
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			log.Println("No stored Google Drive token — connect via UI")
+			return nil
+		}
+		return err
+	}
+
+	raw, err := os.ReadFile(credsFile)
+	if err != nil {
+		return err
+	}
+
+	config, err := google.ConfigFromJSON(raw, driveScope)
+	if err != nil {
+		return err
+	}
+	config.RedirectURL = redirectURI
+
+	gda, err := gdrive.NewGDriveAdapter(config, tok, folderID)
+	if err != nil {
+		return err
+	}
+	registry.Register("googleDrive", gda)
+	log.Println("Google Drive adapter restored from stored token")
+	return nil
+}
+
 func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)

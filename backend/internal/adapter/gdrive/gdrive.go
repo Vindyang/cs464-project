@@ -2,15 +2,12 @@ package gdrive
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"time"
 
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
@@ -24,35 +21,19 @@ import (
 const driveScope = "https://www.googleapis.com/auth/drive.file"
 
 // GDriveAdapter implements StorageProvider using the Google Drive API v3.
-// Authenticates via OAuth2 user credentials (Desktop app flow).
+// Authenticates via OAuth2 user credentials (Web app flow).
 type GDriveAdapter struct {
 	FolderID string
 	service  *drive.Service
 }
 
-// NewGDriveAdapter constructs a GDriveAdapter using OAuth2 user credentials.
+// NewGDriveAdapter constructs a GDriveAdapter from an OAuth2 config and token.
+// The token source auto-refreshes using the refresh token.
 //
-//   - oauthCredentialsFile: path to the OAuth2 client credentials JSON downloaded
-//     from GCP Console (type: Desktop app).
-//   - tokenFile: path to the stored token JSON produced by cmd/gdrive-auth.
-//     The token source auto-refreshes using the refresh token inside.
+//   - config: OAuth2 config with client credentials and redirect URI.
+//   - token: stored OAuth2 token (loaded from DB by the caller).
 //   - folderID: Google Drive folder ID where shards will be stored.
-func NewGDriveAdapter(oauthCredentialsFile, tokenFile, folderID string) (*GDriveAdapter, error) {
-	raw, err := os.ReadFile(oauthCredentialsFile)
-	if err != nil {
-		return nil, fmt.Errorf("gdrive: read OAuth credentials file %q: %w", oauthCredentialsFile, err)
-	}
-
-	config, err := google.ConfigFromJSON(raw, driveScope)
-	if err != nil {
-		return nil, fmt.Errorf("gdrive: parse OAuth credentials: %w", err)
-	}
-
-	token, err := loadTokenFile(tokenFile)
-	if err != nil {
-		return nil, fmt.Errorf("gdrive: load token file %q: %w", tokenFile, err)
-	}
-
+func NewGDriveAdapter(config *oauth2.Config, token *oauth2.Token, folderID string) (*GDriveAdapter, error) {
 	tokenSource := config.TokenSource(context.Background(), token)
 
 	svc, err := drive.NewService(context.Background(), option.WithTokenSource(tokenSource))
@@ -64,21 +45,6 @@ func NewGDriveAdapter(oauthCredentialsFile, tokenFile, folderID string) (*GDrive
 		FolderID: folderID,
 		service:  svc,
 	}, nil
-}
-
-// loadTokenFile reads a stored OAuth2 token from a JSON file.
-func loadTokenFile(path string) (*oauth2.Token, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	var tok oauth2.Token
-	if err := json.NewDecoder(f).Decode(&tok); err != nil {
-		return nil, fmt.Errorf("decode token JSON: %w", err)
-	}
-	return &tok, nil
 }
 
 // GetMetadata fetches real quota and latency from the Drive API.
