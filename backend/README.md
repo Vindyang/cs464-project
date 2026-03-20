@@ -46,11 +46,17 @@ https://drive.google.com/drive/folders/<FOLDER_ID>
 
 ## Environment Setup
 
-```env
-GDRIVE_OAUTH_CREDENTIALS_FILE=C:/secrets/gdrive-oauth-credentials.json
-GDRIVE_TOKEN_FILE=C:/secrets/gdrive-token.json
-GDRIVE_FOLDER_ID=<your-folder-id>
+Copy the example file and fill in your values:
+
+```bash
+cp .env.example .env
 ```
+
+| Variable | Description |
+|---|---|
+| `GDRIVE_OAUTH_CREDENTIALS_FILE` | Path to the OAuth2 credentials JSON downloaded from GCP Console |
+| `GDRIVE_TOKEN_FILE` | Path where the OAuth token will be saved after running `gdrive-auth` |
+| `GDRIVE_FOLDER_ID` | ID of the Google Drive folder to store shards in (from the folder URL) |
 
 > `.env` is gitignored. Never commit it. Share credentials with teammates out-of-band (e.g. a private group chat).
 
