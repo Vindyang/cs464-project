@@ -43,10 +43,23 @@ func (r *Registry) Register(id string, provider StorageProvider) {
 	r.providers[id] = provider
 }
 
+func (r *Registry) Unregister(id string) {
+	delete(r.providers, id)
+}
+
 func (r *Registry) Get(id string) (StorageProvider, error) {
 	p, ok := r.providers[id]
 	if !ok {
 		return nil, fmt.Errorf("provider %s not found", id)
 	}
 	return p, nil
+}
+
+// IDs returns the registered provider IDs in insertion order is not guaranteed.
+func (r *Registry) IDs() []string {
+	ids := make([]string, 0, len(r.providers))
+	for id := range r.providers {
+		ids = append(ids, id)
+	}
+	return ids
 }

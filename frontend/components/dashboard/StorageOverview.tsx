@@ -1,7 +1,25 @@
+"use client";
+
 import { DashboardCard } from "./DashboardCard";
 import { Database, Layers } from "lucide-react";
+import { useProviderStore } from "@/lib/store/providerStore";
+
+function formatBytes(bytes: number): { value: string; unit: string } {
+  if (bytes >= 1e12) return { value: (bytes / 1e12).toFixed(1), unit: "TB" };
+  if (bytes >= 1e9) return { value: (bytes / 1e9).toFixed(1), unit: "GB" };
+  return { value: (bytes / 1e6).toFixed(1), unit: "MB" };
+}
 
 export function StorageOverview() {
+  const { providers } = useProviderStore();
+
+  const totalBytes = providers.reduce((sum, p) => sum + p.quotaTotalBytes, 0);
+  const usedBytes = providers.reduce((sum, p) => sum + p.quotaUsedBytes, 0);
+  const utilizationPercent = totalBytes > 0 ? Math.round((usedBytes / totalBytes) * 100) : 0;
+
+  const used = formatBytes(usedBytes);
+  const total = formatBytes(totalBytes);
+
   return (
     <DashboardCard className="col-span-1 row-span-1">
       <div className="mb-5 flex items-baseline justify-between">
@@ -17,26 +35,26 @@ export function StorageOverview() {
       </div>
 
       <div className="mb-2 flex items-baseline gap-2">
-        <span className="font-mono text-5xl font-bold">4.2</span>
-        <span className="font-mono text-xl text-neutral-500">TB</span>
+        <span className="font-mono text-5xl font-bold">{used.value}</span>
+        <span className="font-mono text-xl text-neutral-500">{used.unit}</span>
         <span className="ml-auto font-mono text-sm text-neutral-500">
-          / 12.0 TB
+          / {total.value} {total.unit}
         </span>
       </div>
 
       <div className="mb-6">
         <div className="mb-2 flex justify-between font-mono text-xs">
           <span className="text-neutral-600">UTILIZATION</span>
-          <span className="font-bold">35.0%</span>
+          <span className="font-bold">{utilizationPercent}%</span>
         </div>
         <div className="h-2 overflow-hidden bg-neutral-200">
-          <div className="h-full bg-black" style={{ width: "35%" }} />
+          <div className="h-full bg-black" style={{ width: `${utilizationPercent}%` }} />
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 border-t pt-4">
-        <StatItem icon={Database} label="Files" value="1,247" />
-        <StatItem icon={Layers} label="Shards" value="7,482" />
+        <StatItem icon={Database} label="Files" value="—" />
+        <StatItem icon={Layers} label="Providers" value={String(providers.length)} />
       </div>
     </DashboardCard>
   );
@@ -47,7 +65,7 @@ function StatItem({
   label,
   value,
 }: {
-  icon: any;
+  icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: string;
 }) {

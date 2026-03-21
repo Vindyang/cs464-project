@@ -131,7 +131,7 @@ export default function SettingsPage() {
                                 "justify-start h-auto py-4 px-4 flex-col items-start gap-1 rounded-[2px] border-border-color",
                                 redundancyScheme === opt.val ? "bg-accent-primary hover:bg-accent-primary-hover text-white border-transparent" : "hover:bg-bg-subtle text-text-main"
                             )}
-                            onClick={() => setRedundancyScheme(opt.val as any)}
+                            onClick={() => setRedundancyScheme(opt.val as "(6,4)" | "(8,4)" | "(10,8)")}
                          >
                             <span className="font-semibold">{opt.label}</span>
                             <span className={cn("text-xs opacity-80", redundancyScheme === opt.val ? "text-white" : "text-text-secondary")}>{opt.sub}</span>
@@ -180,7 +180,7 @@ export default function SettingsPage() {
                 <div className="space-y-1">
                    <Label className="text-base font-medium">Auto-Delete Stale Files</Label>
                    <p className="text-sm text-text-secondary">
-                      Automatically remove files that haven't been accessed in 30 days.
+                      Automatically remove files that haven&apos;t been accessed in 30 days.
                    </p>
                 </div>
                 <Switch checked={autoDelete} onCheckedChange={setAutoDelete} />

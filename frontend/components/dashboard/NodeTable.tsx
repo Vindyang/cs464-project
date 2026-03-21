@@ -65,14 +65,13 @@ export function NodeTable({ providers, onConfig, onRemove }: NodeTableProps) {
                   </td>
                   <td className="p-4 align-middle w-48">
                      <div className="flex flex-col gap-1">
-                        <div className="flex justify-between text-[10px] text-text-secondary uppercase tracking-wider">
-                           <span>{usagePercent}%</span>
-                           <span>{formattedUsed}</span>
+                        <div className="text-[10px] text-muted-foreground">
+                           {formattedUsed} ({usagePercent}%)
                         </div>
-                        <div className="h-1 w-full bg-bg-subtle rounded-full overflow-hidden">
-                           <div 
-                              className="h-full bg-accent-primary" 
-                              style={{ width: `${usagePercent}%` }} 
+                        <div className="h-1 w-full bg-muted rounded-full overflow-hidden">
+                           <div
+                              className="h-full bg-foreground"
+                              style={{ width: `${usagePercent}%` }}
                            />
                         </div>
                      </div>

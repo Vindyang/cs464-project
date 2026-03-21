@@ -19,7 +19,7 @@ export default function FilesPage() {
     size: f.size,
     date: f.uploadedAt,
     providerCount: f.shardsAvailable, // Using available shards as proxy for "redundancy level"
-    status: f.shardsAvailable === f.shardsTotal ? "synced" : f.shardsAvailable > 3 ? "syncing" : "error" as any
+    status: (f.shardsAvailable === f.shardsTotal ? "synced" : f.shardsAvailable > 3 ? "syncing" : "error") as "synced" | "syncing" | "error"
   })).filter(f => 
     f.name.toLowerCase().includes(search.toLowerCase())
   );
