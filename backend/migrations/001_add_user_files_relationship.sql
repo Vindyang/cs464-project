@@ -5,12 +5,21 @@
 
 BEGIN;
 
--- Add user_id column to files table
--- Using 'system' as default for any existing rows
+-- Step 1: Add user_id column as nullable first
 ALTER TABLE files
-ADD COLUMN user_id TEXT NOT NULL DEFAULT 'system';
+ADD COLUMN user_id TEXT;
 
--- Add foreign key constraint
+-- Step 2: Assign existing files to the first user in the database
+-- (In production, you'd want a more sophisticated approach)
+UPDATE files
+SET user_id = (SELECT id FROM "user" LIMIT 1)
+WHERE user_id IS NULL;
+
+-- Step 3: Make user_id NOT NULL now that all rows have a value
+ALTER TABLE files
+ALTER COLUMN user_id SET NOT NULL;
+
+-- Step 4: Add foreign key constraint
 ALTER TABLE files
 ADD CONSTRAINT files_user_fkey
     FOREIGN KEY (user_id) REFERENCES "user"(id) ON DELETE CASCADE;

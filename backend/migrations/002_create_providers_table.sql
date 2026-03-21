@@ -33,11 +33,11 @@ CREATE TABLE providers (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- Insert common providers
+-- Insert common providers (using camelCase to match existing shards data)
 INSERT INTO providers (id, display_name, provider_type, quota_total_bytes, region) VALUES
-    ('google_drive', 'Google Drive', 'oauth', 16106127360, 'global'),
-    ('aws_s3', 'AWS S3', 's3', 5368709120, 'us-east-1'),
-    ('onedrive', 'Microsoft OneDrive', 'oauth', 5368709120, 'global'),
+    ('googleDrive', 'Google Drive', 'oauth', 16106127360, 'global'),
+    ('awsS3', 'AWS S3', 's3', 5368709120, 'us-east-1'),
+    ('oneDrive', 'Microsoft OneDrive', 'oauth', 5368709120, 'global'),
     ('dropbox', 'Dropbox', 'oauth', 2147483648, 'global');
 
 -- Create indexes

@@ -5,6 +5,12 @@
 
 BEGIN;
 
+-- Fix existing provider_connections data where created_at was set incorrectly
+-- (created_at should be <= expiry, so we set it to updated_at for existing rows)
+UPDATE provider_connections
+SET created_at = updated_at
+WHERE expiry IS NOT NULL AND created_at > expiry;
+
 -- Files table constraints
 ALTER TABLE files
 ADD CONSTRAINT check_k_less_than_n CHECK (k <= n),
