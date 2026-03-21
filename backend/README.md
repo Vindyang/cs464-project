@@ -9,6 +9,7 @@ The backend adapter service exposes a unified JSON API over multiple cloud stora
 - Go 1.23+
 - A Google account (personal or dedicated project account)
 - A Google Cloud project with the **Google Drive API** enabled
+- A [Supabase](https://supabase.com) project
 
 ---
 
@@ -31,7 +32,9 @@ GCP Console → **APIs & Services** → **OAuth consent screen**:
 ### 3. Create OAuth 2.0 credentials
 
 GCP Console → **APIs & Services** → **Credentials** → **Create Credentials** → **OAuth 2.0 Client ID**:
-- Application type: **Desktop app**
+- Application type: **Web application**
+- Authorized JavaScript origins: `http://localhost:3000` and `http://localhost:8080`
+- Authorized redirect URIs: `http://localhost:8080/api/oauth/gdrive/callback`
 - Download the JSON file → save it **outside the repo** (e.g. `C:/secrets/gdrive-oauth-credentials.json`)
 
 ### 4. Create a Drive folder
@@ -41,6 +44,29 @@ In Google Drive, create a folder for storing shards (e.g. `nebula-shards`). Copy
 ```
 https://drive.google.com/drive/folders/<FOLDER_ID>
 ```
+
+---
+
+## Supabase Setup (one-time)
+
+### 1. Create the `provider_connections` table
+
+In the Supabase SQL editor, run:
+
+```sql
+create table provider_connections (
+  provider_id   text primary key,
+  access_token  text not null,
+  refresh_token text,
+  token_type    text,
+  expiry        timestamptz,
+  updated_at    timestamptz default now()
+);
+```
+
+### 2. Get the connection string
+
+Supabase dashboard → **Project Settings** → **Database** → **Connection string** → **URI**. Use this as `DATABASE_URL`.
 
 ---
 
@@ -54,29 +80,13 @@ cp .env.example .env
 
 | Variable | Description |
 |---|---|
+| `DATABASE_URL` | PostgreSQL connection string from Supabase |
 | `GDRIVE_OAUTH_CREDENTIALS_FILE` | Path to the OAuth2 credentials JSON downloaded from GCP Console |
-| `GDRIVE_TOKEN_FILE` | Path where the OAuth token will be saved after running `gdrive-auth` |
-| `GDRIVE_FOLDER_ID` | ID of the Google Drive folder to store shards in (from the folder URL) |
+| `GDRIVE_OAUTH_REDIRECT_URI` | Must match the redirect URI configured in GCP (`http://localhost:8080/api/oauth/gdrive/callback`) |
+| `GDRIVE_FOLDER_ID` | ID of the Google Drive folder to store shards in |
+| `FRONTEND_URL` | Frontend origin for post-OAuth redirect (`http://localhost:3000`) |
 
 > `.env` is gitignored. Never commit it. Share credentials with teammates out-of-band (e.g. a private group chat).
-
----
-
-## First-Time Authorization
-
-Run this once per machine to authorize your Google account and save a token:
-
-```bash
-go run ./cmd/gdrive-auth/main.go
-```
-
-It will:
-1. Print an authorization URL
-2. You open the URL in your browser and grant access
-3. Paste the authorization code back into the terminal
-4. Save the token to the path in `GDRIVE_TOKEN_FILE`
-
-The token auto-refreshes on subsequent runs — you only need to do this once.
 
 ---
 
@@ -92,23 +102,19 @@ Server starts on `:8080`. Check it's working:
 curl http://localhost:8080/api/providers
 ```
 
-Example response:
+---
 
-```json
-[
-  {
-    "providerId": "googleDrive",
-    "displayName": "Google Drive",
-    "status": "connected",
-    "latencyMs": 142,
-    "region": "global",
-    "capabilities": { "supportsVersioning": true },
-    "quotaTotal": 16106127360,
-    "quotaUsed": 1234567,
-    "lastCheck": "2026-03-16T10:00:00Z"
-  }
-]
-```
+## Connecting Google Drive
+
+Authorization is done through the browser UI:
+
+1. Start the backend and frontend
+2. Go to `http://localhost:3000/providers`
+3. Click **Connect New** → **Connect** next to Google Drive
+4. Complete the Google consent screen
+5. You'll be redirected back to `/providers` with Google Drive now connected
+
+The OAuth token is stored in Supabase and loaded automatically on server restart — you only need to authorize once.
 
 ---
 
@@ -122,8 +128,6 @@ go test ./internal/adapter/gdrive/... -v -run TestGDriveIntegration
 
 Tests skipped automatically if env vars are not set, so `go test ./...` is always safe to run.
 
-Sub-tests:
-
 | Test | What it checks |
 |---|---|
 | `HealthCheck` | API connection is live |
@@ -136,9 +140,10 @@ Sub-tests:
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/providers` | Returns metadata (status, quota, latency) for all registered providers |
-
-Upload/download/delete endpoints are pending — currently exercised via integration tests only.
+| `GET` | `/api/providers` | Returns metadata for all registered providers |
+| `GET` | `/api/oauth/gdrive/authorize` | Returns a Google OAuth authorization URL |
+| `GET` | `/api/oauth/gdrive/callback` | Handles OAuth callback, stores token, registers adapter |
+| `POST` | `/api/oauth/gdrive/disconnect` | Removes token from Supabase, unregisters adapter |
 
 ---
 
@@ -146,13 +151,17 @@ Upload/download/delete endpoints are pending — currently exercised via integra
 
 ```
 cmd/
-  server/        ← HTTP server entry point
-  gdrive-auth/   ← One-time OAuth2 authorization tool
+  server/              ← HTTP server entry point
 
-internal/adapter/
-  adapter.go     ← StorageProvider interface + Registry
-  gdrive/        ← Google Drive implementation
-  s3/            ← AWS S3 implementation (stubbed)
+internal/
+  adapter/
+    adapter.go         ← StorageProvider interface + Registry
+    gdrive/            ← Google Drive implementation
+    s3/                ← AWS S3 implementation (stubbed)
+  db/
+    db.go              ← Supabase/PostgreSQL token storage
+  oauthhandler/
+    gdrive.go          ← OAuth endpoint handlers
 ```
 
 All providers implement the `StorageProvider` interface (`GetMetadata`, `UploadShard`, `DownloadShard`, `DeleteShard`, `HealthCheck`). New providers are added by implementing the interface and registering in `cmd/server/main.go`.
