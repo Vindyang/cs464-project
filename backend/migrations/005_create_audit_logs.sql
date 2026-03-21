@@ -24,7 +24,7 @@ CREATE TYPE audit_action AS ENUM (
     'permission_revoke'
 );
 
--- Create audit logs table
+-- Create audit logs table (simple, non-partitioned)
 CREATE TABLE audit_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id TEXT REFERENCES "user"(id) ON DELETE SET NULL, -- NULL for system events
@@ -45,14 +45,6 @@ CREATE INDEX idx_audit_logs_resource ON audit_logs(resource_type, resource_id, c
 CREATE INDEX idx_audit_logs_action ON audit_logs(action, created_at DESC);
 CREATE INDEX idx_audit_logs_created ON audit_logs(created_at DESC);
 CREATE INDEX idx_audit_logs_failures ON audit_logs(success, created_at DESC) WHERE success = false;
-
--- Create partitioning for audit logs (by month)
--- This prevents the table from growing too large
-CREATE TABLE audit_logs_2026_03 PARTITION OF audit_logs
-    FOR VALUES FROM ('2026-03-01') TO ('2026-04-01');
-
-CREATE TABLE audit_logs_2026_04 PARTITION OF audit_logs
-    FOR VALUES FROM ('2026-04-01') TO ('2026-05-01');
 
 -- Create a function to log file operations automatically
 CREATE OR REPLACE FUNCTION log_file_operation()
