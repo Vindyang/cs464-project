@@ -6,13 +6,20 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
 	"github.com/vindyang/cs464-project/backend/internal/adapter"
 	"github.com/vindyang/cs464-project/backend/internal/adapter/gdrive"
+	"github.com/vindyang/cs464-project/backend/internal/api/handlers"
 	"github.com/vindyang/cs464-project/backend/internal/db"
+	"github.com/vindyang/cs464-project/backend/internal/database"
 	"github.com/vindyang/cs464-project/backend/internal/oauthhandler"
+	"github.com/vindyang/cs464-project/backend/internal/repository"
+	"github.com/vindyang/cs464-project/backend/internal/service"
 	"golang.org/x/oauth2/google"
 )
 
@@ -26,52 +33,109 @@ func main() {
 	_ = godotenv.Load()
 
 	ctx := context.Background()
-	registry := adapter.NewRegistry()
 
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 
-	// Connect to Supabase
+	// Connect to Supabase via pgx (OAuth token storage)
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
 		log.Fatal("DATABASE_URL must be set")
 	}
-	database, err := db.New(ctx, dbURL)
+	tokenDB, err := db.New(ctx, dbURL)
+	if err != nil {
+		log.Fatalf("Failed to connect to token database: %v", err)
+	}
+	defer tokenDB.Close()
+
+	// Connect to database via sqlx (file/shard metadata)
+	log.Println("Connecting to database...")
+	sqlDB, err := database.ConnectFromEnv()
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
-	defer database.Close()
+	defer sqlDB.Close()
+	log.Println("Database connected successfully")
+
+	// Initialize repositories and services
+	fileRepo := repository.NewFileRepository(sqlDB)
+	shardRepo := repository.NewShardRepository(sqlDB)
+	shardingService := service.NewShardingService()
+	shardMapService := service.NewShardMapService(fileRepo, shardRepo)
+
+	// Initialize adapter registry
+	registry := adapter.NewRegistry()
 
 	// Restore Google Drive adapter from stored token if available
 	oauthCredsFile := os.Getenv("GDRIVE_OAUTH_CREDENTIALS_FILE")
 	redirectURI := os.Getenv("GDRIVE_OAUTH_REDIRECT_URI")
 	folderID := os.Getenv("GDRIVE_FOLDER_ID")
 	if oauthCredsFile != "" && redirectURI != "" && folderID != "" {
-		if err := tryRestoreGDriveAdapter(ctx, database, registry, oauthCredsFile, redirectURI, folderID); err != nil {
+		if err := tryRestoreGDriveAdapter(ctx, tokenDB, registry, oauthCredsFile, redirectURI, folderID); err != nil {
 			log.Printf("Google Drive adapter not restored: %v", err)
 		}
 	}
 
 	// OAuth handler for Google Drive
-	oauthHandler, err := oauthhandler.New(database, registry)
+	oauthHandler, err := oauthhandler.New(tokenDB, registry)
 	if err != nil {
 		log.Fatalf("Failed to initialize OAuth handler: %v", err)
 	}
 
+	// File operations service and handlers
+	fileOperationsService := service.NewFileOperationsService(shardingService, shardMapService, registry)
+	shardMapHandler := handlers.NewShardMapHandler(shardMapService)
+	fileHandler := handlers.NewFileHandler(fileOperationsService)
+
 	app := &App{Registry: registry}
 
-	http.HandleFunc("/api/providers", corsMiddleware(app.listProviders))
-	http.HandleFunc("/api/oauth/gdrive/authorize", corsMiddleware(oauthHandler.Authorize))
-	http.HandleFunc("/api/oauth/gdrive/callback", oauthHandler.Callback)
-	http.HandleFunc("/api/oauth/gdrive/disconnect", corsMiddleware(oauthHandler.Disconnect))
+	// Set up routes
+	mux := http.NewServeMux()
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status":"healthy"}`))
+	})
+	mux.HandleFunc("/api/providers", app.listProviders)
+	mux.HandleFunc("/api/oauth/gdrive/authorize", oauthHandler.Authorize)
+	mux.HandleFunc("/api/oauth/gdrive/callback", oauthHandler.Callback)
+	mux.HandleFunc("/api/oauth/gdrive/disconnect", oauthHandler.Disconnect)
+	shardMapHandler.RegisterRoutes(mux)
+	fileHandler.RegisterRoutes(mux)
 
-	log.Println("Adapter service starting on :8080")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
-		log.Fatalf("Server failed: %v", err)
+	server := &http.Server{
+		Addr:         ":" + port,
+		Handler:      corsMiddleware(loggingMiddleware(mux)),
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
 	}
+
+	go func() {
+		log.Printf("Adapter service starting on :%s", port)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server failed to start: %v", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	log.Println("Server shutting down...")
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Fatalf("Server forced to shutdown: %v", err)
+	}
+	log.Println("Server exited gracefully")
 }
 
 // tryRestoreGDriveAdapter loads a stored token from DB and registers the adapter.
-func tryRestoreGDriveAdapter(ctx context.Context, database *db.DB, registry *adapter.Registry, credsFile, redirectURI, folderID string) error {
-	tok, err := database.LoadProviderToken(ctx, "googleDrive")
+func tryRestoreGDriveAdapter(ctx context.Context, tokenDB *db.DB, registry *adapter.Registry, credsFile, redirectURI, folderID string) error {
+	tok, err := tokenDB.LoadProviderToken(ctx, "googleDrive")
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			log.Println("No stored Google Drive token — connect via UI")
@@ -84,7 +148,6 @@ func tryRestoreGDriveAdapter(ctx context.Context, database *db.DB, registry *ada
 	if err != nil {
 		return err
 	}
-
 	config, err := google.ConfigFromJSON(raw, driveScope)
 	if err != nil {
 		return err
@@ -100,22 +163,8 @@ func tryRestoreGDriveAdapter(ctx context.Context, database *db.DB, registry *ada
 	return nil
 }
 
-func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		next(w, r)
-	}
-}
-
 func (app *App) listProviders(w http.ResponseWriter, r *http.Request) {
 	metadatas := make([]*adapter.ProviderMetadata, 0)
-
 	for _, id := range app.Registry.IDs() {
 		p, err := app.Registry.Get(id)
 		if err != nil {
@@ -128,7 +177,38 @@ func (app *App) listProviders(w http.ResponseWriter, r *http.Request) {
 		}
 		metadatas = append(metadatas, meta)
 	}
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(metadatas)
+}
+
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		wrapped := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
+		next.ServeHTTP(wrapped, r)
+		log.Printf("%s %s - %d (%v)", r.Method, r.URL.Path, wrapped.statusCode, time.Since(start))
+	})
+}
+
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+type responseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (rw *responseWriter) WriteHeader(code int) {
+	rw.statusCode = code
+	rw.ResponseWriter.WriteHeader(code)
 }
