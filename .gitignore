@@ -44,3 +44,8 @@ next-env.d.ts
 /roomode.lock
 .roo/
 .roomodes
+
+# Backend documentation (internal reference only)
+backend/API_CONTRACTS.md
+backend/IMPLEMENTATION_ROADMAP.md
+backend/REED_SOLOMON_INTEGRATION.md
