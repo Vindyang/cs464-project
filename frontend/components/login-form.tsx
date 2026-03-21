@@ -1,73 +1,62 @@
-"use client";
+"use client"
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import Link from "next/link";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
-import { signUp } from "@/lib/auth-client";
+import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { signIn } from "@/lib/auth-client"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
+import { Loader2 } from "lucide-react"
+import Link from "next/link"
 
-export default function SignupPage() {
-  const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+export function LoginForm({
+  className,
+  ...props
+}: React.ComponentProps<"div">) {
+  const router = useRouter()
+  const [isLoading, setIsLoading] = useState(false)
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setIsLoading(true);
+    event.preventDefault()
+    setIsLoading(true)
 
     try {
-      const result = await signUp.email({
+      const result = await signIn.email({
         email,
         password,
-        name,
-      });
+      })
 
       if (result.error) {
-        toast.error(result.error.message || "Failed to create account");
-        setIsLoading(false);
-        return;
+        toast.error(result.error.message || "Invalid email or password")
+        setIsLoading(false)
+        return
       }
 
-      toast.success("Account created successfully");
-      router.push("/dashboard");
+      toast.success("Logged in successfully")
+      router.push("/dashboard")
     } catch (error) {
-      toast.error("Something went wrong. Please try again.");
-      setIsLoading(false);
+      toast.error("Something went wrong. Please try again.")
+      setIsLoading(false)
     }
   }
 
   return (
-    <div className="flex flex-col gap-8 w-full max-w-[400px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className={cn("flex flex-col gap-8 w-full max-w-[400px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700", className)} {...props}>
       <div className="flex flex-col space-y-2 text-center sm:text-left">
         <h1 className="text-3xl font-semibold tracking-tight text-neutral-950">
-          Create an account
+          Welcome back
         </h1>
         <p className="text-sm text-neutral-500">
-          Enter your details below to get started
+          Enter your credentials to access your account
         </p>
       </div>
 
       <form onSubmit={onSubmit} className="space-y-6">
         <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name" className="text-neutral-700 font-medium">Full Name</Label>
-            <Input
-              id="name"
-              type="text"
-              placeholder="John Doe"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              disabled={isLoading}
-              required
-              className="h-11 px-4 border-neutral-200 bg-white focus-visible:ring-1 focus-visible:ring-black focus-visible:border-black rounded-md transition-all placeholder:text-neutral-400"
-            />
-          </div>
           <div className="space-y-2">
             <Label htmlFor="email" className="text-neutral-700 font-medium">Email Address</Label>
             <Input
@@ -82,7 +71,16 @@ export default function SignupPage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password" className="text-neutral-700 font-medium">Password</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password" className="text-neutral-700 font-medium">Password</Label>
+              <Link
+                href="/forgot-password"
+                className="text-sm font-medium text-neutral-500 hover:text-black transition-colors"
+                tabIndex={-1}
+              >
+                Forgot password?
+              </Link>
+            </div>
             <Input
               id="password"
               type="password"
@@ -104,7 +102,7 @@ export default function SignupPage() {
           {isLoading ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : (
-            "Create Account"
+            "Sign In"
           )}
         </Button>
       </form>
@@ -135,11 +133,11 @@ export default function SignupPage() {
       </div>
 
       <p className="text-center text-sm text-neutral-500">
-        Already have an account?{" "}
-        <Link href="/login" className="font-semibold text-black hover:underline underline-offset-4">
-          Sign in
+        Don&apos;t have an account?{" "}
+        <Link href="/signup" className="font-semibold text-black hover:underline underline-offset-4">
+          Create an account
         </Link>
       </p>
     </div>
-  );
+  )
 }

@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "kysely": "^0.28.14"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.20.0"
+  }
+}

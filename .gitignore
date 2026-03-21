@@ -50,3 +50,7 @@ next-env.d.ts
 backend/API_CONTRACTS.md
 backend/IMPLEMENTATION_ROADMAP.md
 backend/REED_SOLOMON_INTEGRATION.md
+
+# Claude Code
+.claude/
+.agents/
