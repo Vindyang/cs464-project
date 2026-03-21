@@ -7,10 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Search, Filter, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
-
 export default function FilesPage() {
-  const router = useRouter();
   const [search, setSearch] = useState("");
   // Determine status based on shard availability (mock logic)
   const files = mockFiles.map(f => ({
@@ -24,7 +21,7 @@ export default function FilesPage() {
     f.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleDownload = (id: string) => {
+  const handleDownload = () => {
     toast.promise(
         new Promise((resolve) => setTimeout(resolve, 1000)),
         {
@@ -35,7 +32,7 @@ export default function FilesPage() {
     );
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = () => {
       toast("Are you sure?", {
           description: "This will permanently delete the file from all providers.",
           action: {
@@ -47,7 +44,7 @@ export default function FilesPage() {
       });
   };
   
-  const handleDetails = (id: string) => {
+  const handleDetails = () => {
       // router.push(`/dashboard/files/${id}`);
       toast.info("File details view not implemented yet");
   }

@@ -28,7 +28,7 @@ interface UploadState {
   cancelUpload: (fileId: string) => void;
 }
 
-export const useUploadStore = create<UploadState>((set, get) => ({
+export const useUploadStore = create<UploadState>((set) => ({
   activeUploads: {},
 
   addUpload: (file: File) => {
@@ -102,14 +102,16 @@ export const useUploadStore = create<UploadState>((set, get) => ({
 
   completeUpload: (fileId) => {
     set((state) => {
-        const { [fileId]: _, ...remaining } = state.activeUploads;
+        const { [fileId]: removed, ...remaining } = state.activeUploads;
+        void removed; // Used for destructuring to remove property
         return { activeUploads: remaining };
     });
   },
 
   cancelUpload: (fileId) => {
     set((state) => {
-        const { [fileId]: _, ...remaining } = state.activeUploads;
+        const { [fileId]: removed, ...remaining } = state.activeUploads;
+        void removed; // Used for destructuring to remove property
         return { activeUploads: remaining };
     });
   },

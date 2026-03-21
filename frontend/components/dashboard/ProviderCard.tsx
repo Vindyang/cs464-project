@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Cloud, Check, Loader2, AlertTriangle, RefreshCw, HardDrive } from "lucide-react";
+import { Cloud, Check, AlertTriangle, RefreshCw, HardDrive } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DashboardCard } from "../dashboard/DashboardCard";
 

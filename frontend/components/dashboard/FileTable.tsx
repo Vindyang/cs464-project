@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Download, Trash2, MoreHorizontal, FileText, Database } from "lucide-react";
 import { DashboardCard } from "./DashboardCard";
-import { cn } from "@/lib/utils";
 
 interface File {
   id: string;

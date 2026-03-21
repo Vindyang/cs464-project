@@ -33,6 +33,7 @@ function ProvidersContent() {
       toast.error("Failed to connect provider. Please try again.");
       router.replace("/providers");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const providers = allProviders.filter(p =>

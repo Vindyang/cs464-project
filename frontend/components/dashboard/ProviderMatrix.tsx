@@ -55,6 +55,7 @@ export function ProviderMatrix() {
 
   useEffect(() => {
     fetchProviders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

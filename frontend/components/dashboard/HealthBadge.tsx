@@ -10,8 +10,6 @@ interface HealthBadgeProps {
 }
 
 export function HealthBadge({ shardsAvailable, shardsTotal, minShards }: HealthBadgeProps) {
-  const percentage = (shardsAvailable / shardsTotal) * 100;
-  
   let status: "healthy" | "warning" | "critical" = "healthy";
   if (shardsAvailable < minShards) {
     status = "critical";
