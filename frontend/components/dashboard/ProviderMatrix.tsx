@@ -1,8 +1,8 @@
-import { DashboardCard } from "./DashboardCard";
 import { cn } from "@/lib/utils";
-import { Cloud, Activity, HardDrive } from "lucide-react";
+import { Cloud, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useProviderStore } from "@/lib/store/providerStore";
+import { useEffect } from "react";
 
 const statusConfig = {
   online: {
@@ -51,7 +51,11 @@ const providerIcons: Record<string, string> = {
 };
 
 export function ProviderMatrix() {
-  const { providers } = useProviderStore();
+  const { providers, fetchProviders } = useProviderStore();
+
+  useEffect(() => {
+    fetchProviders();
+  }, []);
 
   return (
     <div className="col-span-1 row-span-2 flex flex-col gap-6">
@@ -165,38 +169,34 @@ export function ProviderMatrix() {
               </div>
 
               {/* Shards */}
-              <div className="flex items-center gap-1.5">
-                <HardDrive className="h-3 w-3 text-neutral-400" />
-                <span className="font-mono text-xs text-neutral-600">
-                  {provider.shardCount}
-                </span>
-              </div>
+              <div className="font-mono text-xs text-neutral-400">—</div>
             </div>
           );
         })}
       </div>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="border bg-white p-3">
-          <div className="mb-1 font-mono text-[9px] uppercase tracking-wider text-neutral-500">
-            Active
+      {(() => {
+        const active = providers.filter(p => p.status === 'connected').length;
+        const degraded = providers.filter(p => p.status === 'degraded').length;
+        const offline = providers.filter(p => p.status === 'disconnected' || p.status === 'error' || p.status === 'offline').length;
+        return (
+          <div className="grid grid-cols-3 gap-3">
+            <div className="border bg-white p-3">
+              <div className="mb-1 font-mono text-[9px] uppercase tracking-wider text-neutral-500">Active</div>
+              <div className="font-mono text-xl font-bold">{active}</div>
+            </div>
+            <div className="border bg-neutral-50 p-3">
+              <div className="mb-1 font-mono text-[9px] uppercase tracking-wider text-neutral-500">Degraded</div>
+              <div className="font-mono text-xl font-bold text-neutral-600">{degraded}</div>
+            </div>
+            <div className="border bg-neutral-100 p-3">
+              <div className="mb-1 font-mono text-[9px] uppercase tracking-wider text-neutral-500">Offline</div>
+              <div className="font-mono text-xl font-bold text-neutral-400">{offline}</div>
+            </div>
           </div>
-          <div className="font-mono text-xl font-bold">3</div>
-        </div>
-        <div className="border bg-neutral-50 p-3">
-          <div className="mb-1 font-mono text-[9px] uppercase tracking-wider text-neutral-500">
-            Degraded
-          </div>
-          <div className="font-mono text-xl font-bold text-neutral-600">1</div>
-        </div>
-        <div className="border bg-neutral-100 p-3">
-          <div className="mb-1 font-mono text-[9px] uppercase tracking-wider text-neutral-500">
-            Offline
-          </div>
-          <div className="font-mono text-xl font-bold text-neutral-400">1</div>
-        </div>
-      </div>
+        );
+      })()}
     </div>
   );
 }

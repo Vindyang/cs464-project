@@ -37,10 +37,7 @@ export default function DashboardLayout({
         <header className="flex items-center justify-between px-6 py-4 border-b bg-background/50 backdrop-blur-sm z-10 relative">
            <h1 className="text-xl font-semibold">Dashboard</h1>
            <div className="flex items-center gap-4">
-              <span className="text-sm text-muted-foreground hidden sm:inline-block">
-                 Connected to 2 providers
-              </span>
-              <Button variant="ghost" size="icon" asChild>
+<Button variant="ghost" size="icon" asChild>
                  <Link href="/settings">
                     <UserCircle className="w-6 h-6" />
                  </Link>
