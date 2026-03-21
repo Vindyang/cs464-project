@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Cloud, Check, Loader2, AlertTriangle, MoreHorizontal, Settings, Globe, Trash2 } from "lucide-react";
+import { Cloud, Settings, Globe, Trash2 } from "lucide-react";
 import { DashboardCard } from "./DashboardCard";
 import { cn } from "@/lib/utils";
 

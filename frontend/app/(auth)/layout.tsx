@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { GridBackground } from "@/components/ui/grid-background";
 import { Mountain } from "lucide-react"; // Using Mountain as a placeholder luxury icon
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
@@ -20,7 +19,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="relative z-20 mt-auto">
           <blockquote className="space-y-4">
             <p className="text-2xl font-medium tracking-tight leading-snug">
-              "Building the future of academic orchestration. Fast, reliable, and exceptionally intuitive."
+              &ldquo;Building the future of academic orchestration. Fast, reliable, and exceptionally intuitive.&rdquo;
             </p>
             <footer className="text-sm font-light text-zinc-400">
               The CS464 Orchestration Team

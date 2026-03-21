@@ -38,7 +38,7 @@ export function LoginForm({
 
       toast.success("Logged in successfully")
       router.push("/dashboard")
-    } catch (error) {
+    } catch {
       toast.error("Something went wrong. Please try again.")
       setIsLoading(false)
     }
