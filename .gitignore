@@ -51,6 +51,11 @@ backend/API_CONTRACTS.md
 backend/IMPLEMENTATION_ROADMAP.md
 backend/REED_SOLOMON_INTEGRATION.md
 
+# Database analysis docs (internal reference only)
+references/database-analysis.md
+references/schema-diagram.md
+backend/migrations/README.md
+
 # Claude Code
 .claude/
 .agents/
