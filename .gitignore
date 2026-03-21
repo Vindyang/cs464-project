@@ -54,3 +54,4 @@ backend/REED_SOLOMON_INTEGRATION.md
 # Claude Code
 .claude/
 .agents/
+skills-lock.json
