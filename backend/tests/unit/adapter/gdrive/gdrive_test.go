@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/joho/godotenv"
-	"golang.org/x/oauth2/google"
 	"github.com/vindyang/cs464-project/backend/internal/adapter/gdrive"
+	"golang.org/x/oauth2/google"
 )
 
 const driveScope = "https://www.googleapis.com/auth/drive.file"
@@ -18,7 +18,7 @@ const driveScope = "https://www.googleapis.com/auth/drive.file"
 // and GDRIVE_FOLDER_ID are available without manually setting env vars.
 // Errors are silently ignored so tests still run when vars are set directly (e.g. CI).
 func TestMain(m *testing.M) {
-	_ = godotenv.Load("../../../.env")
+	_ = godotenv.Load("../../../../.env")
 	os.Exit(m.Run())
 }
 

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
@@ -107,6 +108,7 @@ func TestUploadHappyPath(t *testing.T) {
 func TestUploadPartialFailureRollback(t *testing.T) {
 	uploadCount := 0
 	deleteCount := 0
+	var mu sync.Mutex
 
 	adapterServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/providers" {
@@ -122,25 +124,37 @@ func TestUploadPartialFailureRollback(t *testing.T) {
 				},
 			})
 		} else if r.URL.Path == "/shards/upload" {
+			mu.Lock()
 			uploadCount++
-			if uploadCount > 4 {
+			currentUpload := uploadCount
+			mu.Unlock()
+
+			if currentUpload > 4 {
 				// First 4 succeed, last 2 fail
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(types.UploadShardResp{
-				RemoteID:    fmt.Sprintf("remote-%d", uploadCount),
+				RemoteID:    fmt.Sprintf("remote-%d", currentUpload),
 				ChecksumSha: "abc123",
 			})
 		} else if r.Method == "DELETE" && r.URL.Path == "/shards/remote-1" {
+			mu.Lock()
 			deleteCount++
+			mu.Unlock()
 		} else if r.Method == "DELETE" && r.URL.Path == "/shards/remote-2" {
+			mu.Lock()
 			deleteCount++
+			mu.Unlock()
 		} else if r.Method == "DELETE" && r.URL.Path == "/shards/remote-3" {
+			mu.Lock()
 			deleteCount++
+			mu.Unlock()
 		} else if r.Method == "DELETE" && r.URL.Path == "/shards/remote-4" {
+			mu.Lock()
 			deleteCount++
+			mu.Unlock()
 		}
 	}))
 	defer adapterServer.Close()

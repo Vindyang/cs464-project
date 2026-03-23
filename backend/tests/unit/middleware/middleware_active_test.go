@@ -1,15 +1,17 @@
-package middleware
+package middleware_test
 
 import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/vindyang/cs464-project/backend/internal/api/middleware"
 )
 
 func TestCORS_OptionsPreflight_Active(t *testing.T) {
 	called := false
-	h := CORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := middleware.CORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		called = true
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -27,7 +29,7 @@ func TestCORS_OptionsPreflight_Active(t *testing.T) {
 }
 
 func TestLogger_InvokesNext_Active(t *testing.T) {
-	h := Logger(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := middleware.Logger(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusAccepted)
 	}))
 
@@ -41,7 +43,7 @@ func TestLogger_InvokesNext_Active(t *testing.T) {
 }
 
 func TestRecovery_RecoversPanic_Active(t *testing.T) {
-	h := Recovery(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := middleware.Recovery(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		panic("boom")
 	}))
 
