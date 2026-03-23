@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/vindyang/cs464-project/backend/services/sharding/internal/api/handlers"
-	"github.com/vindyang/cs464-project/backend/services/sharding/internal/service"
+	"github.com/vindyang/cs464-project/backend/services/shared/service"
 )
 
 func main() {

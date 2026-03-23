@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/joho/godotenv"
-	"github.com/vindyang/cs464-project/backend/services/adapter/internal/adapter/gdrive"
+	"github.com/vindyang/cs464-project/backend/services/shared/adapter/gdrive"
 	"golang.org/x/oauth2/google"
 )
 

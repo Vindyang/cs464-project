@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/vindyang/cs464-project/backend/services/adapter/internal/service"
+	"github.com/vindyang/cs464-project/backend/services/shared/service"
 )
 
 // ShardingHandler exposes sharding and reconstruction endpoints.

@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/vindyang/cs464-project/backend/services/orchestrator/internal/service"
+	"github.com/vindyang/cs464-project/backend/services/shared/service"
 )
 
 // FileHandler handles HTTP requests for file operations

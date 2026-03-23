@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/vindyang/cs464-project/backend/services/sharding/internal/api/dto"
-	"github.com/vindyang/cs464-project/backend/services/sharding/internal/service"
+	"github.com/vindyang/cs464-project/backend/services/shared/api/dto"
+	"github.com/vindyang/cs464-project/backend/services/shared/service"
 )
 
 // ShardMapHandler handles HTTP requests for shard map operations

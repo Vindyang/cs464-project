@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/vindyang/cs464-project/backend/services/shardmap/internal/api/middleware"
+	"github.com/vindyang/cs464-project/backend/services/shared/api/middleware"
 )
 
 func TestCORS_OptionsPreflight_Active(t *testing.T) {

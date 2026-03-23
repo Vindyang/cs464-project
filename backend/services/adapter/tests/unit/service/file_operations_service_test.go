@@ -8,9 +8,9 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/vindyang/cs464-project/backend/services/adapter/internal/adapter"
-	"github.com/vindyang/cs464-project/backend/services/adapter/internal/api/dto"
-	"github.com/vindyang/cs464-project/backend/services/adapter/internal/service"
+	"github.com/vindyang/cs464-project/backend/services/shared/adapter"
+	"github.com/vindyang/cs464-project/backend/services/shared/api/dto"
+	"github.com/vindyang/cs464-project/backend/services/shared/service"
 )
 
 type fileOpsMockSharding struct {

@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/vindyang/cs464-project/backend/services/orchestrator/internal/orchestrator"
-	"github.com/vindyang/cs464-project/backend/services/orchestrator/internal/orchestrator/clients"
+	"github.com/vindyang/cs464-project/backend/services/shared/orchestrator"
+	"github.com/vindyang/cs464-project/backend/services/shared/orchestrator/clients"
 )
 
 func main() {

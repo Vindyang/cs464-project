@@ -8,10 +8,10 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/vindyang/cs464-project/backend/services/shardmap/internal/api/handlers"
-	"github.com/vindyang/cs464-project/backend/services/shardmap/internal/api/middleware"
-	"github.com/vindyang/cs464-project/backend/services/shardmap/internal/database"
-	"github.com/vindyang/cs464-project/backend/services/shardmap/internal/repository"
-	"github.com/vindyang/cs464-project/backend/services/shardmap/internal/service"
+	"github.com/vindyang/cs464-project/backend/services/shared/api/middleware"
+	"github.com/vindyang/cs464-project/backend/services/shared/database"
+	"github.com/vindyang/cs464-project/backend/services/shared/repository"
+	"github.com/vindyang/cs464-project/backend/services/shared/service"
 )
 
 func main() {

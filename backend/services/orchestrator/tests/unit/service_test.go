@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vindyang/cs464-project/backend/services/orchestrator/internal/orchestrator"
-	"github.com/vindyang/cs464-project/backend/services/orchestrator/internal/orchestrator/clients"
-	"github.com/vindyang/cs464-project/backend/services/orchestrator/internal/types"
+	"github.com/vindyang/cs464-project/backend/services/shared/orchestrator"
+	"github.com/vindyang/cs464-project/backend/services/shared/orchestrator/clients"
+	"github.com/vindyang/cs464-project/backend/services/shared/types"
 )
 
 // TestUploadHappyPath: all 6 shards succeed

@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/vindyang/cs464-project/backend/services/shardmap/internal/api/dto"
-	"github.com/vindyang/cs464-project/backend/services/shardmap/internal/models"
-	"github.com/vindyang/cs464-project/backend/services/shardmap/internal/service"
+	"github.com/vindyang/cs464-project/backend/services/shared/api/dto"
+	"github.com/vindyang/cs464-project/backend/services/shared/models"
+	"github.com/vindyang/cs464-project/backend/services/shared/service"
 )
 
 type mockFileRepo struct {

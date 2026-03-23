@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/vindyang/cs464-project/backend/services/sharding/internal/service"
+	"github.com/vindyang/cs464-project/backend/services/shared/service"
 )
 
 func TestChunkFile_SplitsAsExpected(t *testing.T) {

@@ -12,14 +12,14 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
-	"github.com/vindyang/cs464-project/backend/services/adapter/internal/adapter"
-	"github.com/vindyang/cs464-project/backend/services/adapter/internal/adapter/gdrive"
+	"github.com/vindyang/cs464-project/backend/services/shared/adapter"
+	"github.com/vindyang/cs464-project/backend/services/shared/adapter/gdrive"
 	"github.com/vindyang/cs464-project/backend/services/adapter/internal/api/handlers"
-	"github.com/vindyang/cs464-project/backend/services/adapter/internal/database"
-	"github.com/vindyang/cs464-project/backend/services/adapter/internal/db"
-	"github.com/vindyang/cs464-project/backend/services/adapter/internal/oauthhandler"
-	"github.com/vindyang/cs464-project/backend/services/adapter/internal/repository"
-	"github.com/vindyang/cs464-project/backend/services/adapter/internal/service"
+	"github.com/vindyang/cs464-project/backend/services/shared/database"
+	"github.com/vindyang/cs464-project/backend/services/shared/db"
+	"github.com/vindyang/cs464-project/backend/services/shared/oauthhandler"
+	"github.com/vindyang/cs464-project/backend/services/shared/repository"
+	"github.com/vindyang/cs464-project/backend/services/shared/service"
 	"golang.org/x/oauth2/google"
 )
 
