@@ -22,35 +22,35 @@ func NewShardingHandler(service app.ShardingService) *ShardingHandler {
 
 // RegisterRoutes registers all sharding routes.
 func (h *ShardingHandler) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/health", h.Health)
-	mux.HandleFunc("/shard", h.Shard)
-	mux.HandleFunc("/reconstruct", h.Reconstruct)
+	mux.HandleFunc("/api/sharding/health", h.Health)
+	mux.HandleFunc("/api/sharding/shard", h.Shard)
+	mux.HandleFunc("/api/sharding/reconstruct", h.Reconstruct)
 }
 
 type shardRequest struct {
-	FileID   string `json:"file_id"`
-	FileData []byte `json:"file_data"`
-	N        int    `json:"N"`
-	K        int    `json:"K"`
+	FileID   string `json:"fileId"`
+	FileData []byte `json:"fileData"`
+	N        int    `json:"n"`
+	K        int    `json:"k"`
 }
 
 type shardResponse struct {
-	FileID   string            `json:"file_id"`
+	FileID   string            `json:"fileId"`
 	Shards   []shardOutput     `json:"shards"`
 	Metadata shardResponseMeta `json:"metadata"`
 }
 
 type shardOutput struct {
-	ShardIndex int    `json:"shard_index"`
-	ShardType  string `json:"shard_type"`
-	ShardData  []byte `json:"shard_data"`
+	ShardIndex int    `json:"shardIndex"`
+	ShardType  string `json:"shardType"`
+	ShardData  []byte `json:"shardData"`
 }
 
 type shardResponseMeta struct {
-	N            int `json:"N"`
-	K            int `json:"K"`
-	OriginalSize int `json:"original_size"`
-	ShardSize    int `json:"shard_size"`
+	N            int `json:"n"`
+	K            int `json:"k"`
+	OriginalSize int `json:"originalSize"`
+	ShardSize    int `json:"shardSize"`
 }
 
 type reconstructRequest struct {
