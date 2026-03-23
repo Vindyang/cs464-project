@@ -22,9 +22,9 @@ func NewShardingHandler(service service.ShardingService) *ShardingHandler {
 
 // RegisterRoutes registers all sharding routes.
 func (h *ShardingHandler) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/health", h.Health)
-	mux.HandleFunc("/shard", h.Shard)
-	mux.HandleFunc("/reconstruct", h.Reconstruct)
+	mux.HandleFunc("/api/sharding/health", h.Health)
+	mux.HandleFunc("/api/sharding/shard", h.Shard)
+	mux.HandleFunc("/api/sharding/reconstruct", h.Reconstruct)
 }
 
 type shardRequest struct {
