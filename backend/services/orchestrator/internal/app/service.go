@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vindyang/cs464-project/backend/services/shared/orchestrator/clients"
 	"github.com/vindyang/cs464-project/backend/services/shared/types"
 	"golang.org/x/sync/errgroup"
 )
@@ -17,15 +16,69 @@ const (
 )
 
 type Service struct {
-	adapter  *clients.AdapterClient
-	shardMap *clients.ShardMapClient
+	adapter  AdapterClient
+	shardMap ShardMapClient
+	sharding ShardingClient
 }
 
-func NewService(adapter *clients.AdapterClient, shardMap *clients.ShardMapClient) *Service {
+type AdapterClient interface {
+	GetProviders(ctx context.Context) ([]types.ProviderInfo, error)
+	UploadShard(ctx context.Context, shardID string, provider string, data []byte) (*types.UploadShardResp, error)
+	DownloadShard(ctx context.Context, remoteID string, provider string) ([]byte, error)
+	DeleteShard(ctx context.Context, remoteID string, provider string) error
+}
+
+type ShardMapClient interface {
+	RegisterFile(ctx context.Context, req *types.RegisterFileReq) (*types.RegisterFileResp, error)
+	RecordShards(ctx context.Context, req *types.RecordShardReq) error
+	GetShardMap(ctx context.Context, fileID string) (*types.GetShardMapResp, error)
+	MarkShardStatus(ctx context.Context, shardID string, status string) error
+}
+
+type ShardingClient interface {
+	EncodeChunk(chunkData []byte, k, n int) ([][]byte, error)
+	DecodeChunk(shards [][]byte, k, n int) ([]byte, error)
+}
+
+func NewService(adapter AdapterClient, shardMap ShardMapClient) *Service {
 	return &Service{
 		adapter:  adapter,
 		shardMap: shardMap,
 	}
+}
+
+func NewServiceWithSharding(adapter AdapterClient, shardMap ShardMapClient, sharding ShardingClient) *Service {
+	return &Service{
+		adapter:  adapter,
+		shardMap: shardMap,
+		sharding: sharding,
+	}
+}
+
+func (s *Service) UploadRawFile(ctx context.Context, fileName string, fileData []byte, k int, n int) (*types.UploadResp, error) {
+	if s.sharding == nil {
+		return nil, fmt.Errorf("sharding client is not configured")
+	}
+
+	if k <= 0 || n <= 0 || k > n {
+		return nil, fmt.Errorf("invalid erasure coding parameters: k=%d, n=%d", k, n)
+	}
+
+	if len(fileData) == 0 {
+		return nil, fmt.Errorf("file data cannot be empty")
+	}
+
+	shards, err := s.sharding.EncodeChunk(fileData, k, n)
+	if err != nil {
+		return nil, fmt.Errorf("failed to shard file data: %w", err)
+	}
+
+	isDataShard := make([]bool, len(shards))
+	for i := range isDataShard {
+		isDataShard[i] = i < k
+	}
+
+	return s.UploadFile(ctx, fileName, shards, isDataShard)
 }
 
 func (s *Service) UploadFile(ctx context.Context, fileName string, shards [][]byte, isDataShard []bool) (*types.UploadResp, error) {
@@ -200,8 +253,22 @@ func (s *Service) DownloadFile(ctx context.Context, fileID string) (*types.Downl
 	}
 
 	reconstructedData := []byte{}
-	for i := 0; i < shardMap.K && i < len(shards); i++ {
-		reconstructedData = append(reconstructedData, shards[i].Data...)
+	if s.sharding != nil {
+		indexedShards := make([][]byte, shardMap.N)
+		for _, shard := range shards {
+			if shard.Index >= 0 && shard.Index < shardMap.N {
+				indexedShards[shard.Index] = shard.Data
+			}
+		}
+
+		reconstructedData, err = s.sharding.DecodeChunk(indexedShards, shardMap.K, shardMap.N)
+		if err != nil {
+			return nil, fmt.Errorf("failed to reconstruct file: %w", err)
+		}
+	} else {
+		for i := 0; i < shardMap.K && i < len(shards); i++ {
+			reconstructedData = append(reconstructedData, shards[i].Data...)
+		}
 	}
 
 	return &types.DownloadResp{

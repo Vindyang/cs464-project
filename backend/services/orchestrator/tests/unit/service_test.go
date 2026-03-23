@@ -11,7 +11,8 @@ import (
 	"time"
 
 	"github.com/vindyang/cs464-project/backend/services/orchestrator/internal/app"
-	"github.com/vindyang/cs464-project/backend/services/shared/orchestrator/clients"
+	adapterclient "github.com/vindyang/cs464-project/backend/services/shared/clients/adapter"
+	shardmapworkflow "github.com/vindyang/cs464-project/backend/services/shared/clients/shardmapworkflow"
 	"github.com/vindyang/cs464-project/backend/services/shared/types"
 )
 
@@ -70,8 +71,8 @@ func TestUploadHappyPath(t *testing.T) {
 	defer shardMapServer.Close()
 
 	// Create service
-	adapter := clients.NewAdapterClient(adapterServer.URL, nil)
-	shardMap := clients.NewShardMapClient(shardMapServer.URL, nil)
+	adapter := adapterclient.NewClient(adapterServer.URL, nil)
+	shardMap := shardmapworkflow.NewClient(shardMapServer.URL, nil)
 	service := app.NewService(adapter, shardMap)
 
 	// Create 6 mock shards (4 data + 2 parity)
@@ -170,8 +171,8 @@ func TestUploadPartialFailureRollback(t *testing.T) {
 	}))
 	defer shardMapServer.Close()
 
-	adapter := clients.NewAdapterClient(adapterServer.URL, nil)
-	shardMap := clients.NewShardMapClient(shardMapServer.URL, nil)
+	adapter := adapterclient.NewClient(adapterServer.URL, nil)
+	shardMap := shardmapworkflow.NewClient(shardMapServer.URL, nil)
 	service := app.NewService(adapter, shardMap)
 
 	shards := make([][]byte, 6)
@@ -237,8 +238,8 @@ func TestUploadSkipsDegradedProviders(t *testing.T) {
 	}))
 	defer shardMapServer.Close()
 
-	adapter := clients.NewAdapterClient(adapterServer.URL, nil)
-	shardMap := clients.NewShardMapClient(shardMapServer.URL, nil)
+	adapter := adapterclient.NewClient(adapterServer.URL, nil)
+	shardMap := shardmapworkflow.NewClient(shardMapServer.URL, nil)
 	service := app.NewService(adapter, shardMap)
 
 	shards := make([][]byte, 6)
@@ -287,8 +288,8 @@ func TestUploadInsufficientProviders(t *testing.T) {
 	}))
 	defer shardMapServer.Close()
 
-	adapter := clients.NewAdapterClient(adapterServer.URL, nil)
-	shardMap := clients.NewShardMapClient(shardMapServer.URL, nil)
+	adapter := adapterclient.NewClient(adapterServer.URL, nil)
+	shardMap := shardmapworkflow.NewClient(shardMapServer.URL, nil)
 	service := app.NewService(adapter, shardMap)
 
 	shards := make([][]byte, 6)
@@ -344,8 +345,8 @@ func TestDownloadEarlyExit(t *testing.T) {
 	}))
 	defer shardMapServer.Close()
 
-	adapter := clients.NewAdapterClient(adapterServer.URL, nil)
-	shardMap := clients.NewShardMapClient(shardMapServer.URL, nil)
+	adapter := adapterclient.NewClient(adapterServer.URL, nil)
+	shardMap := shardmapworkflow.NewClient(shardMapServer.URL, nil)
 	service := app.NewService(adapter, shardMap)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -395,8 +396,8 @@ func BenchmarkUploadParallel(b *testing.B) {
 	}))
 	defer shardMapServer.Close()
 
-	adapter := clients.NewAdapterClient(adapterServer.URL, nil)
-	shardMap := clients.NewShardMapClient(shardMapServer.URL, nil)
+	adapter := adapterclient.NewClient(adapterServer.URL, nil)
+	shardMap := shardmapworkflow.NewClient(shardMapServer.URL, nil)
 	service := app.NewService(adapter, shardMap)
 
 	shards := make([][]byte, 6)

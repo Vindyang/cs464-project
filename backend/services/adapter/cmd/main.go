@@ -13,11 +13,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
 	"github.com/vindyang/cs464-project/backend/services/adapter/internal/api/handlers"
-	"github.com/vindyang/cs464-project/backend/services/adapter/internal/app"
 	"github.com/vindyang/cs464-project/backend/services/shared/adapter"
 	"github.com/vindyang/cs464-project/backend/services/shared/adapter/gdrive"
-	"github.com/vindyang/cs464-project/backend/services/shared/clients/sharding"
-	"github.com/vindyang/cs464-project/backend/services/shared/clients/shardmap"
 	"github.com/vindyang/cs464-project/backend/services/shared/db"
 	"github.com/vindyang/cs464-project/backend/services/shared/oauthhandler"
 	"golang.org/x/oauth2/google"
@@ -50,19 +47,6 @@ func main() {
 	}
 	defer tokenDB.Close()
 
-	shardingBaseURL := os.Getenv("SHARDING_BASE_URL")
-	if shardingBaseURL == "" {
-		shardingBaseURL = "http://localhost:8083"
-	}
-
-	shardMapBaseURL := os.Getenv("SHARDMAP_BASE_URL")
-	if shardMapBaseURL == "" {
-		shardMapBaseURL = "http://localhost:8081"
-	}
-
-	shardingService := sharding.NewClient(shardingBaseURL, nil)
-	shardMapService := shardmap.NewClient(shardMapBaseURL, nil)
-
 	// Initialize adapter registry
 	registry := adapter.NewRegistry()
 
@@ -82,9 +66,7 @@ func main() {
 		log.Fatalf("Failed to initialize OAuth handler: %v", err)
 	}
 
-	// File operations service and handlers
-	fileOperationsService := app.NewFileOperationsService(shardingService, shardMapService, registry)
-	fileHandler := handlers.NewFileHandler(fileOperationsService)
+	shardIOHandler := handlers.NewShardIOHandler(registry)
 
 	app := &App{Registry: registry}
 
@@ -99,7 +81,7 @@ func main() {
 	mux.HandleFunc("/api/oauth/gdrive/authorize", oauthHandler.Authorize)
 	mux.HandleFunc("/api/oauth/gdrive/callback", oauthHandler.Callback)
 	mux.HandleFunc("/api/oauth/gdrive/disconnect", oauthHandler.Disconnect)
-	fileHandler.RegisterRoutes(mux)
+	shardIOHandler.RegisterRoutes(mux)
 
 	server := &http.Server{
 		Addr:         ":" + port,

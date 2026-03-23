@@ -1,13 +1,18 @@
 package main
 
 import (
-	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/vindyang/cs464-project/backend/services/orchestrator/internal/app"
-	"github.com/vindyang/cs464-project/backend/services/shared/orchestrator/clients"
+	adapterclient "github.com/vindyang/cs464-project/backend/services/shared/clients/adapter"
+	"github.com/vindyang/cs464-project/backend/services/shared/clients/sharding"
+	shardmapworkflow "github.com/vindyang/cs464-project/backend/services/shared/clients/shardmapworkflow"
+	"github.com/vindyang/cs464-project/backend/services/shared/transport/httpx"
 )
 
 func main() {
@@ -22,74 +27,104 @@ func main() {
 		shardMapURL = "http://localhost:8081"
 	}
 
+	shardingURL := os.Getenv("SHARDING_URL")
+	if shardingURL == "" {
+		shardingURL = "http://localhost:8083"
+	}
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8082"
 	}
 
 	// Initialize clients and service
-	adapter := clients.NewAdapterClient(adapterURL, nil)
-	shardMap := clients.NewShardMapClient(shardMapURL, nil)
-	service := app.NewService(adapter, shardMap)
+	adapter := adapterclient.NewClient(adapterURL, nil)
+	shardMap := shardmapworkflow.NewClient(shardMapURL, nil)
+	shardingClient := sharding.NewClient(shardingURL, nil)
+	service := app.NewServiceWithSharding(adapter, shardMap, shardingClient)
 
 	// HTTP handlers
 	mux := http.NewServeMux()
 
 	// POST /api/orchestrator/upload
 	mux.HandleFunc("/api/orchestrator/upload", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		if !httpx.RequireMethod(w, r, http.MethodPost) {
 			return
 		}
 
-		var req struct {
-			FileName    string   `json:"fileName"`
-			Shards      []string `json:"shards"` // base64-encoded shards
-			IsDataShard []bool   `json:"isDataShard"`
-		}
-
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "invalid request", http.StatusBadRequest)
+		if err := r.ParseMultipartForm(100 << 20); err != nil {
+			httpx.WriteError(w, http.StatusBadRequest, "Failed to parse multipart form", err)
 			return
 		}
 
-		// Decode shards from base64 (or handle however frontend sends them)
-		shards := make([][]byte, len(req.Shards))
-		for i, s := range req.Shards {
-			shards[i] = []byte(s) // TODO: base64.StdEncoding.DecodeString(s)
-		}
-
-		resp, err := service.UploadFile(r.Context(), req.FileName, shards, req.IsDataShard)
+		file, fileHeader, err := r.FormFile("file")
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			httpx.WriteError(w, http.StatusBadRequest, "Missing file field", err)
+			return
+		}
+		defer file.Close()
+
+		fileData, err := io.ReadAll(file)
+		if err != nil {
+			httpx.WriteError(w, http.StatusInternalServerError, "Failed to read uploaded file", err)
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		k, err := strconv.Atoi(r.FormValue("k"))
+		if err != nil {
+			httpx.WriteError(w, http.StatusBadRequest, "Invalid k value", err)
+			return
+		}
+
+		n, err := strconv.Atoi(r.FormValue("n"))
+		if err != nil {
+			httpx.WriteError(w, http.StatusBadRequest, "Invalid n value", err)
+			return
+		}
+
+		resp, err := service.UploadRawFile(r.Context(), fileHeader.Filename, fileData, k, n)
+		if err != nil {
+			httpx.WriteError(w, http.StatusInternalServerError, "Failed to upload file", err)
+			return
+		}
+
+		httpx.WriteJSON(w, http.StatusCreated, resp)
 	})
 
 	// GET /api/orchestrator/files/{fileId}/download
 	mux.HandleFunc("/api/orchestrator/files/", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		if !httpx.RequireMethod(w, r, http.MethodGet) {
 			return
 		}
 
-		fileID := r.URL.Path[len("/api/orchestrator/files/"):]
-		if fileID == "" || len(fileID) < 5 {
-			http.Error(w, "invalid file ID", http.StatusBadRequest)
+		path := strings.TrimPrefix(r.URL.Path, "/api/orchestrator/files/")
+		parts := strings.Split(path, "/")
+		if len(parts) != 2 || parts[0] == "" || parts[1] != "download" {
+			httpx.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "Not found"})
+			return
+		}
+
+		fileID := parts[0]
+		if len(fileID) < 5 {
+			httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid file ID"})
 			return
 		}
 
 		resp, err := service.DownloadFile(r.Context(), fileID)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			httpx.WriteError(w, http.StatusInternalServerError, "Failed to download file", err)
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		if len(resp.Shards) == 0 {
+			httpx.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "No file data reconstructed"})
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Header().Set("Content-Disposition", "attachment; filename=\""+resp.FileName+"\"")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(resp.Shards[0])
 	})
 
 	// Start server
