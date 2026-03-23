@@ -146,14 +146,21 @@ func (h *ShardIOHandler) deleteShard(w http.ResponseWriter, r *http.Request, rem
 }
 
 func parseShardIndex(shardID string) int {
+	if shardID == "" {
+		// Return a clearly invalid index for empty shard IDs.
+		return -1
+	}
+
 	parts := strings.Split(shardID, "-")
 	if len(parts) == 0 {
-		return 0
+		// No parts to parse; treat as invalid.
+		return -1
 	}
 
 	idx, err := strconv.Atoi(parts[len(parts)-1])
 	if err != nil {
-		return 0
+		// Unparseable shard index; treat as invalid.
+		return -1
 	}
 	return idx
 }
