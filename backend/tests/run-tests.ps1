@@ -22,10 +22,35 @@ function Run-TestGroup([string]$label, [string]$folderPath) {
     }
 }
 
+function Run-UnitTestsByService() {
+    $unitDirs = Get-ChildItem -Path "services" -Directory -ErrorAction SilentlyContinue |
+        ForEach-Object { Join-Path $_.FullName "tests\unit" } |
+        Where-Object { Test-Path $_ }
+
+    if (-not $unitDirs) {
+        Write-Host "No unit tests found."
+        return
+    }
+
+    foreach ($dir in $unitDirs) {
+        $tests = Get-ChildItem -Path $dir -Filter *_test.go -Recurse -File -ErrorAction SilentlyContinue
+        if (-not $tests) {
+            continue
+        }
+
+        $relativeDir = $dir.Replace((Get-Location).Path + "\", "").Replace("\", "/")
+        Write-Host "Running unit tests in $relativeDir..."
+        & go test "./$relativeDir/..." -count=1
+        if ($LASTEXITCODE -ne 0) {
+            throw "unit tests failed in $relativeDir"
+        }
+    }
+}
+
 try {
     switch ($Type) {
         "unit" {
-            Run-TestGroup "unit" "tests/unit"
+            Run-UnitTestsByService
         }
         "integration" {
             Run-TestGroup "integration" "tests/integration"
@@ -34,7 +59,7 @@ try {
             Run-TestGroup "e2e" "tests/e2e"
         }
         "all" {
-            Run-TestGroup "unit" "tests/unit"
+            Run-UnitTestsByService
             Run-TestGroup "integration" "tests/integration"
             Run-TestGroup "e2e" "tests/e2e"
         }

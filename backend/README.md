@@ -93,7 +93,7 @@ cp .env.example .env
 ## Running the Server
 
 ```bash
-go run ./cmd/server/main.go
+go run ./services/adapter/cmd/main.go
 ```
 
 Server starts on `:8080`. Check it's working:
@@ -123,7 +123,7 @@ The OAuth token is stored in Supabase and loaded automatically on server restart
 The integration tests hit the real Drive API — they upload a test shard, download it back, verify the content, then delete it.
 
 ```bash
-go test ./internal/adapter/gdrive/... -v -run TestGDriveIntegration
+go test ./services/adapter/tests/unit/gdrive -v -run TestGDriveIntegration
 ```
 
 Tests skipped automatically if env vars are not set, so `go test ./...` is always safe to run.
@@ -150,8 +150,10 @@ Tests skipped automatically if env vars are not set, so `go test ./...` is alway
 ## Architecture
 
 ```
-cmd/
-  server/              ← HTTP server entry point
+services/
+  adapter/
+    cmd/               ← HTTP server entry point
+    tests/unit/        ← Adapter unit tests
 
 internal/
   adapter/
@@ -164,4 +166,4 @@ internal/
     gdrive.go          ← OAuth endpoint handlers
 ```
 
-All providers implement the `StorageProvider` interface (`GetMetadata`, `UploadShard`, `DownloadShard`, `DeleteShard`, `HealthCheck`). New providers are added by implementing the interface and registering in `cmd/server/main.go`.
+All providers implement the `StorageProvider` interface (`GetMetadata`, `UploadShard`, `DownloadShard`, `DeleteShard`, `HealthCheck`). New providers are added by implementing the interface and registering in `services/adapter/cmd/main.go`.
