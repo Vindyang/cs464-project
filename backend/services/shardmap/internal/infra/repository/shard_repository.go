@@ -9,7 +9,6 @@ import (
 	"github.com/vindyang/cs464-project/backend/services/shared/models"
 )
 
-// ShardRepository defines the interface for shard database operations
 type ShardRepository interface {
 	Create(shard *models.Shard) error
 	CreateBatch(shards []*models.Shard) error
@@ -20,17 +19,14 @@ type ShardRepository interface {
 	Delete(id uuid.UUID) error
 }
 
-// shardRepository implements ShardRepository
 type shardRepository struct {
 	db *sqlx.DB
 }
 
-// NewShardRepository creates a new ShardRepository instance
 func NewShardRepository(db *sqlx.DB) ShardRepository {
 	return &shardRepository{db: db}
 }
 
-// Create inserts a new shard record
 func (r *shardRepository) Create(shard *models.Shard) error {
 	query := `
 		INSERT INTO shards (id, file_id, chunk_index, shard_index, shard_type, remote_id, provider, checksum_sha256, status, created_at, updated_at)
@@ -60,7 +56,6 @@ func (r *shardRepository) Create(shard *models.Shard) error {
 	return nil
 }
 
-// CreateBatch inserts multiple shard records in a single transaction
 func (r *shardRepository) CreateBatch(shards []*models.Shard) error {
 	tx, err := r.db.Beginx()
 	if err != nil {
@@ -107,7 +102,6 @@ func (r *shardRepository) CreateBatch(shards []*models.Shard) error {
 	return nil
 }
 
-// GetByID retrieves a shard by its ID
 func (r *shardRepository) GetByID(id uuid.UUID) (*models.Shard, error) {
 	shard := &models.Shard{}
 	query := `
@@ -127,7 +121,6 @@ func (r *shardRepository) GetByID(id uuid.UUID) (*models.Shard, error) {
 	return shard, nil
 }
 
-// GetByFileID retrieves all shards for a given file
 func (r *shardRepository) GetByFileID(fileID uuid.UUID) ([]*models.Shard, error) {
 	shards := []*models.Shard{}
 	query := `
@@ -145,7 +138,6 @@ func (r *shardRepository) GetByFileID(fileID uuid.UUID) ([]*models.Shard, error)
 	return shards, nil
 }
 
-// GetByFileAndChunk retrieves shards for a specific chunk of a file
 func (r *shardRepository) GetByFileAndChunk(fileID uuid.UUID, chunkIndex int) ([]*models.Shard, error) {
 	shards := []*models.Shard{}
 	query := `
@@ -163,7 +155,6 @@ func (r *shardRepository) GetByFileAndChunk(fileID uuid.UUID, chunkIndex int) ([
 	return shards, nil
 }
 
-// UpdateStatus updates a shard's status
 func (r *shardRepository) UpdateStatus(id uuid.UUID, status models.ShardStatus) error {
 	query := `
 		UPDATE shards
@@ -188,7 +179,6 @@ func (r *shardRepository) UpdateStatus(id uuid.UUID, status models.ShardStatus) 
 	return nil
 }
 
-// Delete removes a shard record
 func (r *shardRepository) Delete(id uuid.UUID) error {
 	query := `DELETE FROM shards WHERE id = $1`
 

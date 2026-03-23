@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io"
 
 	"github.com/klauspost/reedsolomon"
 )
@@ -140,4 +141,13 @@ func (s *shardingService) DecodeChunk(shards [][]byte, k, n int) ([]byte, error)
 func (s *shardingService) CalculateChecksum(data []byte) string {
 	hash := sha256.Sum256(data)
 	return hex.EncodeToString(hash[:])
+}
+
+// CalculateChecksumFromReader computes SHA256 checksum from an io.Reader.
+func CalculateChecksumFromReader(r io.Reader) (string, error) {
+	hasher := sha256.New()
+	if _, err := io.Copy(hasher, r); err != nil {
+		return "", fmt.Errorf("failed to calculate checksum: %w", err)
+	}
+	return hex.EncodeToString(hasher.Sum(nil)), nil
 }

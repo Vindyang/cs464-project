@@ -8,10 +8,10 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/vindyang/cs464-project/backend/services/shardmap/internal/api/handlers"
+	"github.com/vindyang/cs464-project/backend/services/shardmap/internal/app"
+	"github.com/vindyang/cs464-project/backend/services/shardmap/internal/infra/repository"
 	"github.com/vindyang/cs464-project/backend/services/shared/api/middleware"
 	"github.com/vindyang/cs464-project/backend/services/shared/database"
-	"github.com/vindyang/cs464-project/backend/services/shared/repository"
-	"github.com/vindyang/cs464-project/backend/services/shared/service"
 )
 
 func main() {
@@ -34,7 +34,7 @@ func main() {
 	shardRepo := repository.NewShardRepository(db)
 
 	// Initialize services
-	shardMapService := service.NewShardMapService(fileRepo, shardRepo)
+	shardMapService := app.NewShardMapService(fileRepo, shardRepo)
 
 	// Initialize handlers
 	shardMapHandler := handlers.NewShardMapHandler(shardMapService)

@@ -8,17 +8,17 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/vindyang/cs464-project/backend/services/shared/service"
+	"github.com/vindyang/cs464-project/backend/services/adapter/internal/app"
 	"github.com/vindyang/cs464-project/backend/services/shared/transport/httpx"
 )
 
 // FileHandler handles HTTP requests for file operations
 type FileHandler struct {
-	service service.FileOperationsService
+	service app.FileOperationsService
 }
 
 // NewFileHandler creates a new FileHandler instance
-func NewFileHandler(service service.FileOperationsService) *FileHandler {
+func NewFileHandler(service app.FileOperationsService) *FileHandler {
 	return &FileHandler{
 		service: service,
 	}

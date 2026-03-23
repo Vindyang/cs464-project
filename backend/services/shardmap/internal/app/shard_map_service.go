@@ -1,16 +1,15 @@
-package service
+package app
 
 import (
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vindyang/cs464-project/backend/services/shardmap/internal/infra/repository"
 	"github.com/vindyang/cs464-project/backend/services/shared/api/dto"
 	"github.com/vindyang/cs464-project/backend/services/shared/models"
-	"github.com/vindyang/cs464-project/backend/services/shared/repository"
 )
 
-// ShardMapService defines the interface for shard map operations
 type ShardMapService interface {
 	RegisterFile(req *dto.RegisterFileRequest) (*dto.RegisterFileResponse, error)
 	RecordShards(req *dto.RecordShardsRequest) (*dto.RecordShardsResponse, error)
@@ -19,13 +18,11 @@ type ShardMapService interface {
 	MarkShardStatus(shardID uuid.UUID, req *dto.MarkShardStatusRequest) error
 }
 
-// shardMapService implements ShardMapService
 type shardMapService struct {
 	fileRepo  repository.FileRepository
 	shardRepo repository.ShardRepository
 }
 
-// NewShardMapService creates a new ShardMapService instance
 func NewShardMapService(fileRepo repository.FileRepository, shardRepo repository.ShardRepository) ShardMapService {
 	return &shardMapService{
 		fileRepo:  fileRepo,
@@ -33,14 +30,11 @@ func NewShardMapService(fileRepo repository.FileRepository, shardRepo repository
 	}
 }
 
-// RegisterFile creates a new file entry in the shard map
 func (s *shardMapService) RegisterFile(req *dto.RegisterFileRequest) (*dto.RegisterFileResponse, error) {
-	// Validate erasure coding parameters
 	if req.K <= 0 || req.N <= 0 || req.K > req.N {
 		return nil, fmt.Errorf("invalid erasure coding parameters: K must be > 0, N must be >= K")
 	}
 
-	// Create file model
 	originalName := req.OriginalName
 	file := &models.File{
 		ID:           uuid.New(),
@@ -55,12 +49,10 @@ func (s *shardMapService) RegisterFile(req *dto.RegisterFileRequest) (*dto.Regis
 		UpdatedAt:    time.Now(),
 	}
 
-	// Save to database
 	if err := s.fileRepo.Create(file); err != nil {
 		return nil, fmt.Errorf("failed to register file: %w", err)
 	}
 
-	// Build response
 	name := ""
 	if file.OriginalName != nil {
 		name = *file.OriginalName
@@ -77,9 +69,7 @@ func (s *shardMapService) RegisterFile(req *dto.RegisterFileRequest) (*dto.Regis
 	}, nil
 }
 
-// RecordShards saves shard metadata to the shard map
 func (s *shardMapService) RecordShards(req *dto.RecordShardsRequest) (*dto.RecordShardsResponse, error) {
-	// Validate file exists
 	fileID, err := uuid.Parse(req.FileID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid file ID: %w", err)
@@ -90,17 +80,14 @@ func (s *shardMapService) RecordShards(req *dto.RecordShardsRequest) (*dto.Recor
 		return nil, fmt.Errorf("file not found: %w", err)
 	}
 
-	// Validate shard count matches erasure coding parameters
 	if len(req.Shards) != file.N {
 		return nil, fmt.Errorf("expected %d shards but received %d", file.N, len(req.Shards))
 	}
 
-	// Create shard models
 	shards := make([]*models.Shard, 0, len(req.Shards))
 	now := time.Now()
 
 	for _, shardDTO := range req.Shards {
-		// Parse shard type
 		var shardType models.ShardType
 		switch shardDTO.Type {
 		case "DATA":
@@ -128,18 +115,14 @@ func (s *shardMapService) RecordShards(req *dto.RecordShardsRequest) (*dto.Recor
 		shards = append(shards, shard)
 	}
 
-	// Save shards in batch
 	if err := s.shardRepo.CreateBatch(shards); err != nil {
 		return nil, fmt.Errorf("failed to record shards: %w", err)
 	}
 
-	// Update file status if all chunks are recorded
-	// For now, just set to UPLOADED - more sophisticated logic can be added later
 	if err := s.fileRepo.UpdateStatus(fileID, models.FileStatusUploaded); err != nil {
 		return nil, fmt.Errorf("failed to update file status: %w", err)
 	}
 
-	// Build response
 	shardMetadata := make([]dto.ShardInfo, len(shards))
 	for i, shard := range shards {
 		shardMetadata[i] = dto.ShardInfo{
@@ -160,21 +143,17 @@ func (s *shardMapService) RecordShards(req *dto.RecordShardsRequest) (*dto.Recor
 	}, nil
 }
 
-// GetShardMap retrieves the complete shard map for a file
 func (s *shardMapService) GetShardMap(fileID uuid.UUID) (*dto.GetShardMapResponse, error) {
-	// Get file
 	file, err := s.fileRepo.GetByID(fileID)
 	if err != nil {
 		return nil, fmt.Errorf("file not found: %w", err)
 	}
 
-	// Get shards
 	shards, err := s.shardRepo.GetByFileID(fileID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get shards: %w", err)
 	}
 
-	// Build response
 	shardMetadata := make([]dto.ShardInfo, len(shards))
 	for i, shard := range shards {
 		shardMetadata[i] = dto.ShardInfo{
@@ -206,7 +185,6 @@ func (s *shardMapService) GetShardMap(fileID uuid.UUID) (*dto.GetShardMapRespons
 	}, nil
 }
 
-// GetShardByID retrieves metadata for a specific shard
 func (s *shardMapService) GetShardByID(shardID uuid.UUID) (*dto.ShardInfo, error) {
 	shard, err := s.shardRepo.GetByID(shardID)
 	if err != nil {
@@ -225,9 +203,7 @@ func (s *shardMapService) GetShardByID(shardID uuid.UUID) (*dto.ShardInfo, error
 	}, nil
 }
 
-// MarkShardStatus updates the status of a shard
 func (s *shardMapService) MarkShardStatus(shardID uuid.UUID, req *dto.MarkShardStatusRequest) error {
-	// Parse status
 	var status models.ShardStatus
 	switch req.Status {
 	case "PENDING":
@@ -242,7 +218,6 @@ func (s *shardMapService) MarkShardStatus(shardID uuid.UUID, req *dto.MarkShardS
 		return fmt.Errorf("invalid shard status: %s", req.Status)
 	}
 
-	// Update status
 	if err := s.shardRepo.UpdateStatus(shardID, status); err != nil {
 		return fmt.Errorf("failed to update shard status: %w", err)
 	}

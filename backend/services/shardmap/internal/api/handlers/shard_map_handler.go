@@ -6,17 +6,17 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/vindyang/cs464-project/backend/services/shardmap/internal/app"
 	"github.com/vindyang/cs464-project/backend/services/shared/api/dto"
-	"github.com/vindyang/cs464-project/backend/services/shared/service"
 )
 
 // ShardMapHandler handles HTTP requests for shard map operations
 type ShardMapHandler struct {
-	service service.ShardMapService
+	service app.ShardMapService
 }
 
 // NewShardMapHandler creates a new ShardMapHandler instance
-func NewShardMapHandler(service service.ShardMapService) *ShardMapHandler {
+func NewShardMapHandler(service app.ShardMapService) *ShardMapHandler {
 	return &ShardMapHandler{
 		service: service,
 	}

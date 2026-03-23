@@ -1,6 +1,7 @@
-# Shared Service Modules
+# Shared Package Guidelines
 
-This package centralizes modules that were duplicated across individual services.
+`services/shared` is now a library area for cross-cutting code and cross-service clients.
+It must not contain service-owned business logic.
 
 ## Import path
 
@@ -8,20 +9,35 @@ Use:
 
 `github.com/vindyang/cs464-project/backend/services/shared/<package>`
 
-## Shared packages
+## Shared packages (allowed)
 
 - `adapter`: Provider interfaces, metadata, and adapter registry.
-- `api/dto`: Common request/response DTOs for file operations, sharding, and shard maps.
+- `api/dto`: Shared DTO contracts (currently unversioned; may be versioned later).
 - `api/middleware`: Reusable HTTP middleware (logging, CORS, recovery).
-- `database`: SQL database bootstrap helpers.
+- `clients/sharding`: HTTP client for the sharding owner service.
+- `clients/shardmap`: HTTP client for the shardmap owner service.
 - `db`: Token DB wrapper and persistence helpers.
-- `models`: Core domain models (`File`, `Shard`, status enums).
-- `oauthhandler`: OAuth flows and provider connect/disconnect handlers.
-- `orchestrator`: Orchestrator service layer and HTTP clients.
-- `repository`: File and shard repository interfaces/implementations.
-- `service`: Core service implementations (file operations, shard map, sharding).
-- `types`: Shared cross-service API payload types.
+- `database`: Generic SQL bootstrap helpers.
+- `models`: Shared model primitives (to be narrowed over time to truly cross-cutting types).
+- `oauthhandler`: OAuth helpers used by adapter flows.
+- `transport/httpx`: Shared HTTP helpers (`WriteJSON`, `WriteError`, `DecodeJSON`, `RequireMethod`).
+- `types`: Shared transport payload types used by orchestrator flows.
 
-## Service-specific code stays local
+## Legacy path kept temporarily
 
-Each service keeps only service-specific packages in its own `internal` directory (for example HTTP handlers and service entrypoints in `cmd`).
+- `orchestrator/clients`: existing orchestrator HTTP clients still used by orchestrator.
+	- This path is transport-only client code, not business logic.
+	- It can be moved to `shared/clients/*` in a follow-up cleanup.
+
+## What was migrated out
+
+The following shared business implementations were removed and moved to owning services:
+
+- `shared/service/*` -> moved into service-local app packages.
+- `shared/repository/*` -> moved into `services/shardmap/internal/infra/repository`.
+- `shared/orchestrator/service.go` and `shared/orchestrator/models.go` -> moved into `services/orchestrator/internal/app`.
+
+## Rule of thumb
+
+If code enforces domain behavior for one service, it belongs in that service's `internal` tree.
+If code is a reusable utility/client/contract used by multiple services, it can live in `shared`.

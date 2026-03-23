@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/vindyang/cs464-project/backend/services/shared/service"
+	"github.com/vindyang/cs464-project/backend/services/sharding/internal/app"
 )
 
 func TestChunkFile_SplitsAsExpected(t *testing.T) {
-	svc := service.NewShardingService()
+	svc := app.NewShardingService()
 	data := []byte("abcdefghijklmnopqrstuvwxyz") // 26 bytes
 
 	chunks, err := svc.ChunkFile(data, 10)
@@ -26,7 +26,7 @@ func TestChunkFile_SplitsAsExpected(t *testing.T) {
 }
 
 func TestChunkFile_Validation(t *testing.T) {
-	svc := service.NewShardingService()
+	svc := app.NewShardingService()
 
 	if _, err := svc.ChunkFile([]byte("abc"), 0); err == nil {
 		t.Fatalf("expected error for non-positive chunk size")
@@ -38,7 +38,7 @@ func TestChunkFile_Validation(t *testing.T) {
 }
 
 func TestEncodeDecodeChunk_RoundTripAndReconstruct(t *testing.T) {
-	svc := service.NewShardingService()
+	svc := app.NewShardingService()
 	data := []byte("abcdefghijkl") // 12 bytes, divisible by K=3
 
 	shards, err := svc.EncodeChunk(data, 3, 5)
@@ -68,7 +68,7 @@ func TestEncodeDecodeChunk_RoundTripAndReconstruct(t *testing.T) {
 }
 
 func TestEncodeDecodeChunk_Validation(t *testing.T) {
-	svc := service.NewShardingService()
+	svc := app.NewShardingService()
 
 	if _, err := svc.EncodeChunk([]byte("abc"), 0, 3); err == nil {
 		t.Fatalf("expected error for invalid K")
@@ -95,7 +95,7 @@ func TestEncodeDecodeChunk_Validation(t *testing.T) {
 }
 
 func TestChecksumFunctions(t *testing.T) {
-	svc := service.NewShardingService()
+	svc := app.NewShardingService()
 	data := []byte("checksum-data")
 
 	h1 := svc.CalculateChecksum(data)
@@ -104,7 +104,7 @@ func TestChecksumFunctions(t *testing.T) {
 		t.Fatalf("expected stable non-empty checksum, got %q and %q", h1, h2)
 	}
 
-	readerHash, err := service.CalculateChecksumFromReader(bytes.NewReader(data))
+	readerHash, err := app.CalculateChecksumFromReader(bytes.NewReader(data))
 	if err != nil {
 		t.Fatalf("CalculateChecksumFromReader failed: %v", err)
 	}

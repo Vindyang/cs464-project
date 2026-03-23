@@ -13,13 +13,13 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
 	"github.com/vindyang/cs464-project/backend/services/adapter/internal/api/handlers"
+	"github.com/vindyang/cs464-project/backend/services/adapter/internal/app"
 	"github.com/vindyang/cs464-project/backend/services/shared/adapter"
 	"github.com/vindyang/cs464-project/backend/services/shared/adapter/gdrive"
 	"github.com/vindyang/cs464-project/backend/services/shared/clients/sharding"
 	"github.com/vindyang/cs464-project/backend/services/shared/clients/shardmap"
 	"github.com/vindyang/cs464-project/backend/services/shared/db"
 	"github.com/vindyang/cs464-project/backend/services/shared/oauthhandler"
-	"github.com/vindyang/cs464-project/backend/services/shared/service"
 	"golang.org/x/oauth2/google"
 )
 
@@ -83,7 +83,7 @@ func main() {
 	}
 
 	// File operations service and handlers
-	fileOperationsService := service.NewFileOperationsService(shardingService, shardMapService, registry)
+	fileOperationsService := app.NewFileOperationsService(shardingService, shardMapService, registry)
 	fileHandler := handlers.NewFileHandler(fileOperationsService)
 
 	app := &App{Registry: registry}

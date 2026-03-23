@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vindyang/cs464-project/backend/services/shared/orchestrator"
+	"github.com/vindyang/cs464-project/backend/services/orchestrator/internal/app"
 	"github.com/vindyang/cs464-project/backend/services/shared/orchestrator/clients"
 	"github.com/vindyang/cs464-project/backend/services/shared/types"
 )
@@ -72,7 +72,7 @@ func TestUploadHappyPath(t *testing.T) {
 	// Create service
 	adapter := clients.NewAdapterClient(adapterServer.URL, nil)
 	shardMap := clients.NewShardMapClient(shardMapServer.URL, nil)
-	service := orchestrator.NewService(adapter, shardMap)
+	service := app.NewService(adapter, shardMap)
 
 	// Create 6 mock shards (4 data + 2 parity)
 	shards := make([][]byte, 6)
@@ -172,7 +172,7 @@ func TestUploadPartialFailureRollback(t *testing.T) {
 
 	adapter := clients.NewAdapterClient(adapterServer.URL, nil)
 	shardMap := clients.NewShardMapClient(shardMapServer.URL, nil)
-	service := orchestrator.NewService(adapter, shardMap)
+	service := app.NewService(adapter, shardMap)
 
 	shards := make([][]byte, 6)
 	isDataShard := make([]bool, 6)
@@ -239,7 +239,7 @@ func TestUploadSkipsDegradedProviders(t *testing.T) {
 
 	adapter := clients.NewAdapterClient(adapterServer.URL, nil)
 	shardMap := clients.NewShardMapClient(shardMapServer.URL, nil)
-	service := orchestrator.NewService(adapter, shardMap)
+	service := app.NewService(adapter, shardMap)
 
 	shards := make([][]byte, 6)
 	isDataShard := make([]bool, 6)
@@ -289,7 +289,7 @@ func TestUploadInsufficientProviders(t *testing.T) {
 
 	adapter := clients.NewAdapterClient(adapterServer.URL, nil)
 	shardMap := clients.NewShardMapClient(shardMapServer.URL, nil)
-	service := orchestrator.NewService(adapter, shardMap)
+	service := app.NewService(adapter, shardMap)
 
 	shards := make([][]byte, 6)
 	isDataShard := make([]bool, 6)
@@ -346,7 +346,7 @@ func TestDownloadEarlyExit(t *testing.T) {
 
 	adapter := clients.NewAdapterClient(adapterServer.URL, nil)
 	shardMap := clients.NewShardMapClient(shardMapServer.URL, nil)
-	service := orchestrator.NewService(adapter, shardMap)
+	service := app.NewService(adapter, shardMap)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -397,7 +397,7 @@ func BenchmarkUploadParallel(b *testing.B) {
 
 	adapter := clients.NewAdapterClient(adapterServer.URL, nil)
 	shardMap := clients.NewShardMapClient(shardMapServer.URL, nil)
-	service := orchestrator.NewService(adapter, shardMap)
+	service := app.NewService(adapter, shardMap)
 
 	shards := make([][]byte, 6)
 	for i := 0; i < 6; i++ {

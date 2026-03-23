@@ -8,9 +8,9 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/vindyang/cs464-project/backend/services/adapter/internal/app"
 	"github.com/vindyang/cs464-project/backend/services/shared/adapter"
 	"github.com/vindyang/cs464-project/backend/services/shared/api/dto"
-	"github.com/vindyang/cs464-project/backend/services/shared/service"
 )
 
 type fileOpsMockSharding struct {
@@ -159,7 +159,7 @@ func TestFileOperationsService_UploadFile_Success(t *testing.T) {
 	reg := adapter.NewRegistry()
 	reg.Register("p1", provider)
 
-	svc := service.NewFileOperationsService(sharding, shardMap, reg)
+	svc := app.NewFileOperationsService(sharding, shardMap, reg)
 	resp, err := svc.UploadFile(ctx, "a.txt", []byte("abc"), 1, 2, 1, []string{"p1"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -177,7 +177,7 @@ func TestFileOperationsService_UploadFile_Success(t *testing.T) {
 
 func TestFileOperationsService_UploadFile_Validation(t *testing.T) {
 	ctx := context.Background()
-	svc := service.NewFileOperationsService(&fileOpsMockSharding{}, &fileOpsMockShardMap{}, adapter.NewRegistry())
+	svc := app.NewFileOperationsService(&fileOpsMockSharding{}, &fileOpsMockShardMap{}, adapter.NewRegistry())
 
 	if _, err := svc.UploadFile(ctx, "a.txt", []byte{}, 1, 2, 1, []string{"p1"}); err == nil {
 		t.Fatalf("expected error for empty data")
@@ -230,7 +230,7 @@ func TestFileOperationsService_DownloadFile_Success(t *testing.T) {
 	reg := adapter.NewRegistry()
 	reg.Register("p1", provider)
 
-	svc := service.NewFileOperationsService(sharding, shardMap, reg)
+	svc := app.NewFileOperationsService(sharding, shardMap, reg)
 	got, name, err := svc.DownloadFile(ctx, fileID)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -259,7 +259,7 @@ func TestFileOperationsService_DownloadFile_InsufficientShards(t *testing.T) {
 		return io.NopCloser(bytes.NewReader([]byte("x"))), nil
 	}})
 
-	svc := service.NewFileOperationsService(sharding, shardMap, reg)
+	svc := app.NewFileOperationsService(sharding, shardMap, reg)
 	if _, _, err := svc.DownloadFile(ctx, fileID); err == nil {
 		t.Fatalf("expected insufficient shard error")
 	}
@@ -301,7 +301,7 @@ func TestFileOperationsService_GetFileMetadata_And_Delete(t *testing.T) {
 	reg := adapter.NewRegistry()
 	reg.Register("p1", provider)
 
-	svc := service.NewFileOperationsService(&fileOpsMockSharding{}, shardMap, reg)
+	svc := app.NewFileOperationsService(&fileOpsMockSharding{}, shardMap, reg)
 
 	meta, err := svc.GetFileMetadata(ctx, fileID)
 	if err != nil {

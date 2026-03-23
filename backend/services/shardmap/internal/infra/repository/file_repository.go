@@ -9,7 +9,6 @@ import (
 	"github.com/vindyang/cs464-project/backend/services/shared/models"
 )
 
-// FileRepository defines the interface for file database operations
 type FileRepository interface {
 	Create(file *models.File) error
 	GetByID(id uuid.UUID) (*models.File, error)
@@ -18,17 +17,14 @@ type FileRepository interface {
 	Delete(id uuid.UUID) error
 }
 
-// fileRepository implements FileRepository
 type fileRepository struct {
 	db *sqlx.DB
 }
 
-// NewFileRepository creates a new FileRepository instance
 func NewFileRepository(db *sqlx.DB) FileRepository {
 	return &fileRepository{db: db}
 }
 
-// Create inserts a new file record
 func (r *fileRepository) Create(file *models.File) error {
 	query := `
 		INSERT INTO files (id, original_name, original_size, total_chunks, n, k, shard_size, status, created_at, updated_at)
@@ -57,7 +53,6 @@ func (r *fileRepository) Create(file *models.File) error {
 	return nil
 }
 
-// GetByID retrieves a file by its ID
 func (r *fileRepository) GetByID(id uuid.UUID) (*models.File, error) {
 	file := &models.File{}
 	query := `
@@ -77,7 +72,6 @@ func (r *fileRepository) GetByID(id uuid.UUID) (*models.File, error) {
 	return file, nil
 }
 
-// GetAll retrieves all files
 func (r *fileRepository) GetAll() ([]*models.File, error) {
 	files := []*models.File{}
 	query := `
@@ -94,7 +88,6 @@ func (r *fileRepository) GetAll() ([]*models.File, error) {
 	return files, nil
 }
 
-// UpdateStatus updates a file's status
 func (r *fileRepository) UpdateStatus(id uuid.UUID, status models.FileStatus) error {
 	query := `
 		UPDATE files
@@ -119,7 +112,6 @@ func (r *fileRepository) UpdateStatus(id uuid.UUID, status models.FileStatus) er
 	return nil
 }
 
-// Delete removes a file record
 func (r *fileRepository) Delete(id uuid.UUID) error {
 	query := `DELETE FROM files WHERE id = $1`
 

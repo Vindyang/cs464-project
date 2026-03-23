@@ -41,6 +41,16 @@ This directory organizes the backend by microservice boundary.
 
 Non-owning services must call owner services through client packages under `services/shared/clients/*`.
 
+## Shared Clients
+
+- `shared/clients/sharding`: used by non-owner services when they need `/shard` or `/reconstruct` capability.
+- `shared/clients/shardmap`: used by non-owner services for shard-map APIs.
+
+Current usage:
+
+- `adapter` calls `sharding` and `shardmap` over HTTP via shared clients.
+- `orchestrator` calls `adapter` and `shardmap` over HTTP via client packages.
+
 ## Running Services
 
 From `backend/`:

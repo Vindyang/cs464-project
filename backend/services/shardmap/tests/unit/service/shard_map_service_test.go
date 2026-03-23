@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/vindyang/cs464-project/backend/services/shardmap/internal/app"
 	"github.com/vindyang/cs464-project/backend/services/shared/api/dto"
 	"github.com/vindyang/cs464-project/backend/services/shared/models"
-	"github.com/vindyang/cs464-project/backend/services/shared/service"
 )
 
 type mockFileRepo struct {
@@ -103,7 +103,7 @@ func (m *mockShardRepo) Delete(id uuid.UUID) error {
 }
 
 func TestShardMapService_RegisterFileValidation(t *testing.T) {
-	svc := service.NewShardMapService(&mockFileRepo{}, &mockShardRepo{})
+	svc := app.NewShardMapService(&mockFileRepo{}, &mockShardRepo{})
 
 	_, err := svc.RegisterFile(&dto.RegisterFileRequest{K: 3, N: 2})
 	if err == nil {
@@ -113,7 +113,7 @@ func TestShardMapService_RegisterFileValidation(t *testing.T) {
 
 func TestShardMapService_RegisterFileSuccess(t *testing.T) {
 	called := false
-	svc := service.NewShardMapService(&mockFileRepo{
+	svc := app.NewShardMapService(&mockFileRepo{
 		createFn: func(file *models.File) error {
 			called = true
 			if file.Status != models.FileStatusPending {
@@ -143,7 +143,7 @@ func TestShardMapService_RegisterFileSuccess(t *testing.T) {
 }
 
 func TestShardMapService_RecordShardsValidation(t *testing.T) {
-	svc := service.NewShardMapService(&mockFileRepo{}, &mockShardRepo{})
+	svc := app.NewShardMapService(&mockFileRepo{}, &mockShardRepo{})
 
 	_, err := svc.RecordShards(&dto.RecordShardsRequest{FileID: "not-a-uuid"})
 	if err == nil {
@@ -182,7 +182,7 @@ func TestShardMapService_RecordShardsSuccess(t *testing.T) {
 		},
 	}
 
-	svc := service.NewShardMapService(fileRepo, shardRepo)
+	svc := app.NewShardMapService(fileRepo, shardRepo)
 	resp, err := svc.RecordShards(&dto.RecordShardsRequest{
 		FileID: fileID.String(),
 		Shards: []dto.ShardInfo{
@@ -226,7 +226,7 @@ func TestShardMapService_GetAndUpdate(t *testing.T) {
 		},
 	}
 
-	svc := service.NewShardMapService(fileRepo, shardRepo)
+	svc := app.NewShardMapService(fileRepo, shardRepo)
 
 	mapResp, err := svc.GetShardMap(fileID)
 	if err != nil || mapResp.FileID == "" || len(mapResp.Shards) != 1 {

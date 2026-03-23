@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/vindyang/cs464-project/backend/services/shared/orchestrator"
+	"github.com/vindyang/cs464-project/backend/services/orchestrator/internal/app"
 	"github.com/vindyang/cs464-project/backend/services/shared/orchestrator/clients"
 )
 
@@ -30,7 +30,7 @@ func main() {
 	// Initialize clients and service
 	adapter := clients.NewAdapterClient(adapterURL, nil)
 	shardMap := clients.NewShardMapClient(shardMapURL, nil)
-	service := orchestrator.NewService(adapter, shardMap)
+	service := app.NewService(adapter, shardMap)
 
 	// HTTP handlers
 	mux := http.NewServeMux()
