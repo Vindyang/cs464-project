@@ -14,8 +14,9 @@ Use:
 - `adapter`: Provider interfaces, metadata, and adapter registry.
 - `api/dto`: Shared DTO contracts (currently unversioned; may be versioned later).
 - `api/middleware`: Reusable HTTP middleware (logging, CORS, recovery).
+- `clients/adapter`: HTTP client for adapter shard and provider endpoints.
 - `clients/sharding`: HTTP client for the sharding owner service.
-- `clients/shardmap`: HTTP client for the shardmap owner service.
+- `clients/shardmapworkflow`: HTTP client for workflow-level shardmap operations used by orchestrator.
 - `db`: Token DB wrapper and persistence helpers.
 - `database`: Generic SQL bootstrap helpers.
 - `models`: Shared model primitives (to be narrowed over time to truly cross-cutting types).
@@ -23,11 +24,9 @@ Use:
 - `transport/httpx`: Shared HTTP helpers (`WriteJSON`, `WriteError`, `DecodeJSON`, `RequireMethod`).
 - `types`: Shared transport payload types used by orchestrator flows.
 
-## Legacy path kept temporarily
+Removed legacy package:
 
-- `orchestrator/clients`: existing orchestrator HTTP clients still used by orchestrator.
-	- This path is transport-only client code, not business logic.
-	- It can be moved to `shared/clients/*` in a follow-up cleanup.
+- `orchestrator/clients` (deleted). Use `clients/adapter` and `clients/shardmapworkflow`.
 
 ## What was migrated out
 
@@ -36,6 +35,10 @@ The following shared business implementations were removed and moved to owning s
 - `shared/service/*` -> moved into service-local app packages.
 - `shared/repository/*` -> moved into `services/shardmap/internal/infra/repository`.
 - `shared/orchestrator/service.go` and `shared/orchestrator/models.go` -> moved into `services/orchestrator/internal/app`.
+
+Additional cleanup:
+
+- Top-level legacy `backend/internal/*` monolith package tree was removed.
 
 ## Rule of thumb
 

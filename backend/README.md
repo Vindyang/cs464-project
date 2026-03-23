@@ -1,169 +1,100 @@
-# Nebula Drive — Adapter Service
+# Nebula Drive Backend
 
-The backend adapter service exposes a unified JSON API over multiple cloud storage providers. The frontend never talks to cloud SDKs directly — it always goes through this service.
+Nebula Drive is organized as independently deployable Go services with strict ownership boundaries.
+The orchestrator is the workflow owner and coordinates sharding, storage, and shard metadata.
 
----
+## Current Architecture
 
-## Prerequisites
+- `services/orchestrator`
+  - Public workflow entry/exit for upload and retrieval.
+  - Calls `sharding`, `adapter`, and `shardmap` through HTTP clients.
 
-- Go 1.23+
-- A Google account (personal or dedicated project account)
-- A Google Cloud project with the **Google Drive API** enabled
-- A [Supabase](https://supabase.com) project
+- `services/sharding`
+  - Owner of erasure coding operations.
+  - Provides `POST /shard` and `POST /reconstruct`.
 
----
+- `services/adapter`
+  - Owner of provider connectivity and OAuth.
+  - Exposes shard-level I/O used by orchestrator.
 
-## Google Cloud Setup (one-time)
+- `services/shardmap`
+  - Owner of shard metadata persistence and lookup.
 
-### 1. Enable the Drive API
+- `services/shared`
+  - Cross-service contracts, clients, and utilities only.
+  - No service-owned business logic.
 
-GCP Console → **APIs & Services** → **Enable APIs and Services** → search **Google Drive API** → Enable.
+Legacy monolith code under top-level `internal/` has been removed.
 
-### 2. Configure the OAuth consent screen
+## End-to-End Workflow Ownership
 
-GCP Console → **APIs & Services** → **OAuth consent screen**:
-- User type: **External**
-- Fill in app name (e.g. `Nebula Drive`), support email, developer email
-- Scopes: skip (handled in code)
-- Test users: **add your Google account email**
+Upload workflow:
+1. Orchestrator receives file upload.
+2. Orchestrator calls sharding to split/encode shards.
+3. Orchestrator calls adapter to upload shards to providers.
+4. Orchestrator calls shardmap to register and record shard metadata.
 
-> The app does not need to be verified by Google. Testing mode with added test users is sufficient.
+Download workflow:
+1. Orchestrator requests shard locations from shardmap.
+2. Orchestrator downloads shards through adapter.
+3. Orchestrator calls sharding to reconstruct original data.
+4. Orchestrator returns file bytes to the caller.
 
-### 3. Create OAuth 2.0 credentials
+## Service Ports (default local)
 
-GCP Console → **APIs & Services** → **Credentials** → **Create Credentials** → **OAuth 2.0 Client ID**:
-- Application type: **Web application**
-- Authorized JavaScript origins: `http://localhost:3000` and `http://localhost:8080`
-- Authorized redirect URIs: `http://localhost:8080/api/oauth/gdrive/callback`
-- Download the JSON file → save it **outside the repo** (e.g. `C:/secrets/gdrive-oauth-credentials.json`)
+- Adapter: `:8080`
+- Shardmap: `:8081`
+- Orchestrator: `:8082`
+- Sharding: `:8083`
 
-### 4. Create a Drive folder
+## Environment Variables
 
-In Google Drive, create a folder for storing shards (e.g. `nebula-shards`). Copy the folder ID from its URL:
+Common service URLs:
 
-```
-https://drive.google.com/drive/folders/<FOLDER_ID>
-```
+- `ADAPTER_URL` default `http://localhost:8080`
+- `SHARDMAP_URL` default `http://localhost:8081`
+- `SHARDING_URL` default `http://localhost:8083`
 
----
+Adapter OAuth/token storage:
 
-## Supabase Setup (one-time)
+- `DATABASE_URL`
+- `GDRIVE_OAUTH_CREDENTIALS_FILE`
+- `GDRIVE_OAUTH_REDIRECT_URI`
+- `GDRIVE_FOLDER_ID`
+- `FRONTEND_URL`
 
-### 1. Create the `provider_connections` table
+## Run Locally
 
-In the Supabase SQL editor, run:
+From `backend/`:
 
-```sql
-create table provider_connections (
-  provider_id   text primary key,
-  access_token  text not null,
-  refresh_token text,
-  token_type    text,
-  expiry        timestamptz,
-  updated_at    timestamptz default now()
-);
-```
-
-### 2. Get the connection string
-
-Supabase dashboard → **Project Settings** → **Database** → **Connection string** → **URI**. Use this as `DATABASE_URL`.
-
----
-
-## Environment Setup
-
-Copy the example file and fill in your values:
-
-```bash
-cp .env.example .env
-```
-
-| Variable | Description |
-|---|---|
-| `DATABASE_URL` | PostgreSQL connection string from Supabase |
-| `GDRIVE_OAUTH_CREDENTIALS_FILE` | Path to the OAuth2 credentials JSON downloaded from GCP Console |
-| `GDRIVE_OAUTH_REDIRECT_URI` | Must match the redirect URI configured in GCP (`http://localhost:8080/api/oauth/gdrive/callback`) |
-| `GDRIVE_FOLDER_ID` | ID of the Google Drive folder to store shards in |
-| `FRONTEND_URL` | Frontend origin for post-OAuth redirect (`http://localhost:3000`) |
-
-> `.env` is gitignored. Never commit it. Share credentials with teammates out-of-band (e.g. a private group chat).
-
----
-
-## Running the Server
-
-```bash
+```powershell
 go run ./services/adapter/cmd/main.go
+go run ./services/shardmap/cmd/main.go
+go run ./services/sharding/cmd/main.go
+go run ./services/orchestrator/cmd/main.go
 ```
 
-Server starts on `:8080`. Check it's working:
+## Tests
 
-```bash
-curl http://localhost:8080/api/providers
+Service suite:
+
+```powershell
+go test ./services/...
 ```
 
----
+Central test runner:
 
-## Connecting Google Drive
-
-Authorization is done through the browser UI:
-
-1. Start the backend and frontend
-2. Go to `http://localhost:3000/providers`
-3. Click **Connect New** → **Connect** next to Google Drive
-4. Complete the Google consent screen
-5. You'll be redirected back to `/providers` with Google Drive now connected
-
-The OAuth token is stored in Supabase and loaded automatically on server restart — you only need to authorize once.
-
----
-
-## Running Integration Tests
-
-The integration tests hit the real Drive API — they upload a test shard, download it back, verify the content, then delete it.
-
-```bash
-go test ./services/adapter/tests/unit/gdrive -v -run TestGDriveIntegration
+```powershell
+.\tests\run-tests.ps1 -Type unit
+.\tests\run-tests.ps1 -Type all
 ```
 
-Tests skipped automatically if env vars are not set, so `go test ./...` is always safe to run.
+## Key Entry Endpoints
 
-| Test | What it checks |
-|---|---|
-| `HealthCheck` | API connection is live |
-| `GetMetadata` | Quota numbers and latency are returned |
-| `UploadDownloadDelete` | Full shard round-trip against real Drive |
-
----
-
-## API Endpoints
-
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/api/providers` | Returns metadata for all registered providers |
-| `GET` | `/api/oauth/gdrive/authorize` | Returns a Google OAuth authorization URL |
-| `GET` | `/api/oauth/gdrive/callback` | Handles OAuth callback, stores token, registers adapter |
-| `POST` | `/api/oauth/gdrive/disconnect` | Removes token from Supabase, unregisters adapter |
-
----
-
-## Architecture
-
-```
-services/
-  adapter/
-    cmd/               ← HTTP server entry point
-    tests/unit/        ← Adapter unit tests
-
-internal/
-  adapter/
-    adapter.go         ← StorageProvider interface + Registry
-    gdrive/            ← Google Drive implementation
-    s3/                ← AWS S3 implementation (stubbed)
-  db/
-    db.go              ← Supabase/PostgreSQL token storage
-  oauthhandler/
-    gdrive.go          ← OAuth endpoint handlers
-```
-
-All providers implement the `StorageProvider` interface (`GetMetadata`, `UploadShard`, `DownloadShard`, `DeleteShard`, `HealthCheck`). New providers are added by implementing the interface and registering in `services/adapter/cmd/main.go`.
+- Orchestrator upload: `POST /api/orchestrator/upload`
+- Orchestrator download: `GET /api/orchestrator/files/{fileId}/download`
+- Adapter providers: `GET /api/providers`
+- Adapter shard upload: `POST /shards/upload`
+- Adapter shard download/delete: `GET|DELETE /shards/{remoteId}`
+- Shardmap register/record/query: `/api/v1/shards/*`
+- Sharding operations: `/shard`, `/reconstruct`

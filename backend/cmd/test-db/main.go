@@ -5,7 +5,7 @@ import (
 	"log"
 
 	"github.com/joho/godotenv"
-	"github.com/vindyang/cs464-project/backend/internal/database"
+	"github.com/vindyang/cs464-project/backend/services/shared/database"
 )
 
 func main() {

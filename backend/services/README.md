@@ -26,8 +26,8 @@ This directory organizes the backend by microservice boundary.
 
 ## Service Ownership Map
 
-- `adapter` owns provider and adapter-facing endpoints.
-- `orchestrator` owns orchestration endpoints.
+- `adapter` owns provider connectivity, OAuth, and shard-level provider I/O endpoints.
+- `orchestrator` owns workflow entry/exit endpoints and orchestrates all cross-service workflow steps.
 - `shardmap` owns shard-map metadata endpoints:
   - `POST /api/v1/shards/register`
   - `POST /api/v1/shards/record`
@@ -43,13 +43,28 @@ Non-owning services must call owner services through client packages under `serv
 
 ## Shared Clients
 
+- `shared/clients/adapter`: orchestrator client for provider health and shard upload/download/delete through adapter.
 - `shared/clients/sharding`: used by non-owner services when they need `/shard` or `/reconstruct` capability.
-- `shared/clients/shardmap`: used by non-owner services for shard-map APIs.
+- `shared/clients/shardmapworkflow`: used by orchestrator for workflow shard-map APIs.
 
 Current usage:
 
-- `adapter` calls `sharding` and `shardmap` over HTTP via shared clients.
-- `orchestrator` calls `adapter` and `shardmap` over HTTP via client packages.
+- `orchestrator` calls `sharding`, `adapter`, and `shardmap` over HTTP via shared clients.
+- `adapter` is no longer the workflow coordinator.
+
+## End-to-End Ownership
+
+Upload:
+1. Request enters orchestrator.
+2. Orchestrator calls sharding to produce shards.
+3. Orchestrator calls adapter to upload each shard.
+4. Orchestrator calls shardmap to register and record metadata.
+
+Download:
+1. Request enters orchestrator.
+2. Orchestrator reads shard placement from shardmap.
+3. Orchestrator downloads shards via adapter.
+4. Orchestrator calls sharding to reconstruct file bytes.
 
 ## Running Services
 
@@ -67,8 +82,9 @@ go run ./services/sharding/cmd/main.go
 Set service base URLs through env vars when running independently:
 
 ```powershell
-$env:SHARDMAP_BASE_URL="http://localhost:8081"
-$env:SHARDING_BASE_URL="http://localhost:8083"
+$env:ADAPTER_URL="http://localhost:8080"
+$env:SHARDMAP_URL="http://localhost:8081"
+$env:SHARDING_URL="http://localhost:8083"
 ```
 
 ## Running Tests
