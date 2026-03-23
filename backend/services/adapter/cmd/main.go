@@ -12,13 +12,13 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
+	"github.com/vindyang/cs464-project/backend/services/adapter/internal/api/handlers"
 	"github.com/vindyang/cs464-project/backend/services/shared/adapter"
 	"github.com/vindyang/cs464-project/backend/services/shared/adapter/gdrive"
-	"github.com/vindyang/cs464-project/backend/services/adapter/internal/api/handlers"
-	"github.com/vindyang/cs464-project/backend/services/shared/database"
+	"github.com/vindyang/cs464-project/backend/services/shared/clients/sharding"
+	"github.com/vindyang/cs464-project/backend/services/shared/clients/shardmap"
 	"github.com/vindyang/cs464-project/backend/services/shared/db"
 	"github.com/vindyang/cs464-project/backend/services/shared/oauthhandler"
-	"github.com/vindyang/cs464-project/backend/services/shared/repository"
 	"github.com/vindyang/cs464-project/backend/services/shared/service"
 	"golang.org/x/oauth2/google"
 )
@@ -50,20 +50,18 @@ func main() {
 	}
 	defer tokenDB.Close()
 
-	// Connect to database via sqlx (file/shard metadata)
-	log.Println("Connecting to database...")
-	sqlDB, err := database.ConnectFromEnv()
-	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+	shardingBaseURL := os.Getenv("SHARDING_BASE_URL")
+	if shardingBaseURL == "" {
+		shardingBaseURL = "http://localhost:8083"
 	}
-	defer sqlDB.Close()
-	log.Println("Database connected successfully")
 
-	// Initialize repositories and services
-	fileRepo := repository.NewFileRepository(sqlDB)
-	shardRepo := repository.NewShardRepository(sqlDB)
-	shardingService := service.NewShardingService()
-	shardMapService := service.NewShardMapService(fileRepo, shardRepo)
+	shardMapBaseURL := os.Getenv("SHARDMAP_BASE_URL")
+	if shardMapBaseURL == "" {
+		shardMapBaseURL = "http://localhost:8081"
+	}
+
+	shardingService := sharding.NewClient(shardingBaseURL, nil)
+	shardMapService := shardmap.NewClient(shardMapBaseURL, nil)
 
 	// Initialize adapter registry
 	registry := adapter.NewRegistry()
@@ -86,7 +84,6 @@ func main() {
 
 	// File operations service and handlers
 	fileOperationsService := service.NewFileOperationsService(shardingService, shardMapService, registry)
-	shardMapHandler := handlers.NewShardMapHandler(shardMapService)
 	fileHandler := handlers.NewFileHandler(fileOperationsService)
 
 	app := &App{Registry: registry}
@@ -102,7 +99,6 @@ func main() {
 	mux.HandleFunc("/api/oauth/gdrive/authorize", oauthHandler.Authorize)
 	mux.HandleFunc("/api/oauth/gdrive/callback", oauthHandler.Callback)
 	mux.HandleFunc("/api/oauth/gdrive/disconnect", oauthHandler.Disconnect)
-	shardMapHandler.RegisterRoutes(mux)
 	fileHandler.RegisterRoutes(mux)
 
 	server := &http.Server{

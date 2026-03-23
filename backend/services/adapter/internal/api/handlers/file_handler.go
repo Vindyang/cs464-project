@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vindyang/cs464-project/backend/services/shared/service"
+	"github.com/vindyang/cs464-project/backend/services/shared/transport/httpx"
 )
 
 // FileHandler handles HTTP requests for file operations
@@ -37,7 +38,7 @@ func (h *FileHandler) handleFileRoutes(w http.ResponseWriter, r *http.Request) {
 
 	if len(parts) == 0 || parts[0] == "" {
 		// GET /api/v1/files - List files (not implemented yet)
-		writeJSON(w, http.StatusNotImplemented, map[string]string{
+		httpx.WriteJSON(w, http.StatusNotImplemented, map[string]string{
 			"error": "List files endpoint not yet implemented",
 		})
 		return
@@ -52,7 +53,7 @@ func (h *FileHandler) handleFileRoutes(w http.ResponseWriter, r *http.Request) {
 		} else if r.Method == http.MethodDelete {
 			h.DeleteFile(w, r, fileIDStr)
 		} else {
-			writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
+			httpx.WriteJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
 		}
 		return
 	}
@@ -63,19 +64,19 @@ func (h *FileHandler) handleFileRoutes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusNotFound, map[string]string{"error": "Not found"})
+	httpx.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "Not found"})
 }
 
 // UploadFile handles POST /api/v1/files/upload
 func (h *FileHandler) UploadFile(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
+		httpx.WriteJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
 		return
 	}
 
 	// Parse multipart form (max 100MB in memory)
 	if err := r.ParseMultipartForm(100 << 20); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{
+		httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error":   "Failed to parse multipart form",
 			"details": err.Error(),
 		})
@@ -85,7 +86,7 @@ func (h *FileHandler) UploadFile(w http.ResponseWriter, r *http.Request) {
 	// Get file from form
 	file, header, err := r.FormFile("file")
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{
+		httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error":   "No file provided",
 			"details": err.Error(),
 		})
@@ -96,7 +97,7 @@ func (h *FileHandler) UploadFile(w http.ResponseWriter, r *http.Request) {
 	// Read file data
 	fileData, err := io.ReadAll(file)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{
+		httpx.WriteJSON(w, http.StatusInternalServerError, map[string]string{
 			"error":   "Failed to read file",
 			"details": err.Error(),
 		})
@@ -111,7 +112,7 @@ func (h *FileHandler) UploadFile(w http.ResponseWriter, r *http.Request) {
 
 	// Validate required parameters
 	if kStr == "" || nStr == "" || chunkSizeMBStr == "" || providersStr == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{
+		httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Missing required parameters: k, n, chunk_size_mb, providers",
 		})
 		return
@@ -120,7 +121,7 @@ func (h *FileHandler) UploadFile(w http.ResponseWriter, r *http.Request) {
 	// Parse integers
 	k, err := strconv.Atoi(kStr)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{
+		httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error":   "Invalid k parameter",
 			"details": err.Error(),
 		})
@@ -129,7 +130,7 @@ func (h *FileHandler) UploadFile(w http.ResponseWriter, r *http.Request) {
 
 	n, err := strconv.Atoi(nStr)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{
+		httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error":   "Invalid n parameter",
 			"details": err.Error(),
 		})
@@ -138,7 +139,7 @@ func (h *FileHandler) UploadFile(w http.ResponseWriter, r *http.Request) {
 
 	chunkSizeMB, err := strconv.Atoi(chunkSizeMBStr)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{
+		httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error":   "Invalid chunk_size_mb parameter",
 			"details": err.Error(),
 		})
@@ -153,21 +154,21 @@ func (h *FileHandler) UploadFile(w http.ResponseWriter, r *http.Request) {
 
 	// Validate parameters
 	if k <= 0 || n <= 0 || k > n {
-		writeJSON(w, http.StatusBadRequest, map[string]string{
+		httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "Invalid erasure coding parameters: k must be > 0 and k <= n",
 		})
 		return
 	}
 
 	if chunkSizeMB <= 0 {
-		writeJSON(w, http.StatusBadRequest, map[string]string{
+		httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "chunk_size_mb must be positive",
 		})
 		return
 	}
 
 	if len(providers) == 0 {
-		writeJSON(w, http.StatusBadRequest, map[string]string{
+		httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "At least one provider must be specified",
 		})
 		return
@@ -176,14 +177,14 @@ func (h *FileHandler) UploadFile(w http.ResponseWriter, r *http.Request) {
 	// Call service
 	resp, err := h.service.UploadFile(r.Context(), header.Filename, fileData, k, n, chunkSizeMB, providers)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{
+		httpx.WriteJSON(w, http.StatusInternalServerError, map[string]string{
 			"error":   "Failed to upload file",
 			"details": err.Error(),
 		})
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, resp)
+	httpx.WriteJSON(w, http.StatusCreated, resp)
 }
 
 // DownloadFile handles GET /api/v1/files/:fileId/download
@@ -191,7 +192,7 @@ func (h *FileHandler) DownloadFile(w http.ResponseWriter, r *http.Request, fileI
 	// Parse file ID
 	fileID, err := uuid.Parse(fileIDStr)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{
+		httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error":   "Invalid file ID format",
 			"details": err.Error(),
 		})
@@ -201,7 +202,7 @@ func (h *FileHandler) DownloadFile(w http.ResponseWriter, r *http.Request, fileI
 	// Download and reconstruct file
 	fileData, filename, err := h.service.DownloadFile(r.Context(), fileID)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{
+		httpx.WriteJSON(w, http.StatusInternalServerError, map[string]string{
 			"error":   "Failed to download file",
 			"details": err.Error(),
 		})
@@ -223,7 +224,7 @@ func (h *FileHandler) GetFileMetadata(w http.ResponseWriter, r *http.Request, fi
 	// Parse file ID
 	fileID, err := uuid.Parse(fileIDStr)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{
+		httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error":   "Invalid file ID format",
 			"details": err.Error(),
 		})
@@ -233,14 +234,14 @@ func (h *FileHandler) GetFileMetadata(w http.ResponseWriter, r *http.Request, fi
 	// Get metadata
 	metadata, err := h.service.GetFileMetadata(r.Context(), fileID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, map[string]string{
+		httpx.WriteJSON(w, http.StatusNotFound, map[string]string{
 			"error":   "File not found",
 			"details": err.Error(),
 		})
 		return
 	}
 
-	writeJSON(w, http.StatusOK, metadata)
+	httpx.WriteJSON(w, http.StatusOK, metadata)
 }
 
 // DeleteFile handles DELETE /api/v1/files/:fileId
@@ -248,7 +249,7 @@ func (h *FileHandler) DeleteFile(w http.ResponseWriter, r *http.Request, fileIDS
 	// Parse file ID
 	fileID, err := uuid.Parse(fileIDStr)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{
+		httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error":   "Invalid file ID format",
 			"details": err.Error(),
 		})
@@ -261,14 +262,14 @@ func (h *FileHandler) DeleteFile(w http.ResponseWriter, r *http.Request, fileIDS
 	// Delete file
 	err = h.service.DeleteFile(r.Context(), fileID, deleteShards)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{
+		httpx.WriteJSON(w, http.StatusInternalServerError, map[string]string{
 			"error":   "Failed to delete file",
 			"details": err.Error(),
 		})
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{
+	httpx.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"success":        true,
 		"message":        "File deleted successfully",
 		"file_id":        fileIDStr,

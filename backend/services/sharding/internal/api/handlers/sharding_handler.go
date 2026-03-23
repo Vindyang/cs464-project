@@ -1,22 +1,22 @@
 package handlers
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/vindyang/cs464-project/backend/services/shared/service"
+	"github.com/vindyang/cs464-project/backend/services/sharding/internal/app"
+	"github.com/vindyang/cs464-project/backend/services/shared/transport/httpx"
 )
 
 // ShardingHandler exposes sharding and reconstruction endpoints.
 type ShardingHandler struct {
-	service service.ShardingService
+	service app.ShardingService
 }
 
 // NewShardingHandler creates a new ShardingHandler.
-func NewShardingHandler(service service.ShardingService) *ShardingHandler {
+func NewShardingHandler(service app.ShardingService) *ShardingHandler {
 	return &ShardingHandler{service: service}
 }
 
@@ -80,12 +80,11 @@ type reconstructResponseMeta struct {
 
 // Health handles GET /health.
 func (h *ShardingHandler) Health(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
+	if !httpx.RequireMethod(w, r, http.MethodGet) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{
+	httpx.WriteJSON(w, http.StatusOK, map[string]string{
 		"status":  "healthy",
 		"service": "sharding",
 	})
@@ -93,35 +92,34 @@ func (h *ShardingHandler) Health(w http.ResponseWriter, r *http.Request) {
 
 // Shard handles POST /shard.
 func (h *ShardingHandler) Shard(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
+	if !httpx.RequireMethod(w, r, http.MethodPost) {
 		return
 	}
 
 	var req shardRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid request body", "details": err.Error()})
+	if err := httpx.DecodeJSON(r, &req, 20<<20); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "Invalid request body", err)
 		return
 	}
 
 	if _, err := uuid.Parse(req.FileID); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "file_id must be a valid UUID", "details": err.Error()})
+		httpx.WriteError(w, http.StatusBadRequest, "file_id must be a valid UUID", err)
 		return
 	}
 
 	if req.K <= 0 || req.N <= 0 || req.K > req.N {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid erasure coding parameters: K must be > 0 and K <= N"})
+		httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid erasure coding parameters: K must be > 0 and K <= N"})
 		return
 	}
 
 	if len(req.FileData) == 0 {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "file_data is required"})
+		httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "file_data is required"})
 		return
 	}
 
 	shards, err := h.service.EncodeChunk(req.FileData, req.K, req.N)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to shard data", "details": err.Error()})
+		httpx.WriteError(w, http.StatusInternalServerError, "failed to shard data", err)
 		return
 	}
 
@@ -150,34 +148,33 @@ func (h *ShardingHandler) Shard(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	writeJSON(w, http.StatusOK, resp)
+	httpx.WriteJSON(w, http.StatusOK, resp)
 }
 
 // Reconstruct handles POST /reconstruct.
 func (h *ShardingHandler) Reconstruct(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
+	if !httpx.RequireMethod(w, r, http.MethodPost) {
 		return
 	}
 
 	var req reconstructRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid request body", "details": err.Error()})
+	if err := httpx.DecodeJSON(r, &req, 20<<20); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "Invalid request body", err)
 		return
 	}
 
 	if _, err := uuid.Parse(req.FileID); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "file_id must be a valid UUID", "details": err.Error()})
+		httpx.WriteError(w, http.StatusBadRequest, "file_id must be a valid UUID", err)
 		return
 	}
 
 	if req.K <= 0 || req.N <= 0 || req.K > req.N {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid erasure coding parameters: K must be > 0 and K <= N"})
+		httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid erasure coding parameters: K must be > 0 and K <= N"})
 		return
 	}
 
 	if len(req.AvailableShards) < req.K {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("insufficient available shards: have %d, need at least %d", len(req.AvailableShards), req.K)})
+		httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("insufficient available shards: have %d, need at least %d", len(req.AvailableShards), req.K)})
 		return
 	}
 
@@ -187,19 +184,19 @@ func (h *ShardingHandler) Reconstruct(w http.ResponseWriter, r *http.Request) {
 
 	for _, shard := range req.AvailableShards {
 		if shard.ShardIndex < 0 || shard.ShardIndex >= req.N {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("shard_index %d is out of range [0, %d)", shard.ShardIndex, req.N)})
+			httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("shard_index %d is out of range [0, %d)", shard.ShardIndex, req.N)})
 			return
 		}
 
 		if seen[shard.ShardIndex] {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("duplicate shard_index %d", shard.ShardIndex)})
+			httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("duplicate shard_index %d", shard.ShardIndex)})
 			return
 		}
 		seen[shard.ShardIndex] = true
 
 		st := strings.ToLower(shard.ShardType)
 		if st != "data" && st != "parity" {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "shard_type must be either data or parity"})
+			httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "shard_type must be either data or parity"})
 			return
 		}
 		if st == "parity" {
@@ -207,7 +204,7 @@ func (h *ShardingHandler) Reconstruct(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if len(shard.ShardData) == 0 {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "shard_data cannot be empty"})
+			httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "shard_data cannot be empty"})
 			return
 		}
 
@@ -216,7 +213,7 @@ func (h *ShardingHandler) Reconstruct(w http.ResponseWriter, r *http.Request) {
 
 	reconstructed, err := h.service.DecodeChunk(shards, req.K, req.N)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to reconstruct data", "details": err.Error()})
+		httpx.WriteError(w, http.StatusInternalServerError, "failed to reconstruct data", err)
 		return
 	}
 
@@ -235,5 +232,5 @@ func (h *ShardingHandler) Reconstruct(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	writeJSON(w, http.StatusOK, resp)
+	httpx.WriteJSON(w, http.StatusOK, resp)
 }

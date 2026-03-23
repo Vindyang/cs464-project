@@ -24,6 +24,23 @@ This directory organizes the backend by microservice boundary.
   - Entrypoint: `services/sharding/cmd/main.go`
   - Unit tests: `services/sharding/tests/unit/`
 
+## Service Ownership Map
+
+- `adapter` owns provider and adapter-facing endpoints.
+- `orchestrator` owns orchestration endpoints.
+- `shardmap` owns shard-map metadata endpoints:
+  - `POST /api/v1/shards/register`
+  - `POST /api/v1/shards/record`
+  - `GET /api/v1/shards/file/{fileId}`
+  - `GET /api/v1/shards/{shardId}`
+  - `PUT /api/v1/shards/{shardId}/status`
+- `sharding` owns sharding endpoints:
+  - `GET /health`
+  - `POST /shard`
+  - `POST /reconstruct`
+
+Non-owning services must call owner services through client packages under `services/shared/clients/*`.
+
 ## Running Services
 
 From `backend/`:
@@ -33,6 +50,15 @@ go run ./services/adapter/cmd/main.go
 go run ./services/orchestrator/cmd/main.go
 go run ./services/shardmap/cmd/main.go
 go run ./services/sharding/cmd/main.go
+```
+
+## Cross-Service URLs
+
+Set service base URLs through env vars when running independently:
+
+```powershell
+$env:SHARDMAP_BASE_URL="http://localhost:8081"
+$env:SHARDING_BASE_URL="http://localhost:8083"
 ```
 
 ## Running Tests

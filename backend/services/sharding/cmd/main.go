@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/vindyang/cs464-project/backend/services/sharding/internal/api/handlers"
-	"github.com/vindyang/cs464-project/backend/services/shared/service"
+	"github.com/vindyang/cs464-project/backend/services/sharding/internal/app"
 )
 
 func main() {
@@ -19,7 +19,7 @@ func main() {
 		port = "8083"
 	}
 
-	shardingService := service.NewShardingService()
+	shardingService := app.NewShardingService()
 	shardingHandler := handlers.NewShardingHandler(shardingService)
 
 	mux := http.NewServeMux()
