@@ -68,6 +68,7 @@ From `backend/`:
 	- Validates upload-side dependency failure propagation:
 		- shard-map register failure on upload -> orchestrator returns `500` JSON (`error`, `details`)
 		- malformed sharding payload on upload -> orchestrator returns `500` JSON (`error`, `details`)
+		- partial adapter upload failure triggers rollback deletes for all successfully uploaded shards; shard-map record is not called.
 - `integration/orchestrator_download_failure_contracts_test.go`
 	- Validates download-side dependency failure propagation:
 		- shard-map lookup failure on download -> orchestrator returns `500` JSON (`error`, `details`)

@@ -97,6 +97,7 @@ Integration contract suite:
   - Upload failure-path contracts:
     - shard-map register failure during upload returns orchestrator `500` with stable JSON error fields (`error`, `details`).
     - malformed sharding shard response during upload returns orchestrator `500` with stable JSON error fields.
+    - partial adapter shard upload failure triggers rollback delete calls for successfully uploaded shards, and shard-map record is skipped.
 - `tests/integration/orchestrator_download_failure_contracts_test.go`
   - Download failure-path contracts:
     - shard-map lookup failure during download returns orchestrator `500` with stable JSON error fields (`error`, `details`).
