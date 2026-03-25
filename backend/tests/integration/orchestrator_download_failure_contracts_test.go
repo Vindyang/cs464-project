@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 )
@@ -15,23 +14,17 @@ import (
 func TestOrchestratorDownloadFailsWhenShardMapLookupErrors(t *testing.T) {
 	t.Parallel()
 
-	adapterServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.NotFound(w, r)
-	}))
+	adapterServer := newAdapterMock(t, adapterMockConfig{})
 	defer adapterServer.Close()
 
-	shardMapServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/api/v1/shards/file/") {
+	shardMapServer := newShardMapMock(t, shardMapMockConfig{
+		OnGetShardMap: func(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "shard map unavailable", http.StatusInternalServerError)
-			return
-		}
-		http.NotFound(w, r)
-	}))
+		},
+	})
 	defer shardMapServer.Close()
 
-	shardingServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.NotFound(w, r)
-	}))
+	shardingServer := newShardingMock(t, shardingMockConfig{})
 	defer shardingServer.Close()
 
 	orchestratorURL, shutdown := startOrchestrator(t, adapterServer.URL, shardMapServer.URL, shardingServer.URL)
@@ -65,17 +58,15 @@ func TestOrchestratorDownloadFailsWhenShardMapLookupErrors(t *testing.T) {
 func TestOrchestratorDownloadFailsWhenShardingReconstructReturnsError(t *testing.T) {
 	t.Parallel()
 
-	adapterServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/shards/") {
+	adapterServer := newAdapterMock(t, adapterMockConfig{
+		OnDownloadShard: func(w http.ResponseWriter, r *http.Request) {
 			_, _ = w.Write([]byte("ok-shard-bytes"))
-			return
-		}
-		http.NotFound(w, r)
-	}))
+		},
+	})
 	defer adapterServer.Close()
 
-	shardMapServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/api/v1/shards/file/") {
+	shardMapServer := newShardMapMock(t, shardMapMockConfig{
+		OnGetShardMap: func(w http.ResponseWriter, r *http.Request) {
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"file_id":       "file-12345",
 				"original_name": "contract.txt",
@@ -89,19 +80,15 @@ func TestOrchestratorDownloadFailsWhenShardingReconstructReturnsError(t *testing
 					{"shard_id": "s-3", "shard_index": 3, "remote_id": "remote-3", "provider": "provider-b", "status": "HEALTHY"},
 				},
 			})
-			return
-		}
-		http.NotFound(w, r)
-	}))
+		},
+	})
 	defer shardMapServer.Close()
 
-	shardingServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost && r.URL.Path == "/api/sharding/reconstruct" {
+	shardingServer := newShardingMock(t, shardingMockConfig{
+		OnReconstruct: func(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "reconstruct failed", http.StatusInternalServerError)
-			return
-		}
-		http.NotFound(w, r)
-	}))
+		},
+	})
 	defer shardingServer.Close()
 
 	orchestratorURL, shutdown := startOrchestrator(t, adapterServer.URL, shardMapServer.URL, shardingServer.URL)
@@ -136,17 +123,15 @@ func TestOrchestratorDownloadFailsWhenShardingReconstructReturnsError(t *testing
 func TestOrchestratorDownloadFailsWhenShardingReconstructPayloadIsMalformed(t *testing.T) {
 	t.Parallel()
 
-	adapterServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/shards/") {
+	adapterServer := newAdapterMock(t, adapterMockConfig{
+		OnDownloadShard: func(w http.ResponseWriter, r *http.Request) {
 			_, _ = w.Write([]byte("ok-shard-bytes"))
-			return
-		}
-		http.NotFound(w, r)
-	}))
+		},
+	})
 	defer adapterServer.Close()
 
-	shardMapServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/api/v1/shards/file/") {
+	shardMapServer := newShardMapMock(t, shardMapMockConfig{
+		OnGetShardMap: func(w http.ResponseWriter, r *http.Request) {
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"file_id":       "file-12345",
 				"original_name": "contract.txt",
@@ -160,21 +145,17 @@ func TestOrchestratorDownloadFailsWhenShardingReconstructPayloadIsMalformed(t *t
 					{"shard_id": "s-3", "shard_index": 3, "remote_id": "remote-3", "provider": "provider-b", "status": "HEALTHY"},
 				},
 			})
-			return
-		}
-		http.NotFound(w, r)
-	}))
+		},
+	})
 	defer shardMapServer.Close()
 
-	shardingServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost && r.URL.Path == "/api/sharding/reconstruct" {
+	shardingServer := newShardingMock(t, shardingMockConfig{
+		OnReconstruct: func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"reconstructed_file":`))
-			return
-		}
-		http.NotFound(w, r)
-	}))
+		},
+	})
 	defer shardingServer.Close()
 
 	orchestratorURL, shutdown := startOrchestrator(t, adapterServer.URL, shardMapServer.URL, shardingServer.URL)
@@ -208,13 +189,11 @@ func TestOrchestratorDownloadFailsWhenShardingReconstructPayloadIsMalformed(t *t
 func TestOrchestratorDownloadFailsWhenAvailableShardsAreBelowK(t *testing.T) {
 	t.Parallel()
 
-	adapterServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.NotFound(w, r)
-	}))
+	adapterServer := newAdapterMock(t, adapterMockConfig{})
 	defer adapterServer.Close()
 
-	shardMapServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/api/v1/shards/file/") {
+	shardMapServer := newShardMapMock(t, shardMapMockConfig{
+		OnGetShardMap: func(w http.ResponseWriter, r *http.Request) {
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"file_id":       "file-12345",
 				"original_name": "contract.txt",
@@ -227,15 +206,11 @@ func TestOrchestratorDownloadFailsWhenAvailableShardsAreBelowK(t *testing.T) {
 					{"shard_id": "s-2", "shard_index": 2, "remote_id": "remote-2", "provider": "provider-a", "status": "HEALTHY"},
 				},
 			})
-			return
-		}
-		http.NotFound(w, r)
-	}))
+		},
+	})
 	defer shardMapServer.Close()
 
-	shardingServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.NotFound(w, r)
-	}))
+	shardingServer := newShardingMock(t, shardingMockConfig{})
 	defer shardingServer.Close()
 
 	orchestratorURL, shutdown := startOrchestrator(t, adapterServer.URL, shardMapServer.URL, shardingServer.URL)

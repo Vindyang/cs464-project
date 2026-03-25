@@ -9,11 +9,13 @@ import (
 	"mime/multipart"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -140,4 +142,94 @@ func freePort(t *testing.T) int {
 	}
 	defer ln.Close()
 	return ln.Addr().(*net.TCPAddr).Port
+}
+
+type adapterMockConfig struct {
+	OnGetProviders func(http.ResponseWriter, *http.Request)
+	OnUploadShard  func(http.ResponseWriter, *http.Request)
+	OnDownloadShard func(http.ResponseWriter, *http.Request)
+	OnDeleteShard  func(http.ResponseWriter, *http.Request)
+}
+
+func newAdapterMock(t *testing.T, cfg adapterMockConfig) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/providers":
+			if cfg.OnGetProviders != nil {
+				cfg.OnGetProviders(w, r)
+				return
+			}
+		case r.Method == http.MethodPost && r.URL.Path == "/shards/upload":
+			if cfg.OnUploadShard != nil {
+				cfg.OnUploadShard(w, r)
+				return
+			}
+		case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/shards/"):
+			if cfg.OnDownloadShard != nil {
+				cfg.OnDownloadShard(w, r)
+				return
+			}
+		case r.Method == http.MethodDelete && strings.HasPrefix(r.URL.Path, "/shards/"):
+			if cfg.OnDeleteShard != nil {
+				cfg.OnDeleteShard(w, r)
+				return
+			}
+		}
+		http.NotFound(w, r)
+	}))
+}
+
+type shardMapMockConfig struct {
+	OnRegisterFile func(http.ResponseWriter, *http.Request)
+	OnRecordShards func(http.ResponseWriter, *http.Request)
+	OnGetShardMap  func(http.ResponseWriter, *http.Request)
+}
+
+func newShardMapMock(t *testing.T, cfg shardMapMockConfig) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/shards/register":
+			if cfg.OnRegisterFile != nil {
+				cfg.OnRegisterFile(w, r)
+				return
+			}
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/shards/record":
+			if cfg.OnRecordShards != nil {
+				cfg.OnRecordShards(w, r)
+				return
+			}
+		case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/api/v1/shards/file/"):
+			if cfg.OnGetShardMap != nil {
+				cfg.OnGetShardMap(w, r)
+				return
+			}
+		}
+		http.NotFound(w, r)
+	}))
+}
+
+type shardingMockConfig struct {
+	OnShard       func(http.ResponseWriter, *http.Request)
+	OnReconstruct func(http.ResponseWriter, *http.Request)
+}
+
+func newShardingMock(t *testing.T, cfg shardingMockConfig) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/api/sharding/shard":
+			if cfg.OnShard != nil {
+				cfg.OnShard(w, r)
+				return
+			}
+		case r.Method == http.MethodPost && r.URL.Path == "/api/sharding/reconstruct":
+			if cfg.OnReconstruct != nil {
+				cfg.OnReconstruct(w, r)
+				return
+			}
+		}
+		http.NotFound(w, r)
+	}))
 }
