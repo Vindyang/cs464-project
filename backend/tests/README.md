@@ -64,3 +64,12 @@ From `backend/`:
 		- positive `original_size` on shard-map register
 		- uppercase shard types `DATA` / `PARITY` on shard-map record
 		- sharding route and payload compatibility (`/api/sharding/*`, `fileId/fileData/n/k`)
+- `integration/orchestrator_upload_failure_contracts_test.go`
+	- Validates upload-side dependency failure propagation:
+		- shard-map register failure on upload -> orchestrator returns `500` JSON (`error`, `details`)
+		- malformed sharding payload on upload -> orchestrator returns `500` JSON (`error`, `details`)
+- `integration/orchestrator_download_failure_contracts_test.go`
+	- Validates download-side dependency failure propagation:
+		- shard-map lookup failure on download -> orchestrator returns `500` JSON (`error`, `details`)
+- `integration/integration_helpers_test.go`
+	- Shared helper utilities used by integration tests (orchestrator startup, upload helpers, health wait, ephemeral port allocation).

@@ -1,0 +1,143 @@
+package integration_test
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"mime/multipart"
+	"net"
+	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strconv"
+	"testing"
+	"time"
+
+	"github.com/vindyang/cs464-project/backend/services/shared/types"
+)
+
+func backendRoot(t *testing.T) string {
+	t.Helper()
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatalf("failed to determine caller file path")
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(file), "../.."))
+}
+
+// startOrchestrator launches the real orchestrator process wired to mock service URLs.
+// It returns the base URL and a shutdown function that must be deferred by callers.
+func startOrchestrator(t *testing.T, adapterURL, shardMapURL, shardingURL string) (string, func()) {
+	t.Helper()
+
+	port := freePort(t)
+	orchestratorURL := "http://127.0.0.1:" + strconv.Itoa(port)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cmd := exec.CommandContext(ctx, "go", "run", "./services/orchestrator/cmd/main.go")
+	cmd.Dir = backendRoot(t)
+	cmd.Env = append(
+		os.Environ(),
+		"ADAPTER_URL="+adapterURL,
+		"SHARDMAP_URL="+shardMapURL,
+		"SHARDING_URL="+shardingURL,
+		"PORT="+strconv.Itoa(port),
+	)
+
+	if err := cmd.Start(); err != nil {
+		cancel()
+		t.Fatalf("failed to start orchestrator: %v", err)
+	}
+
+	if err := waitForHTTP(orchestratorURL+"/api/orchestrator/upload", 15*time.Second); err != nil {
+		cancel()
+		_ = cmd.Wait()
+		t.Fatalf("orchestrator did not start: %v", err)
+	}
+
+	shutdown := func() {
+		cancel()
+		_ = cmd.Wait()
+	}
+	return orchestratorURL, shutdown
+}
+
+// uploadFile performs a successful multipart upload request and decodes the JSON response.
+func uploadFile(t *testing.T, baseURL string, payload []byte) types.UploadResp {
+	t.Helper()
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	_ = writer.WriteField("k", "4")
+	_ = writer.WriteField("n", "6")
+	part, _ := writer.CreateFormFile("file", "contract.txt")
+	_, _ = part.Write(payload)
+	_ = writer.Close()
+
+	req, _ := http.NewRequest(http.MethodPost, baseURL+"/api/orchestrator/upload", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	httpResp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("upload request failed: %v", err)
+	}
+	defer httpResp.Body.Close()
+	if httpResp.StatusCode != http.StatusCreated {
+		b, _ := io.ReadAll(httpResp.Body)
+		t.Fatalf("upload failed: status=%d body=%s", httpResp.StatusCode, string(b))
+	}
+	var out types.UploadResp
+	_ = json.NewDecoder(httpResp.Body).Decode(&out)
+	return out
+}
+
+// uploadFileRaw sends the same multipart payload as uploadFile but intentionally
+// does not assert success status so failure-path tests can validate error responses.
+func uploadFileRaw(t *testing.T, baseURL string, payload []byte) (*http.Response, []byte) {
+	t.Helper()
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	_ = writer.WriteField("k", "4")
+	_ = writer.WriteField("n", "6")
+	part, _ := writer.CreateFormFile("file", "contract.txt")
+	_, _ = part.Write(payload)
+	_ = writer.Close()
+
+	req, _ := http.NewRequest(http.MethodPost, baseURL+"/api/orchestrator/upload", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	httpResp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("upload request failed: %v", err)
+	}
+	respBody, _ := io.ReadAll(httpResp.Body)
+	return httpResp, respBody
+}
+
+// waitForHTTP polls an endpoint until it responds or the timeout expires.
+func waitForHTTP(url string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		resp, err := http.Get(url)
+		if err == nil {
+			_ = resp.Body.Close()
+			return nil
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return fmt.Errorf("timeout waiting for %s", url)
+}
+
+// freePort allocates an ephemeral localhost TCP port for test process startup.
+func freePort(t *testing.T) int {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("freePort: %v", err)
+	}
+	defer ln.Close()
+	return ln.Addr().(*net.TCPAddr).Port
+}

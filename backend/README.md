@@ -89,6 +89,20 @@ Central test runner:
 .\tests\run-tests.ps1 -Type all
 ```
 
+Integration contract suite:
+
+- `tests/integration/orchestrator_contract_test.go`
+  - Happy-path contract test: upload + download across mocked Adapter/ShardMap/Sharding.
+- `tests/integration/orchestrator_upload_failure_contracts_test.go`
+  - Upload failure-path contracts:
+    - shard-map register failure during upload returns orchestrator `500` with stable JSON error fields (`error`, `details`).
+    - malformed sharding shard response during upload returns orchestrator `500` with stable JSON error fields.
+- `tests/integration/orchestrator_download_failure_contracts_test.go`
+  - Download failure-path contracts:
+    - shard-map lookup failure during download returns orchestrator `500` with stable JSON error fields (`error`, `details`).
+- `tests/integration/integration_helpers_test.go`
+  - Shared integration helpers for orchestrator startup, upload request helpers, health waiting, and dynamic port allocation.
+
 ## Service Contract Notes (important)
 
 To keep orchestrator <-> service integration stable, preserve these contracts:
