@@ -24,6 +24,9 @@ import (
 func TestOrchestratorServiceContracts(t *testing.T) {
 	t.Parallel()
 
+	// Arrange: mock Adapter service with strict workflow-facing contracts.
+	// This verifies orchestrator/adapter compatibility without depending on cloud SDKs.
+
 	adapterStorage := struct {
 		sync.Mutex
 		nextID int
@@ -86,6 +89,9 @@ func TestOrchestratorServiceContracts(t *testing.T) {
 	}))
 	defer adapterServer.Close()
 
+	// Arrange: mock ShardMap service with strict validation used in production handlers.
+	// - register requires positive original_size
+	// - record expects shard type values DATA/PARITY
 	shardMap := struct {
 		sync.Mutex
 		registerReq types.RegisterFileReq
@@ -135,6 +141,10 @@ func TestOrchestratorServiceContracts(t *testing.T) {
 	}))
 	defer shardMapServer.Close()
 
+	// Arrange: mock Sharding service using current public API contracts.
+	// Endpoint and payload contracts enforced here:
+	// - POST /api/sharding/shard with fileId/fileData/n/k
+	// - POST /api/sharding/reconstruct
 	shardingServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.Method == http.MethodPost && r.URL.Path == "/api/sharding/shard":
@@ -181,6 +191,7 @@ func TestOrchestratorServiceContracts(t *testing.T) {
 	}))
 	defer shardingServer.Close()
 
+	// Arrange: start real orchestrator process wired to mock services.
 	port := freePort(t)
 	orchestratorURL := "http://127.0.0.1:" + strconv.Itoa(port)
 
@@ -202,12 +213,14 @@ func TestOrchestratorServiceContracts(t *testing.T) {
 		t.Fatalf("orchestrator did not start: %v", err)
 	}
 
+	// Act: upload a file through orchestrator.
 	payload := []byte("contract-test-payload")
 	resp := uploadFile(t, orchestratorURL, payload)
 	if resp.Status != "committed" || resp.FileID == "" {
 		t.Fatalf("unexpected upload response: %+v", resp)
 	}
 
+	// Assert: cross-service contract invariants were honored by orchestrator.
 	shardMap.Lock()
 	if shardMap.registerReq.OriginalSize <= 0 {
 		t.Fatalf("expected shardmap register original_size > 0")
@@ -219,6 +232,7 @@ func TestOrchestratorServiceContracts(t *testing.T) {
 	}
 	shardMap.Unlock()
 
+	// Act + Assert: download path still works end-to-end with the same contracts.
 	downloadRes, err := http.Get(orchestratorURL + "/api/orchestrator/files/" + resp.FileID + "/download")
 	if err != nil {
 		t.Fatalf("download request failed: %v", err)

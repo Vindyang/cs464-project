@@ -11,7 +11,7 @@ The orchestrator is the workflow owner and coordinates sharding, storage, and sh
 
 - `services/sharding`
   - Owner of erasure coding operations.
-  - Provides `POST /shard` and `POST /reconstruct`.
+  - Provides `POST /api/sharding/shard` and `POST /api/sharding/reconstruct`.
 
 - `services/adapter`
   - Owner of provider connectivity and OAuth.
@@ -89,6 +89,19 @@ Central test runner:
 .\tests\run-tests.ps1 -Type all
 ```
 
+## Service Contract Notes (important)
+
+To keep orchestrator <-> service integration stable, preserve these contracts:
+
+- Orchestrator -> ShardMap
+  - Register request must send positive `original_size`.
+  - Record request shard `type` must be uppercase `DATA` / `PARITY`.
+
+- Orchestrator -> Sharding
+  - Endpoints are `/api/sharding/shard` and `/api/sharding/reconstruct`.
+  - Shard request payload uses `fileId`, `fileData`, `n`, `k`.
+  - Shard response parsing should support `shardData` (with legacy `shard_data` fallback).
+
 ## Key Entry Endpoints
 
 - Orchestrator upload: `POST /api/orchestrator/upload`
@@ -97,4 +110,4 @@ Central test runner:
 - Adapter shard upload: `POST /shards/upload`
 - Adapter shard download/delete: `GET|DELETE /shards/{remoteId}`
 - Shardmap register/record/query: `/api/v1/shards/*`
-- Sharding operations: `/shard`, `/reconstruct`
+- Sharding operations: `/api/sharding/shard`, `/api/sharding/reconstruct`

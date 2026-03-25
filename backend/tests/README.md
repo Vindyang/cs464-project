@@ -5,7 +5,7 @@ This directory contains the backend test runner and shared test categories.
 ## Structure
 
 - `run-tests.ps1`: PowerShell test runner
-- `integration/`: Integration tests (currently empty)
+- `integration/`: Integration tests across service boundaries (orchestrator contracts)
 - `e2e/`: End-to-end tests (currently empty)
 
 Unit tests are now colocated with each service under:
@@ -55,3 +55,12 @@ From `backend/`:
 - By default, each suite runs with `go test -count=1` to avoid cached test results.
 - For unit tests, the runner auto-discovers `services/*/tests/unit` folders and runs each service's unit suite.
 - As new integration/e2e tests are added under their folders, the runner will pick them up automatically.
+
+### Current integration coverage
+
+- `integration/orchestrator_contract_test.go`
+	- Validates orchestrator upload/download workflow contracts against mocked Adapter, ShardMap, and Sharding services.
+	- Enforces key contracts such as:
+		- positive `original_size` on shard-map register
+		- uppercase shard types `DATA` / `PARITY` on shard-map record
+		- sharding route and payload compatibility (`/api/sharding/*`, `fileId/fileData/n/k`)
