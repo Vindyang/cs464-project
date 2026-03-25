@@ -72,5 +72,7 @@ From `backend/`:
 - `integration/orchestrator_download_failure_contracts_test.go`
 	- Validates download-side dependency failure propagation:
 		- shard-map lookup failure on download -> orchestrator returns `500` JSON (`error`, `details`)
+		- sharding reconstruct returns `500` -> orchestrator returns `500` JSON (`error`, `details`)
+		- sharding reconstruct returns malformed JSON payload -> orchestrator returns `500` JSON (`error`, `details`)
 - `integration/integration_helpers_test.go`
 	- Shared helper utilities used by integration tests (orchestrator startup, upload helpers, health wait, ephemeral port allocation).

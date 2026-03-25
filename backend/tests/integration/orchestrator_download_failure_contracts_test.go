@@ -59,3 +59,146 @@ func TestOrchestratorDownloadFailsWhenShardMapLookupErrors(t *testing.T) {
 		t.Fatalf("expected details to contain shard map lookup failure, got: %q", payload["details"])
 	}
 }
+
+// TestOrchestratorDownloadFailsWhenShardingReconstructReturnsError verifies that
+// orchestrator surfaces a stable 500 error when sharding reconstruct returns 500.
+func TestOrchestratorDownloadFailsWhenShardingReconstructReturnsError(t *testing.T) {
+	t.Parallel()
+
+	adapterServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/shards/") {
+			_, _ = w.Write([]byte("ok-shard-bytes"))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer adapterServer.Close()
+
+	shardMapServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/api/v1/shards/file/") {
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"file_id":       "file-12345",
+				"original_name": "contract.txt",
+				"n":             6,
+				"k":             4,
+				"status":        "UPLOADED",
+				"shards": []map[string]any{
+					{"shard_id": "s-0", "shard_index": 0, "remote_id": "remote-0", "provider": "provider-a", "status": "HEALTHY"},
+					{"shard_id": "s-1", "shard_index": 1, "remote_id": "remote-1", "provider": "provider-b", "status": "HEALTHY"},
+					{"shard_id": "s-2", "shard_index": 2, "remote_id": "remote-2", "provider": "provider-a", "status": "HEALTHY"},
+					{"shard_id": "s-3", "shard_index": 3, "remote_id": "remote-3", "provider": "provider-b", "status": "HEALTHY"},
+				},
+			})
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer shardMapServer.Close()
+
+	shardingServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Path == "/api/sharding/reconstruct" {
+			http.Error(w, "reconstruct failed", http.StatusInternalServerError)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer shardingServer.Close()
+
+	orchestratorURL, shutdown := startOrchestrator(t, adapterServer.URL, shardMapServer.URL, shardingServer.URL)
+	defer shutdown()
+
+	res, err := http.Get(orchestratorURL + "/api/orchestrator/files/file-12345/download")
+	if err != nil {
+		t.Fatalf("download request failed: %v", err)
+	}
+	defer res.Body.Close()
+	body, _ := io.ReadAll(res.Body)
+
+	if res.StatusCode != http.StatusInternalServerError {
+		t.Fatalf("expected status %d, got %d body=%s", http.StatusInternalServerError, res.StatusCode, string(body))
+	}
+
+	payload := map[string]string{}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		t.Fatalf("failed to parse error response: %v body=%s", err, string(body))
+	}
+	if payload["error"] != "Failed to download file" {
+		t.Fatalf("unexpected error message: %q", payload["error"])
+	}
+	if !strings.Contains(payload["details"], "failed to reconstruct file") {
+		t.Fatalf("expected details to contain reconstruct failure, got: %q", payload["details"])
+	}
+}
+
+// TestOrchestratorDownloadFailsWhenShardingReconstructPayloadIsMalformed verifies
+// that orchestrator returns a stable 500 error when sharding reconstruct returns
+// HTTP 200 with malformed JSON.
+func TestOrchestratorDownloadFailsWhenShardingReconstructPayloadIsMalformed(t *testing.T) {
+	t.Parallel()
+
+	adapterServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/shards/") {
+			_, _ = w.Write([]byte("ok-shard-bytes"))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer adapterServer.Close()
+
+	shardMapServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/api/v1/shards/file/") {
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"file_id":       "file-12345",
+				"original_name": "contract.txt",
+				"n":             6,
+				"k":             4,
+				"status":        "UPLOADED",
+				"shards": []map[string]any{
+					{"shard_id": "s-0", "shard_index": 0, "remote_id": "remote-0", "provider": "provider-a", "status": "HEALTHY"},
+					{"shard_id": "s-1", "shard_index": 1, "remote_id": "remote-1", "provider": "provider-b", "status": "HEALTHY"},
+					{"shard_id": "s-2", "shard_index": 2, "remote_id": "remote-2", "provider": "provider-a", "status": "HEALTHY"},
+					{"shard_id": "s-3", "shard_index": 3, "remote_id": "remote-3", "provider": "provider-b", "status": "HEALTHY"},
+				},
+			})
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer shardMapServer.Close()
+
+	shardingServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Path == "/api/sharding/reconstruct" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"reconstructed_file":`))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer shardingServer.Close()
+
+	orchestratorURL, shutdown := startOrchestrator(t, adapterServer.URL, shardMapServer.URL, shardingServer.URL)
+	defer shutdown()
+
+	res, err := http.Get(orchestratorURL + "/api/orchestrator/files/file-12345/download")
+	if err != nil {
+		t.Fatalf("download request failed: %v", err)
+	}
+	defer res.Body.Close()
+	body, _ := io.ReadAll(res.Body)
+
+	if res.StatusCode != http.StatusInternalServerError {
+		t.Fatalf("expected status %d, got %d body=%s", http.StatusInternalServerError, res.StatusCode, string(body))
+	}
+
+	payload := map[string]string{}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		t.Fatalf("failed to parse error response: %v body=%s", err, string(body))
+	}
+	if payload["error"] != "Failed to download file" {
+		t.Fatalf("unexpected error message: %q", payload["error"])
+	}
+	if !strings.Contains(payload["details"], "failed to reconstruct file") {
+		t.Fatalf("expected details to contain reconstruct decode failure, got: %q", payload["details"])
+	}
+}

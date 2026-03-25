@@ -101,6 +101,8 @@ Integration contract suite:
 - `tests/integration/orchestrator_download_failure_contracts_test.go`
   - Download failure-path contracts:
     - shard-map lookup failure during download returns orchestrator `500` with stable JSON error fields (`error`, `details`).
+    - sharding reconstruct returning `500` returns orchestrator `500` with stable JSON error fields (`error`, `details`).
+    - sharding reconstruct returning malformed JSON payload returns orchestrator `500` with stable JSON error fields (`error`, `details`).
 - `tests/integration/integration_helpers_test.go`
   - Shared integration helpers for orchestrator startup, upload request helpers, health waiting, and dynamic port allocation.
 
