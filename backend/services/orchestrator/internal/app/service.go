@@ -85,10 +85,18 @@ func (s *Service) UploadFile(ctx context.Context, fileName string, shards [][]by
 	if len(shards) != TotalShards {
 		return nil, fmt.Errorf("expected %d shards, got %d", TotalShards, len(shards))
 	}
+	if len(isDataShard) != len(shards) {
+		return nil, fmt.Errorf("isDataShard length (%d) must match shards length (%d)", len(isDataShard), len(shards))
+	}
+
+	originalSize := int64(0)
+	for _, shard := range shards {
+		originalSize += int64(len(shard))
+	}
 
 	registerReq := &types.RegisterFileReq{
 		OriginalName: fileName,
-		OriginalSize: 0,
+		OriginalSize: originalSize,
 		TotalChunks:  TotalShards,
 		N:            TotalShards,
 		K:            RequiredShards,
@@ -151,9 +159,9 @@ func (s *Service) UploadFile(ctx context.Context, fileName string, shards [][]by
 			ShardIndex: i,
 			Type: func() string {
 				if isDataShard[i] {
-					return "data"
+					return "DATA"
 				}
-				return "parity"
+				return "PARITY"
 			}(),
 			RemoteID:    res.RemoteID,
 			Provider:    res.Provider,
