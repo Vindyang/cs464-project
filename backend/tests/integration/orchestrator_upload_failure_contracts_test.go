@@ -264,3 +264,125 @@ func TestOrchestratorUploadRollsBackSuccessfulShardsOnPartialUploadFailure(t *te
 		t.Fatalf("did not expect shard-map record call when upload is partial failure")
 	}
 }
+
+// TestOrchestratorUploadRollsBackWhenShardRecordFails verifies that orchestrator
+// rolls back all uploaded shards when shard-map record fails after successful uploads.
+func TestOrchestratorUploadRollsBackWhenShardRecordFails(t *testing.T) {
+	t.Parallel()
+
+	adapterState := struct {
+		sync.Mutex
+		nextID      int
+		uploaded    map[string]struct{}
+		deleted     map[string]struct{}
+		uploadCalls int
+		deleteCalls int
+	}{
+		uploaded: map[string]struct{}{},
+		deleted:  map[string]struct{}{},
+	}
+
+	adapterServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/providers":
+			_ = json.NewEncoder(w).Encode([]map[string]any{
+				{"providerId": "provider-a", "displayName": "Provider A", "status": "connected"},
+				{"providerId": "provider-b", "displayName": "Provider B", "status": "connected"},
+			})
+		case r.Method == http.MethodPost && r.URL.Path == "/shards/upload":
+			if err := r.ParseMultipartForm(8 << 20); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			provider := r.FormValue("provider")
+
+			adapterState.Lock()
+			adapterState.uploadCalls++
+			adapterState.nextID++
+			remoteID := fmt.Sprintf("remote-%d", adapterState.nextID)
+			adapterState.uploaded[provider+"|"+remoteID] = struct{}{}
+			adapterState.Unlock()
+
+			_ = json.NewEncoder(w).Encode(types.UploadShardResp{RemoteID: remoteID, ChecksumSha: "ok"})
+		case r.Method == http.MethodDelete && strings.HasPrefix(r.URL.Path, "/shards/"):
+			remoteID := strings.TrimPrefix(r.URL.Path, "/shards/")
+			provider := r.URL.Query().Get("provider")
+			key := provider + "|" + remoteID
+
+			adapterState.Lock()
+			adapterState.deleteCalls++
+			adapterState.deleted[key] = struct{}{}
+			adapterState.Unlock()
+
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer adapterServer.Close()
+
+	shardMapState := struct {
+		sync.Mutex
+		recordCalls int
+	}{ }
+
+	shardMapServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/shards/register":
+			_ = json.NewEncoder(w).Encode(types.RegisterFileResp{FileID: "file-record-fail", Status: "PENDING"})
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/shards/record":
+			shardMapState.Lock()
+			shardMapState.recordCalls++
+			shardMapState.Unlock()
+			http.Error(w, "record unavailable", http.StatusInternalServerError)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer shardMapServer.Close()
+
+	shardingServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Path == "/api/sharding/shard" {
+			shards := make([]map[string]any, 0, 6)
+			for i := 0; i < 6; i++ {
+				shards = append(shards, map[string]any{"shardIndex": i, "shardType": "data", "shardData": []byte("ok")})
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"shards": shards})
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer shardingServer.Close()
+
+	orchestratorURL, shutdown := startOrchestrator(t, adapterServer.URL, shardMapServer.URL, shardingServer.URL)
+	defer shutdown()
+
+	resp := uploadFile(t, orchestratorURL, []byte("record-failure-rollback"))
+	if resp.Status != "failed" {
+		t.Fatalf("expected failed upload status, got: %+v", resp)
+	}
+	if !strings.Contains(resp.Error, "failed to record shards") {
+		t.Fatalf("expected record failure in error message, got: %q", resp.Error)
+	}
+
+	adapterState.Lock()
+	uploadedCount := len(adapterState.uploaded)
+	deletedCount := len(adapterState.deleted)
+	uploadCalls := adapterState.uploadCalls
+	deleteCalls := adapterState.deleteCalls
+	adapterState.Unlock()
+
+	if uploadCalls != 6 || uploadedCount != 6 {
+		t.Fatalf("expected 6 successful uploads before record failure, got uploadCalls=%d uploaded=%d", uploadCalls, uploadedCount)
+	}
+	if deleteCalls != 6 || deletedCount != 6 {
+		t.Fatalf("expected rollback delete for all successful shards (6), got deleteCalls=%d uniqueDeleted=%d", deleteCalls, deletedCount)
+	}
+
+	shardMapState.Lock()
+	recordCalls := shardMapState.recordCalls
+	shardMapState.Unlock()
+	if recordCalls != 1 {
+		t.Fatalf("expected exactly one record call, got %d", recordCalls)
+	}
+}

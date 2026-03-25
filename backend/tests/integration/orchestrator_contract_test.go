@@ -221,4 +221,3 @@ func TestOrchestratorServiceContracts(t *testing.T) {
 		t.Fatalf("download payload mismatch")
 	}
 }
-

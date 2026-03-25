@@ -69,10 +69,12 @@ From `backend/`:
 		- shard-map register failure on upload -> orchestrator returns `500` JSON (`error`, `details`)
 		- malformed sharding payload on upload -> orchestrator returns `500` JSON (`error`, `details`)
 		- partial adapter upload failure triggers rollback deletes for all successfully uploaded shards; shard-map record is not called.
+		- shard-map record failure after successful shard uploads triggers rollback deletes for all uploaded shards and returns failed upload status.
 - `integration/orchestrator_download_failure_contracts_test.go`
 	- Validates download-side dependency failure propagation:
 		- shard-map lookup failure on download -> orchestrator returns `500` JSON (`error`, `details`)
 		- sharding reconstruct returns `500` -> orchestrator returns `500` JSON (`error`, `details`)
 		- sharding reconstruct returns malformed JSON payload -> orchestrator returns `500` JSON (`error`, `details`)
+		- shard-map returns fewer than `k` shards -> orchestrator returns `500` JSON (`error`, `details`) for insufficient shard availability.
 - `integration/integration_helpers_test.go`
 	- Shared helper utilities used by integration tests (orchestrator startup, upload helpers, health wait, ephemeral port allocation).
