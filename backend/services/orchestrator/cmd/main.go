@@ -112,7 +112,12 @@ func main() {
 
 		resp, err := service.DownloadFile(r.Context(), fileID)
 		if err != nil {
-			httpx.WriteError(w, http.StatusInternalServerError, "Failed to download file", err)
+			// Check if the error is due to file not found (404 from shard map service)
+			if strings.Contains(err.Error(), "404") {
+				httpx.WriteError(w, http.StatusNotFound, "File not found", err)
+			} else {
+				httpx.WriteError(w, http.StatusInternalServerError, "Failed to download file", err)
+			}
 			return
 		}
 

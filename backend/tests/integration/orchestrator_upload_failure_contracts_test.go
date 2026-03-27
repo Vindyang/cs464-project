@@ -1,6 +1,7 @@
 package integration_test
 
 import (
+	"github.com/vindyang/cs464-project/backend/tests/helpers"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -17,7 +18,7 @@ import (
 func TestOrchestratorUploadFailsWhenShardMapRegisterErrors(t *testing.T) {
 	t.Parallel()
 
-	adapterServer := newAdapterMock(t, adapterMockConfig{
+	adapterServer := helpers.NewAdapterMock(t, helpers.AdapterMockConfig{
 		OnGetProviders: func(w http.ResponseWriter, r *http.Request) {
 			_ = json.NewEncoder(w).Encode([]map[string]any{
 				{"providerId": "provider-a", "displayName": "Provider A", "status": "connected"},
@@ -30,14 +31,14 @@ func TestOrchestratorUploadFailsWhenShardMapRegisterErrors(t *testing.T) {
 	})
 	defer adapterServer.Close()
 
-	shardMapServer := newShardMapMock(t, shardMapMockConfig{
+	shardMapServer := helpers.NewShardMapMock(t, helpers.ShardMapMockConfig{
 		OnRegisterFile: func(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "register unavailable", http.StatusInternalServerError)
 		},
 	})
 	defer shardMapServer.Close()
 
-	shardingServer := newShardingMock(t, shardingMockConfig{
+	shardingServer := helpers.NewShardingMock(t, helpers.ShardingMockConfig{
 		OnShard: func(w http.ResponseWriter, r *http.Request) {
 			shards := make([]map[string]any, 0, 6)
 			for i := 0; i < 6; i++ {
@@ -48,10 +49,10 @@ func TestOrchestratorUploadFailsWhenShardMapRegisterErrors(t *testing.T) {
 	})
 	defer shardingServer.Close()
 
-	orchestratorURL, shutdown := startOrchestrator(t, adapterServer.URL, shardMapServer.URL, shardingServer.URL)
+	orchestratorURL, shutdown := helpers.StartOrchestrator(t, adapterServer.URL, shardMapServer.URL, shardingServer.URL)
 	defer shutdown()
 
-	httpResp, body := uploadFileRaw(t, orchestratorURL, []byte("should-fail"))
+	httpResp, body := helpers.UploadFileRaw(t, orchestratorURL, []byte("should-fail"))
 	defer httpResp.Body.Close()
 
 	if httpResp.StatusCode != http.StatusInternalServerError {
@@ -76,17 +77,17 @@ func TestOrchestratorUploadFailsWhenShardMapRegisterErrors(t *testing.T) {
 func TestOrchestratorUploadFailsWhenShardingPayloadIsMalformed(t *testing.T) {
 	t.Parallel()
 
-	adapterServer := newAdapterMock(t, adapterMockConfig{
+	adapterServer := helpers.NewAdapterMock(t, helpers.AdapterMockConfig{
 		OnGetProviders: func(w http.ResponseWriter, r *http.Request) {
 			_ = json.NewEncoder(w).Encode([]map[string]any{})
 		},
 	})
 	defer adapterServer.Close()
 
-	shardMapServer := newShardMapMock(t, shardMapMockConfig{})
+	shardMapServer := helpers.NewShardMapMock(t, helpers.ShardMapMockConfig{})
 	defer shardMapServer.Close()
 
-	shardingServer := newShardingMock(t, shardingMockConfig{
+	shardingServer := helpers.NewShardingMock(t, helpers.ShardingMockConfig{
 		OnShard: func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
@@ -95,10 +96,10 @@ func TestOrchestratorUploadFailsWhenShardingPayloadIsMalformed(t *testing.T) {
 	})
 	defer shardingServer.Close()
 
-	orchestratorURL, shutdown := startOrchestrator(t, adapterServer.URL, shardMapServer.URL, shardingServer.URL)
+	orchestratorURL, shutdown := helpers.StartOrchestrator(t, adapterServer.URL, shardMapServer.URL, shardingServer.URL)
 	defer shutdown()
 
-	httpResp, body := uploadFileRaw(t, orchestratorURL, []byte("malformed-sharding-response"))
+	httpResp, body := helpers.UploadFileRaw(t, orchestratorURL, []byte("malformed-sharding-response"))
 	defer httpResp.Body.Close()
 
 	if httpResp.StatusCode != http.StatusInternalServerError {
@@ -135,7 +136,7 @@ func TestOrchestratorUploadRollsBackSuccessfulShardsOnPartialUploadFailure(t *te
 		deleted:  map[string]struct{}{},
 	}
 
-	adapterServer := newAdapterMock(t, adapterMockConfig{
+	adapterServer := helpers.NewAdapterMock(t, helpers.AdapterMockConfig{
 		OnGetProviders: func(w http.ResponseWriter, r *http.Request) {
 			_ = json.NewEncoder(w).Encode([]map[string]any{
 				{"providerId": "provider-a", "displayName": "Provider A", "status": "connected"},
@@ -187,7 +188,7 @@ func TestOrchestratorUploadRollsBackSuccessfulShardsOnPartialUploadFailure(t *te
 		recordCalled bool
 	}{}
 
-	shardMapServer := newShardMapMock(t, shardMapMockConfig{
+	shardMapServer := helpers.NewShardMapMock(t, helpers.ShardMapMockConfig{
 		OnRegisterFile: func(w http.ResponseWriter, r *http.Request) {
 			_ = json.NewEncoder(w).Encode(types.RegisterFileResp{FileID: "file-rollback", Status: "PENDING"})
 		},
@@ -200,7 +201,7 @@ func TestOrchestratorUploadRollsBackSuccessfulShardsOnPartialUploadFailure(t *te
 	})
 	defer shardMapServer.Close()
 
-	shardingServer := newShardingMock(t, shardingMockConfig{
+	shardingServer := helpers.NewShardingMock(t, helpers.ShardingMockConfig{
 		OnShard: func(w http.ResponseWriter, r *http.Request) {
 			shards := make([]map[string]any, 0, 6)
 			for i := 0; i < 6; i++ {
@@ -211,10 +212,10 @@ func TestOrchestratorUploadRollsBackSuccessfulShardsOnPartialUploadFailure(t *te
 	})
 	defer shardingServer.Close()
 
-	orchestratorURL, shutdown := startOrchestrator(t, adapterServer.URL, shardMapServer.URL, shardingServer.URL)
+	orchestratorURL, shutdown := helpers.StartOrchestrator(t, adapterServer.URL, shardMapServer.URL, shardingServer.URL)
 	defer shutdown()
 
-	resp := uploadFile(t, orchestratorURL, []byte("rollback-check"))
+	resp := helpers.UploadFile(t, orchestratorURL, []byte("rollback-check"))
 	if resp.Status != "failed" {
 		t.Fatalf("expected failed upload status, got: %+v", resp)
 	}
@@ -264,7 +265,7 @@ func TestOrchestratorUploadRollsBackWhenShardRecordFails(t *testing.T) {
 		deleted:  map[string]struct{}{},
 	}
 
-	adapterServer := newAdapterMock(t, adapterMockConfig{
+	adapterServer := helpers.NewAdapterMock(t, helpers.AdapterMockConfig{
 		OnGetProviders: func(w http.ResponseWriter, r *http.Request) {
 			_ = json.NewEncoder(w).Encode([]map[string]any{
 				{"providerId": "provider-a", "displayName": "Provider A", "status": "connected"},
@@ -307,7 +308,7 @@ func TestOrchestratorUploadRollsBackWhenShardRecordFails(t *testing.T) {
 		recordCalls int
 	}{ }
 
-	shardMapServer := newShardMapMock(t, shardMapMockConfig{
+	shardMapServer := helpers.NewShardMapMock(t, helpers.ShardMapMockConfig{
 		OnRegisterFile: func(w http.ResponseWriter, r *http.Request) {
 			_ = json.NewEncoder(w).Encode(types.RegisterFileResp{FileID: "file-record-fail", Status: "PENDING"})
 		},
@@ -320,7 +321,7 @@ func TestOrchestratorUploadRollsBackWhenShardRecordFails(t *testing.T) {
 	})
 	defer shardMapServer.Close()
 
-	shardingServer := newShardingMock(t, shardingMockConfig{
+	shardingServer := helpers.NewShardingMock(t, helpers.ShardingMockConfig{
 		OnShard: func(w http.ResponseWriter, r *http.Request) {
 			shards := make([]map[string]any, 0, 6)
 			for i := 0; i < 6; i++ {
@@ -331,10 +332,10 @@ func TestOrchestratorUploadRollsBackWhenShardRecordFails(t *testing.T) {
 	})
 	defer shardingServer.Close()
 
-	orchestratorURL, shutdown := startOrchestrator(t, adapterServer.URL, shardMapServer.URL, shardingServer.URL)
+	orchestratorURL, shutdown := helpers.StartOrchestrator(t, adapterServer.URL, shardMapServer.URL, shardingServer.URL)
 	defer shutdown()
 
-	resp := uploadFile(t, orchestratorURL, []byte("record-failure-rollback"))
+	resp := helpers.UploadFile(t, orchestratorURL, []byte("record-failure-rollback"))
 	if resp.Status != "failed" {
 		t.Fatalf("expected failed upload status, got: %+v", resp)
 	}

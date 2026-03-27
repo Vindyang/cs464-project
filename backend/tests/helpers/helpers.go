@@ -1,4 +1,4 @@
-package integration_test
+package helpers
 
 import (
 	"bytes"
@@ -31,9 +31,9 @@ func backendRoot(t *testing.T) string {
 	return filepath.Clean(filepath.Join(filepath.Dir(file), "../.."))
 }
 
-// startOrchestrator launches the real orchestrator process wired to mock service URLs.
+// StartOrchestrator launches the real orchestrator process wired to mock service URLs.
 // It returns the base URL and a shutdown function that must be deferred by callers.
-func startOrchestrator(t *testing.T, adapterURL, shardMapURL, shardingURL string) (string, func()) {
+func StartOrchestrator(t *testing.T, adapterURL, shardMapURL, shardingURL string) (string, func()) {
 	t.Helper()
 
 	port := freePort(t)
@@ -68,8 +68,8 @@ func startOrchestrator(t *testing.T, adapterURL, shardMapURL, shardingURL string
 	return orchestratorURL, shutdown
 }
 
-// uploadFile performs a successful multipart upload request and decodes the JSON response.
-func uploadFile(t *testing.T, baseURL string, payload []byte) types.UploadResp {
+// UploadFile performs a successful multipart upload request and decodes the JSON response.
+func UploadFile(t *testing.T, baseURL string, payload []byte) types.UploadResp {
 	t.Helper()
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
@@ -96,9 +96,9 @@ func uploadFile(t *testing.T, baseURL string, payload []byte) types.UploadResp {
 	return out
 }
 
-// uploadFileRaw sends the same multipart payload as uploadFile but intentionally
+// UploadFileRaw sends the same multipart payload as UploadFile but intentionally
 // does not assert success status so failure-path tests can validate error responses.
-func uploadFileRaw(t *testing.T, baseURL string, payload []byte) (*http.Response, []byte) {
+func UploadFileRaw(t *testing.T, baseURL string, payload []byte) (*http.Response, []byte) {
 	t.Helper()
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
@@ -144,14 +144,14 @@ func freePort(t *testing.T) int {
 	return ln.Addr().(*net.TCPAddr).Port
 }
 
-type adapterMockConfig struct {
-	OnGetProviders func(http.ResponseWriter, *http.Request)
-	OnUploadShard  func(http.ResponseWriter, *http.Request)
+type AdapterMockConfig struct {
+	OnGetProviders  func(http.ResponseWriter, *http.Request)
+	OnUploadShard   func(http.ResponseWriter, *http.Request)
 	OnDownloadShard func(http.ResponseWriter, *http.Request)
-	OnDeleteShard  func(http.ResponseWriter, *http.Request)
+	OnDeleteShard   func(http.ResponseWriter, *http.Request)
 }
 
-func newAdapterMock(t *testing.T, cfg adapterMockConfig) *httptest.Server {
+func NewAdapterMock(t *testing.T, cfg AdapterMockConfig) *httptest.Server {
 	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
@@ -180,13 +180,13 @@ func newAdapterMock(t *testing.T, cfg adapterMockConfig) *httptest.Server {
 	}))
 }
 
-type shardMapMockConfig struct {
+type ShardMapMockConfig struct {
 	OnRegisterFile func(http.ResponseWriter, *http.Request)
 	OnRecordShards func(http.ResponseWriter, *http.Request)
 	OnGetShardMap  func(http.ResponseWriter, *http.Request)
 }
 
-func newShardMapMock(t *testing.T, cfg shardMapMockConfig) *httptest.Server {
+func NewShardMapMock(t *testing.T, cfg ShardMapMockConfig) *httptest.Server {
 	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
@@ -210,12 +210,12 @@ func newShardMapMock(t *testing.T, cfg shardMapMockConfig) *httptest.Server {
 	}))
 }
 
-type shardingMockConfig struct {
+type ShardingMockConfig struct {
 	OnShard       func(http.ResponseWriter, *http.Request)
 	OnReconstruct func(http.ResponseWriter, *http.Request)
 }
 
-func newShardingMock(t *testing.T, cfg shardingMockConfig) *httptest.Server {
+func NewShardingMock(t *testing.T, cfg ShardingMockConfig) *httptest.Server {
 	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {

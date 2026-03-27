@@ -1,6 +1,7 @@
 package integration_test
 
 import (
+	"github.com/vindyang/cs464-project/backend/tests/helpers"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -185,12 +186,12 @@ func TestOrchestratorServiceContracts(t *testing.T) {
 	defer shardingServer.Close()
 
 	// Arrange: start real orchestrator process wired to mock services.
-	orchestratorURL, shutdown := startOrchestrator(t, adapterServer.URL, shardMapServer.URL, shardingServer.URL)
+	orchestratorURL, shutdown := helpers.StartOrchestrator(t, adapterServer.URL, shardMapServer.URL, shardingServer.URL)
 	defer shutdown()
 
 	// Act: upload a file through orchestrator.
 	payload := []byte("contract-test-payload")
-	resp := uploadFile(t, orchestratorURL, payload)
+	resp := helpers.UploadFile(t, orchestratorURL, payload)
 	if resp.Status != "committed" || resp.FileID == "" {
 		t.Fatalf("unexpected upload response: %+v", resp)
 	}
