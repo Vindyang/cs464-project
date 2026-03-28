@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -51,11 +52,10 @@ func main() {
 	registry := adapter.NewRegistry()
 
 	// Restore Google Drive adapter from stored token if available
-	oauthCredsFile := os.Getenv("GDRIVE_OAUTH_CREDENTIALS_FILE")
 	redirectURI := os.Getenv("GDRIVE_OAUTH_REDIRECT_URI")
 	folderID := os.Getenv("GDRIVE_FOLDER_ID")
-	if oauthCredsFile != "" && redirectURI != "" && folderID != "" {
-		if err := tryRestoreGDriveAdapter(ctx, tokenDB, registry, oauthCredsFile, redirectURI, folderID); err != nil {
+	if redirectURI != "" && folderID != "" {
+		if err := tryRestoreGDriveAdapter(ctx, tokenDB, registry, redirectURI, folderID); err != nil {
 			log.Printf("Google Drive adapter not restored: %v", err)
 		}
 	}
@@ -112,7 +112,7 @@ func main() {
 }
 
 // tryRestoreGDriveAdapter loads a stored token from DB and registers the adapter.
-func tryRestoreGDriveAdapter(ctx context.Context, tokenDB *db.DB, registry *adapter.Registry, credsFile, redirectURI, folderID string) error {
+func tryRestoreGDriveAdapter(ctx context.Context, tokenDB *db.DB, registry *adapter.Registry, redirectURI, folderID string) error {
 	tok, err := tokenDB.LoadProviderToken(ctx, "googleDrive")
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -122,7 +122,7 @@ func tryRestoreGDriveAdapter(ctx context.Context, tokenDB *db.DB, registry *adap
 		return err
 	}
 
-	raw, err := os.ReadFile(credsFile)
+	raw, err := loadGDriveCredentials()
 	if err != nil {
 		return err
 	}
@@ -157,6 +157,19 @@ func (app *App) listProviders(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(metadatas)
+}
+
+// loadGDriveCredentials returns the raw GCP OAuth2 credentials JSON.
+// Prefers GDRIVE_OAUTH_CREDENTIALS_JSON (raw JSON) over GDRIVE_OAUTH_CREDENTIALS_FILE (file path).
+func loadGDriveCredentials() ([]byte, error) {
+	if raw := os.Getenv("GDRIVE_OAUTH_CREDENTIALS_JSON"); raw != "" {
+		return []byte(raw), nil
+	}
+	credsFile := os.Getenv("GDRIVE_OAUTH_CREDENTIALS_FILE")
+	if credsFile == "" {
+		return nil, fmt.Errorf("neither GDRIVE_OAUTH_CREDENTIALS_JSON nor GDRIVE_OAUTH_CREDENTIALS_FILE is set")
+	}
+	return os.ReadFile(credsFile)
 }
 
 func loggingMiddleware(next http.Handler) http.Handler {
