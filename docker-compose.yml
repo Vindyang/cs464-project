@@ -1,7 +1,6 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: nebula-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: nebula
@@ -9,7 +8,7 @@ services:
       POSTGRES_PASSWORD: nebula
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./docker/init-local.sql:/docker-entrypoint-initdb.d/001-init-local.sql:ro
+      - ./backend/docker/init-local.sql:/docker-entrypoint-initdb.d/001-init-local.sql:ro
     ports:
       - "5432:5432"
     healthcheck:
@@ -17,12 +16,12 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    profiles: ["backend", "full"]
 
   adapter:
     build:
-      context: .
+      context: ./backend
       dockerfile: services/adapter/Dockerfile
-    container_name: nebula-adapter
     restart: unless-stopped
     environment:
       PORT: "8080"
@@ -34,12 +33,12 @@ services:
         condition: service_healthy
     ports:
       - "8080:8080"
+    profiles: ["backend", "full"]
 
   shardmap:
     build:
-      context: .
+      context: ./backend
       dockerfile: services/shardmap/Dockerfile
-    container_name: nebula-shardmap
     restart: unless-stopped
     environment:
       PORT: "8081"
@@ -49,23 +48,23 @@ services:
         condition: service_healthy
     ports:
       - "8081:8081"
+    profiles: ["backend", "full"]
 
   sharding:
     build:
-      context: .
+      context: ./backend
       dockerfile: services/sharding/Dockerfile
-    container_name: nebula-sharding
     restart: unless-stopped
     environment:
       PORT: "8083"
     ports:
       - "8083:8083"
+    profiles: ["backend", "full"]
 
   orchestrator:
     build:
-      context: .
+      context: ./backend
       dockerfile: services/orchestrator/Dockerfile
-    container_name: nebula-orchestrator
     restart: unless-stopped
     environment:
       PORT: "8082"
@@ -81,6 +80,27 @@ services:
         condition: service_started
     ports:
       - "8082:8082"
+    profiles: ["backend", "full"]
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: "http://localhost:8080"
+    restart: unless-stopped
+    environment:
+      PORT: "3000"
+      NEXT_PUBLIC_API_URL: "http://localhost:8080"
+      NEXT_PUBLIC_BETTER_AUTH_URL: "http://localhost:3000"
+    depends_on:
+      adapter:
+        condition: service_started
+      orchestrator:
+        condition: service_started
+    ports:
+      - "3000:3000"
+    profiles: ["full"]
 
 volumes:
   postgres_data:

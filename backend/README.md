@@ -76,22 +76,48 @@ go run ./services/orchestrator/cmd/main.go
 
 ## Run With Docker Compose
 
-From `backend/`:
+From project root:
 
 ```powershell
-docker compose up --build
+docker compose --profile full up --build
+```
+
+This starts the full stack:
+
+- Frontend: `http://localhost:3000`
+- Adapter API: `http://localhost:8080`
+- Shardmap API: `http://localhost:8081`
+- Orchestrator API: `http://localhost:8082`
+- Sharding API: `http://localhost:8083`
+
+For backend services only (no frontend):
+
+```powershell
+docker compose --profile backend up --build
 ```
 
 Stop and remove containers:
 
 ```powershell
-docker compose down
+docker compose --profile full down
+```
+
+For backend-only mode:
+
+```powershell
+docker compose --profile backend down
 ```
 
 Stop and also remove Postgres data volume:
 
 ```powershell
-docker compose down -v
+docker compose --profile full down -v
+```
+
+If you get container name conflicts from old runs, clean orphaned containers first:
+
+```powershell
+docker compose --profile full down --remove-orphans
 ```
 
 Service endpoints:
