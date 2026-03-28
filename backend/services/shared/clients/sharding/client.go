@@ -53,10 +53,10 @@ func (c *Client) ChunkFile(data []byte, chunkSize int64) ([][]byte, error) {
 
 func (c *Client) EncodeChunk(chunkData []byte, k, n int) ([][]byte, error) {
 	reqBody := map[string]interface{}{
-		"file_id":   uuid.NewString(),
-		"file_data": chunkData,
-		"N":         n,
-		"K":         k,
+		"fileId":   uuid.NewString(),
+		"fileData": chunkData,
+		"n":        n,
+		"k":        k,
 	}
 
 	body, err := json.Marshal(reqBody)
@@ -64,7 +64,7 @@ func (c *Client) EncodeChunk(chunkData []byte, k, n int) ([][]byte, error) {
 		return nil, fmt.Errorf("marshal shard request: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, c.baseURL+"/shard", bytes.NewReader(body))
+	req, err := http.NewRequest(http.MethodPost, c.baseURL+"/api/sharding/shard", bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("create shard request: %w", err)
 	}
@@ -84,7 +84,8 @@ func (c *Client) EncodeChunk(chunkData []byte, k, n int) ([][]byte, error) {
 
 	var out struct {
 		Shards []struct {
-			ShardData []byte `json:"shard_data"`
+			ShardData       []byte `json:"shardData"`
+			LegacyShardData []byte `json:"shard_data"`
 		} `json:"shards"`
 	}
 
@@ -94,7 +95,11 @@ func (c *Client) EncodeChunk(chunkData []byte, k, n int) ([][]byte, error) {
 
 	shards := make([][]byte, 0, len(out.Shards))
 	for _, shard := range out.Shards {
-		shards = append(shards, shard.ShardData)
+		if len(shard.ShardData) > 0 {
+			shards = append(shards, shard.ShardData)
+			continue
+		}
+		shards = append(shards, shard.LegacyShardData)
 	}
 
 	return shards, nil
@@ -131,7 +136,7 @@ func (c *Client) DecodeChunk(shards [][]byte, k, n int) ([]byte, error) {
 		return nil, fmt.Errorf("marshal reconstruct request: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, c.baseURL+"/reconstruct", bytes.NewReader(body))
+	req, err := http.NewRequest(http.MethodPost, c.baseURL+"/api/sharding/reconstruct", bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("create reconstruct request: %w", err)
 	}
