@@ -74,6 +74,40 @@ go run ./services/sharding/cmd/main.go
 go run ./services/orchestrator/cmd/main.go
 ```
 
+## Run With Docker Compose
+
+From `backend/`:
+
+```powershell
+docker compose up --build
+```
+
+Stop and remove containers:
+
+```powershell
+docker compose down
+```
+
+Stop and also remove Postgres data volume:
+
+```powershell
+docker compose down -v
+```
+
+Service endpoints:
+
+- Adapter: `http://localhost:8080`
+- Shardmap: `http://localhost:8081`
+- Orchestrator: `http://localhost:8082`
+- Sharding/Reconstruction: `http://localhost:8083`
+
+Internal service DNS used in Docker network:
+
+- `http://adapter:8080`
+- `http://shardmap:8081`
+- `http://orchestrator:8082`
+- `http://sharding:8083`
+
 ## Tests
 
 Service suite:

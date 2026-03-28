@@ -1,0 +1,86 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: nebula-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: nebula
+      POSTGRES_USER: nebula
+      POSTGRES_PASSWORD: nebula
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-local.sql:/docker-entrypoint-initdb.d/001-init-local.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nebula -d nebula"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  adapter:
+    build:
+      context: .
+      dockerfile: services/adapter/Dockerfile
+    container_name: nebula-adapter
+    restart: unless-stopped
+    environment:
+      PORT: "8080"
+      DATABASE_URL: "postgres://nebula:nebula@postgres:5432/nebula?sslmode=disable"
+      FRONTEND_URL: "http://localhost:3000"
+      GDRIVE_OAUTH_REDIRECT_URI: "http://localhost:8080/api/oauth/gdrive/callback"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+
+  shardmap:
+    build:
+      context: .
+      dockerfile: services/shardmap/Dockerfile
+    container_name: nebula-shardmap
+    restart: unless-stopped
+    environment:
+      PORT: "8081"
+      DATABASE_URL: "postgres://nebula:nebula@postgres:5432/nebula?sslmode=disable"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+
+  sharding:
+    build:
+      context: .
+      dockerfile: services/sharding/Dockerfile
+    container_name: nebula-sharding
+    restart: unless-stopped
+    environment:
+      PORT: "8083"
+    ports:
+      - "8083:8083"
+
+  orchestrator:
+    build:
+      context: .
+      dockerfile: services/orchestrator/Dockerfile
+    container_name: nebula-orchestrator
+    restart: unless-stopped
+    environment:
+      PORT: "8082"
+      ADAPTER_URL: "http://adapter:8080"
+      SHARDMAP_URL: "http://shardmap:8081"
+      SHARDING_URL: "http://sharding:8083"
+    depends_on:
+      adapter:
+        condition: service_started
+      shardmap:
+        condition: service_started
+      sharding:
+        condition: service_started
+    ports:
+      - "8082:8082"
+
+volumes:
+  postgres_data:
