@@ -82,6 +82,27 @@ services:
       - "8082:8082"
     profiles: ["backend", "full"]
 
+  gateway:
+    build:
+      context: ./backend
+      dockerfile: services/gateway/Dockerfile
+    restart: unless-stopped
+    environment:
+      ORCHESTRATOR_URL: "http://orchestrator:8082"
+      ADAPTER_URL: "http://adapter:8080"
+    depends_on:
+      adapter:
+        condition: service_started
+      shardmap:
+        condition: service_started
+      sharding:
+        condition: service_started
+      orchestrator:
+        condition: service_started
+    ports:
+      - "8084:8084"
+    profiles: ["backend", "full"]
+
   frontend:
     build:
       context: ./frontend
@@ -97,6 +118,8 @@ services:
       adapter:
         condition: service_started
       orchestrator:
+        condition: service_started
+      gateway:
         condition: service_started
     ports:
       - "3000:3000"
