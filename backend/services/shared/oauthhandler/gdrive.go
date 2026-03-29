@@ -41,14 +41,9 @@ type GDriveHandler struct {
 
 // New constructs a GDriveHandler. Returns an error if credentials cannot be loaded.
 func New(database *db.DB, registry *adapter.Registry) (*GDriveHandler, error) {
-	credsFile := os.Getenv("GDRIVE_OAUTH_CREDENTIALS_FILE")
-	if credsFile == "" {
-		return nil, fmt.Errorf("oauthhandler: GDRIVE_OAUTH_CREDENTIALS_FILE not set")
-	}
-
-	raw, err := os.ReadFile(credsFile)
+	raw, err := loadGDriveCredentials()
 	if err != nil {
-		return nil, fmt.Errorf("oauthhandler: read credentials file: %w", err)
+		return nil, fmt.Errorf("oauthhandler: %w", err)
 	}
 
 	config, err := google.ConfigFromJSON(raw, driveScope)
@@ -157,6 +152,20 @@ func (h *GDriveHandler) consumeState(state string) bool {
 	}
 	delete(h.states, state)
 	return true
+}
+
+// loadGDriveCredentials returns the raw GCP OAuth2 credentials JSON.
+// It prefers GDRIVE_OAUTH_CREDENTIALS_JSON (raw JSON, for cloud/env-only deploys)
+// and falls back to GDRIVE_OAUTH_CREDENTIALS_FILE (file path, for local dev).
+func loadGDriveCredentials() ([]byte, error) {
+	if raw := os.Getenv("GDRIVE_OAUTH_CREDENTIALS_JSON"); raw != "" {
+		return []byte(raw), nil
+	}
+	credsFile := os.Getenv("GDRIVE_OAUTH_CREDENTIALS_FILE")
+	if credsFile == "" {
+		return nil, fmt.Errorf("neither GDRIVE_OAUTH_CREDENTIALS_JSON nor GDRIVE_OAUTH_CREDENTIALS_FILE is set")
+	}
+	return os.ReadFile(credsFile)
 }
 
 func generateState() (string, error) {
