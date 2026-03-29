@@ -23,11 +23,10 @@ services:
       context: ./backend
       dockerfile: services/adapter/Dockerfile
     restart: unless-stopped
+    env_file:
+      - ./backend/.env
     environment:
       PORT: "8080"
-      DATABASE_URL: "postgres://nebula:nebula@postgres:5432/nebula?sslmode=disable"
-      FRONTEND_URL: "http://localhost:3000"
-      GDRIVE_OAUTH_REDIRECT_URI: "http://localhost:8080/api/oauth/gdrive/callback"
     depends_on:
       postgres:
         condition: service_healthy
@@ -40,9 +39,10 @@ services:
       context: ./backend
       dockerfile: services/shardmap/Dockerfile
     restart: unless-stopped
+    env_file:
+      - ./backend/.env
     environment:
       PORT: "8081"
-      DATABASE_URL: "postgres://nebula:nebula@postgres:5432/nebula?sslmode=disable"
     depends_on:
       postgres:
         condition: service_healthy
@@ -55,6 +55,8 @@ services:
       context: ./backend
       dockerfile: services/sharding/Dockerfile
     restart: unless-stopped
+    env_file:
+      - ./backend/.env
     environment:
       PORT: "8083"
     ports:
@@ -66,6 +68,8 @@ services:
       context: ./backend
       dockerfile: services/orchestrator/Dockerfile
     restart: unless-stopped
+    env_file:
+      - ./backend/.env
     environment:
       PORT: "8082"
       ADAPTER_URL: "http://adapter:8080"
@@ -87,6 +91,8 @@ services:
       context: ./backend
       dockerfile: services/gateway/Dockerfile
     restart: unless-stopped
+    env_file:
+      - ./backend/.env
     environment:
       ORCHESTRATOR_URL: "http://orchestrator:8082"
       ADAPTER_URL: "http://adapter:8080"
