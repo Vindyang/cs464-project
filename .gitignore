@@ -60,6 +60,3 @@ backend/migrations/README.md
 .claude/
 .agents/
 skills-lock.json
-
-# Google Drive Creds
-gdrive-oauth-credentials.json
