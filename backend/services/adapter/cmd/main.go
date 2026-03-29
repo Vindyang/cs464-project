@@ -28,7 +28,9 @@ type App struct {
 }
 
 func main() {
-	_ = godotenv.Load()
+	if err := godotenv.Overload(".env"); err != nil {
+		log.Fatalf(".env file not found — run services from the backend/ directory: %v", err)
+	}
 
 	ctx := context.Background()
 

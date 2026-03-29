@@ -18,7 +18,12 @@ type DB struct {
 
 // New connects to the database using the given PostgreSQL connection URL.
 func New(ctx context.Context, connURL string) (*DB, error) {
-	pool, err := pgxpool.New(ctx, connURL)
+	cfg, err := pgxpool.ParseConfig(connURL)
+	if err != nil {
+		return nil, fmt.Errorf("db: parse config: %w", err)
+	}
+	cfg.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
+	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("db: connect: %w", err)
 	}
