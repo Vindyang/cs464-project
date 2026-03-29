@@ -1,0 +1,71 @@
+openapi: 3.0.3
+info:
+  title: Nebula Drive API Gateway
+  version: v1
+  description: Public API exposed by the gateway service.
+servers:
+  - url: /api/v1
+paths:
+  /upload:
+    post:
+      summary: Upload a file to sharded storage
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required:
+                - file
+      responses:
+        "200":
+          description: File upload accepted and processed.
+        "400":
+          description: Invalid upload request.
+  /download/{fileId}:
+    get:
+      summary: Download a reconstructed file
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Binary file stream.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: File not found.
+  /providers:
+    get:
+      summary: List provider status from adapter
+      responses:
+        "200":
+          description: Provider status list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+  /health:
+    get:
+      summary: Aggregated backend service health
+      responses:
+        "200":
+          description: Service health snapshot.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true

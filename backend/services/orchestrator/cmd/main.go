@@ -7,6 +7,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/vindyang/cs464-project/backend/services/orchestrator/internal/app"
 	adapterclient "github.com/vindyang/cs464-project/backend/services/shared/clients/adapter"
@@ -45,6 +47,93 @@ func main() {
 
 	// HTTP handlers
 	mux := http.NewServeMux()
+
+	// GET /health
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		if !httpx.RequireMethod(w, r, http.MethodGet) {
+			return
+		}
+
+		type serviceHealth struct {
+			Service    string `json:"service"`
+			URL        string `json:"url"`
+			Status     string `json:"status"`
+			HTTPStatus int    `json:"httpStatus"`
+			Error      string `json:"error,omitempty"`
+		}
+
+		checks := []struct {
+			service string
+			url     string
+		}{
+			{service: "orchestrator", url: "self"},
+			{service: "adapter", url: adapterURL + "/health"},
+			{service: "shardmap", url: shardMapURL + "/health"},
+			{service: "sharding", url: shardingURL + "/api/sharding/health"},
+		}
+
+		results := make([]serviceHealth, 0, len(checks))
+		results = append(results, serviceHealth{
+			Service:    "orchestrator",
+			URL:        "self",
+			Status:     "healthy",
+			HTTPStatus: http.StatusOK,
+		})
+
+		client := &http.Client{Timeout: 3 * time.Second}
+		var mu sync.Mutex
+		var wg sync.WaitGroup
+
+		for _, check := range checks[1:] {
+			wg.Add(1)
+			go func(serviceName, url string) {
+				defer wg.Done()
+
+				req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, url, nil)
+				if err != nil {
+					mu.Lock()
+					results = append(results, serviceHealth{Service: serviceName, URL: url, Status: "unhealthy", HTTPStatus: 0, Error: err.Error()})
+					mu.Unlock()
+					return
+				}
+
+				resp, err := client.Do(req)
+				if err != nil {
+					mu.Lock()
+					results = append(results, serviceHealth{Service: serviceName, URL: url, Status: "unhealthy", HTTPStatus: 0, Error: err.Error()})
+					mu.Unlock()
+					return
+				}
+				defer resp.Body.Close()
+
+				status := "healthy"
+				if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+					status = "unhealthy"
+				}
+
+				mu.Lock()
+				results = append(results, serviceHealth{Service: serviceName, URL: url, Status: status, HTTPStatus: resp.StatusCode})
+				mu.Unlock()
+			}(check.service, check.url)
+		}
+		wg.Wait()
+
+		overallStatus := "healthy"
+		httpStatus := http.StatusOK
+		for _, item := range results {
+			if item.Status != "healthy" {
+				overallStatus = "degraded"
+				httpStatus = http.StatusServiceUnavailable
+				break
+			}
+		}
+
+		httpx.WriteJSON(w, httpStatus, map[string]any{
+			"status":   overallStatus,
+			"service":  "orchestrator",
+			"services": results,
+		})
+	})
 
 	// POST /api/orchestrator/upload
 	mux.HandleFunc("/api/orchestrator/upload", func(w http.ResponseWriter, r *http.Request) {

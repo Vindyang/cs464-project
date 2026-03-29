@@ -1,0 +1,127 @@
+map $http_x_request_id $gateway_request_id {
+    default $http_x_request_id;
+    "" $request_id;
+}
+
+log_format gateway_json escape=json
+    '{"time":"$time_iso8601","request_id":"$gateway_request_id","remote_addr":"$remote_addr","method":"$request_method","path":"$request_uri","status":$status,"body_bytes_sent":$body_bytes_sent,"request_time":$request_time,"upstream_addr":"$upstream_addr","upstream_status":"$upstream_status","upstream_response_time":"$upstream_response_time"}';
+
+server {
+    listen 8084;
+    server_name _;
+
+    resolver 127.0.0.11 valid=30s ipv6=off;
+
+    set $orchestrator_url ${ORCHESTRATOR_URL};
+    set $adapter_url ${ADAPTER_URL};
+
+    access_log /var/log/nginx/access.log gateway_json;
+    error_log /var/log/nginx/error.log warn;
+
+    client_max_body_size 120m;
+
+    add_header X-Request-ID $gateway_request_id always;
+
+    location = / {
+        default_type application/json;
+        return 200 '{"app": "nebula drive cs464", "service":"api-gateway","version":"v1","docs":"/api/v1/docs"}';
+    }
+
+    location = /api/v1/docs {
+        default_type text/html;
+        alias /usr/share/nginx/html/docs/swagger-ui.html;
+    }
+
+    location = /api/v1/docs/ {
+        return 308 /api/v1/docs;
+    }
+
+    location = /docs {
+        return 308 /api/v1/docs;
+    }
+
+    location = /api/v1/openapi.yml {
+        default_type application/yaml;
+        alias /usr/share/nginx/html/docs/openapi.yml;
+    }
+
+    location = /upload {
+        return 308 /api/v1/upload;
+    }
+
+    location ~ ^/download/(.+)$ {
+        return 308 /api/v1/download/$1;
+    }
+
+    location = /providers {
+        return 308 /api/v1/providers;
+    }
+
+    location = /health {
+        return 308 /api/v1/health;
+    }
+
+    location = /api/v1/upload {
+        limit_except POST { deny all; }
+
+        proxy_http_version 1.1;
+        proxy_set_header X-Request-ID $gateway_request_id;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host $host;
+
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 120s;
+        proxy_send_timeout 120s;
+
+        proxy_pass $orchestrator_url/api/orchestrator/upload;
+    }
+
+    location ~ ^/api/v1/download/(.+)$ {
+        limit_except GET { deny all; }
+
+        proxy_http_version 1.1;
+        proxy_set_header X-Request-ID $gateway_request_id;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host $host;
+
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 120s;
+        proxy_send_timeout 120s;
+
+        proxy_pass $orchestrator_url/api/orchestrator/files/$1/download$is_args$args;
+    }
+
+    location = /api/v1/providers {
+        limit_except GET { deny all; }
+
+        proxy_http_version 1.1;
+        proxy_set_header X-Request-ID $gateway_request_id;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host $host;
+
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 30s;
+        proxy_send_timeout 30s;
+
+        proxy_pass $adapter_url/api/providers;
+    }
+
+    location = /api/v1/health {
+        limit_except GET { deny all; }
+
+        proxy_http_version 1.1;
+        proxy_set_header X-Request-ID $gateway_request_id;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host $host;
+
+        proxy_connect_timeout 3s;
+        proxy_read_timeout 10s;
+        proxy_send_timeout 10s;
+
+        proxy_pass $orchestrator_url/health;
+    }
+}

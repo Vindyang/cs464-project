@@ -2,12 +2,19 @@
 
 Nebula Drive is organized as independently deployable Go services with strict ownership boundaries.
 The orchestrator is the workflow owner and coordinates sharding, storage, and shard metadata.
+The gateway is the public API entrypoint and enforces endpoint/versioning standards.
 
 ## Current Architecture
 
 - `services/orchestrator`
   - Public workflow entry/exit for upload and retrieval.
   - Calls `sharding`, `adapter`, and `shardmap` through HTTP clients.
+
+- `services/gateway`
+  - Public API boundary for external clients.
+  - Implemented with NGINX reverse proxy configuration.
+  - Exposes the standardized v1 contract and forwards to owner services.
+  - Adds standardized access logging and request-id propagation.
 
 - `services/sharding`
   - Owner of erasure coding operations.
@@ -29,16 +36,37 @@ Legacy monolith code under top-level `internal/` has been removed.
 ## End-to-End Workflow Ownership
 
 Upload workflow:
-1. Orchestrator receives file upload.
-2. Orchestrator calls sharding to split/encode shards.
-3. Orchestrator calls adapter to upload shards to providers.
-4. Orchestrator calls shardmap to register and record shard metadata.
+1. Gateway receives the request on `/api/v1/upload`.
+2. Gateway forwards to orchestrator.
+3. Orchestrator receives file upload.
+4. Orchestrator calls sharding to split/encode shards.
+5. Orchestrator calls adapter to upload shards to providers.
+6. Orchestrator calls shardmap to register and record shard metadata.
 
 Download workflow:
-1. Orchestrator requests shard locations from shardmap.
-2. Orchestrator downloads shards through adapter.
-3. Orchestrator calls sharding to reconstruct original data.
-4. Orchestrator returns file bytes to the caller.
+1. Gateway receives the request on `/api/v1/download/{fileId}`.
+2. Gateway forwards to orchestrator.
+3. Orchestrator requests shard locations from shardmap.
+4. Orchestrator downloads shards through adapter.
+5. Orchestrator calls sharding to reconstruct original data.
+6. Orchestrator returns file bytes to gateway, and gateway returns them to the caller.
+
+## Gateway API Contract (Public)
+
+Canonical versioned endpoints:
+
+- `POST /api/v1/upload`
+- `GET /api/v1/download/{fileId}`
+- `GET /api/v1/providers`
+- `GET /api/v1/health`
+- `GET /api/v1/docs`
+
+Compatibility redirects exist for non-versioned forms:
+
+- `/upload`
+- `/download/{fileId}`
+- `/providers`
+- `/health`
 
 ## Service Ports (default local)
 
@@ -46,6 +74,7 @@ Download workflow:
 - Shardmap: `:8081`
 - Orchestrator: `:8082`
 - Sharding: `:8083`
+- Gateway: `:8084`
 
 ## Environment Variables
 
@@ -54,6 +83,7 @@ Common service URLs:
 - `ADAPTER_URL` default `http://localhost:8080`
 - `SHARDMAP_URL` default `http://localhost:8081`
 - `SHARDING_URL` default `http://localhost:8083`
+- `ORCHESTRATOR_URL` default `http://localhost:8082`
 
 Adapter OAuth/token storage:
 
@@ -73,6 +103,75 @@ go run ./services/shardmap/cmd/main.go
 go run ./services/sharding/cmd/main.go
 go run ./services/orchestrator/cmd/main.go
 ```
+
+Gateway is provided by Docker (NGINX):
+
+```powershell
+docker compose --profile backend up --build gateway
+```
+
+## Run With Docker Compose
+
+From project root:
+
+```powershell
+docker compose --profile full up --build
+```
+
+This starts the full stack:
+
+- Frontend: `http://localhost:3000`
+- Adapter API: `http://localhost:8080`
+- Shardmap API: `http://localhost:8081`
+- Orchestrator API: `http://localhost:8082`
+- Sharding API: `http://localhost:8083`
+- Gateway API: `http://localhost:8084`
+
+For backend services only (no frontend):
+
+```powershell
+docker compose --profile backend up --build
+```
+
+Stop and remove containers:
+
+```powershell
+docker compose --profile full down
+```
+
+For backend-only mode:
+
+```powershell
+docker compose --profile backend down
+```
+
+Stop and also remove Postgres data volume:
+
+```powershell
+docker compose --profile full down -v
+```
+
+If you get container name conflicts from old runs, clean orphaned containers first:
+
+```powershell
+docker compose --profile full down --remove-orphans
+```
+
+Service endpoints:
+
+- Adapter: `http://localhost:8080`
+- Shardmap: `http://localhost:8081`
+- Orchestrator: `http://localhost:8082`
+- Sharding/Reconstruction: `http://localhost:8083`
+- Gateway: `http://localhost:8084`
+
+Internal service DNS used in Docker network:
+
+- `http://adapter:8080`
+- `http://shardmap:8081`
+- `http://orchestrator:8082`
+- `http://sharding:8083`
+- `http://gateway:8084`
 
 ## Tests
 
@@ -121,6 +220,15 @@ To keep orchestrator <-> service integration stable, preserve these contracts:
 
 ## Key Entry Endpoints
 
+- Gateway upload: `POST /api/v1/upload`
+- Gateway download: `GET /api/v1/download/{fileId}`
+- Gateway providers: `GET /api/v1/providers`
+- Gateway health: `GET /api/v1/health`
+- Gateway docs: `GET /api/v1/docs`
+
+Internal service endpoints:
+
+- Orchestrator health: `GET /health`
 - Orchestrator upload: `POST /api/orchestrator/upload`
 - Orchestrator download: `GET /api/orchestrator/files/{fileId}/download`
 - Adapter providers: `GET /api/providers`
@@ -128,3 +236,8 @@ To keep orchestrator <-> service integration stable, preserve these contracts:
 - Adapter shard download/delete: `GET|DELETE /shards/{remoteId}`
 - Shardmap register/record/query: `/api/v1/shards/*`
 - Sharding operations: `/api/sharding/shard`, `/api/sharding/reconstruct`
+
+## Notes
+
+- Gateway intentionally does not add authentication yet.
+- OAuth endpoints remain owned by `adapter`.

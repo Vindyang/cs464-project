@@ -1,36 +1,113 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CS464 Project
 
-## Getting Started
+## Where to run Docker Compose commands
 
-First, run the development server:
+Run all Docker Compose commands from the project root:
+`cs464-project/` (this directory contains `docker-compose.yml`).
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Backend only (profile: backend)
+
+### Build backend images
+
+Build all backend services:
+
+```powershell
+docker compose build adapter shardmap sharding orchestrator gateway
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Build a single backend service:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```powershell
+docker compose build adapter
+docker compose build shardmap
+docker compose build sharding
+docker compose build orchestrator
+docker compose build gateway
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Or build everything assigned to backend profile:
 
-## Learn More
+```powershell
+docker compose --profile backend build
+```
 
-To learn more about Next.js, take a look at the following resources:
+### Start backend
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Start all backend services:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```powershell
+docker compose --profile backend up -d
+```
 
-## Deploy on Vercel
+Start one backend service (with dependencies):
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```powershell
+docker compose --profile backend up -d adapter
+docker compose --profile backend up -d shardmap
+docker compose --profile backend up -d sharding
+docker compose --profile backend up -d orchestrator
+docker compose --profile backend up -d gateway
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Rebuild and start one service:
+
+```powershell
+docker compose --profile backend up -d --build adapter
+```
+
+### Stop backend
+
+Stop one service:
+
+```powershell
+docker compose stop adapter
+```
+
+Stop/remove all backend profile containers and network:
+
+```powershell
+docker compose --profile backend down
+```
+
+Stop/remove backend profile and volumes (wipes postgres data):
+
+```powershell
+docker compose --profile backend down -v
+```
+
+## Fullstack (profile: full)
+
+The `full` profile includes backend services plus frontend.
+
+### Build fullstack
+
+```powershell
+docker compose --profile full build
+```
+
+### Start fullstack
+
+```powershell
+docker compose --profile full up -d
+```
+
+### Stop fullstack
+
+```powershell
+docker compose --profile full down
+```
+
+### Rebuild and restart fullstack
+
+```powershell
+docker compose --profile full up -d --build
+```
+
+## Useful commands
+
+```powershell
+docker compose ps
+docker compose logs -f adapter
+docker compose logs -f gateway
+docker compose logs -f frontend
+```
