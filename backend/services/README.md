@@ -81,7 +81,7 @@ Download:
 
 ## Running Services
 
-From `backend/`:
+Run Go services directly from `backend/`:
 
 ```powershell
 go run ./services/adapter/cmd/main.go
@@ -94,6 +94,87 @@ Gateway is run via Docker Compose (NGINX):
 
 ```powershell
 docker compose --profile backend up --build gateway
+```
+
+## Docker Compose (Backend)
+
+All Docker Compose commands below must be run from the project root:
+`cs464-project/` (the directory that contains `docker-compose.yml`).
+
+### Build backend images
+
+Build all backend services:
+
+```powershell
+docker compose build adapter shardmap sharding orchestrator gateway
+```
+
+Build one backend service:
+
+```powershell
+docker compose build adapter
+docker compose build shardmap
+docker compose build sharding
+docker compose build orchestrator
+docker compose build gateway
+```
+
+Build everything in the backend profile:
+
+```powershell
+docker compose --profile backend build
+```
+
+### Start backend services
+
+Start full backend profile (includes postgres + all backend services):
+
+```powershell
+docker compose --profile backend up -d
+```
+
+Start one backend service (and required dependencies):
+
+```powershell
+docker compose --profile backend up -d adapter
+docker compose --profile backend up -d shardmap
+docker compose --profile backend up -d sharding
+docker compose --profile backend up -d orchestrator
+docker compose --profile backend up -d gateway
+```
+
+Rebuild and start a single service:
+
+```powershell
+docker compose --profile backend up -d --build adapter
+```
+
+### Stop backend services
+
+Stop one service:
+
+```powershell
+docker compose stop adapter
+```
+
+Stop and remove all backend profile containers/networks:
+
+```powershell
+docker compose --profile backend down
+```
+
+Stop and remove backend profile plus volumes (wipes postgres data):
+
+```powershell
+docker compose --profile backend down -v
+```
+
+### Useful backend compose checks
+
+```powershell
+docker compose ps
+docker compose logs -f adapter
+docker compose logs -f gateway
 ```
 
 ## Cross-Service URLs
