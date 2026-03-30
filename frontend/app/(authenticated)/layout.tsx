@@ -1,60 +1,44 @@
-"use client";
+import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { getProviders } from "@/lib/api/providers";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
+import { getFiles } from "@/lib/api/files";
 
-import { Sidebar } from "@/components/dashboard/Sidebar";
-import { FileUploadModal } from "@/components/dashboard/FileUploadModal";
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { UserCircle } from "lucide-react";
-import Link from "next/link";
-import { GridBackground } from "@/components/ui/grid-background";
-
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const session = await auth.api.getSession({ headers: await headers() });
+  const userId = session?.user?.id ?? null;
 
-  const handleUpload = (file: File, encrypt: boolean) => {
-    // This will be connected to the upload store later
-    console.log("Upload started:", file.name, "Encrypted:", encrypt);
-    // Mimic start
-    setTimeout(() => {
-        // In reality, valid upload flow would keep modal open or show global progress
-        setUploadModalOpen(false);
-    }, 1000);
-  };
+  const [providers, files] = await Promise.all([
+    getProviders().catch(() => []),
+    userId ? getFiles(userId).catch(() => []) : Promise.resolve([]),
+  ]);
+
+  const totalStorageUsedBytes = files.reduce(
+    (sum, f) => sum + (f.original_size ?? 0),
+    0
+  );
+  const totalStorageTotalBytes = providers.reduce(
+    (sum, p) => sum + (p.quotaTotalBytes ?? 0),
+    0
+  );
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background relative isolate">
-      <GridBackground />
-      <Sidebar 
-          className="hidden md:block z-10" 
-          onUploadClick={() => setUploadModalOpen(true)}
-      />
-      
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-0">
-        <header className="flex items-center justify-between px-6 py-4 border-b bg-background/50 backdrop-blur-sm z-10 relative">
-           <h1 className="text-xl font-semibold">Dashboard</h1>
-           <div className="flex items-center gap-4">
-<Button variant="ghost" size="icon" asChild>
-                 <Link href="/settings">
-                    <UserCircle className="w-6 h-6" />
-                 </Link>
-              </Button>
-           </div>
-        </header>
-
-        <main className="flex-1 overflow-y-auto p-6 relative">
-          {children}
-        </main>
-      </div>
-
-      <FileUploadModal 
-        open={uploadModalOpen} 
-        onOpenChange={setUploadModalOpen}
-        onUpload={handleUpload}
-      />
-    </div>
+    <DashboardShell
+      providers={providers.map((p) => ({
+        providerId: p.providerId,
+        displayName: p.displayName,
+        status: p.status,
+        quotaUsedBytes: p.quotaUsedBytes,
+        quotaTotalBytes: p.quotaTotalBytes,
+      }))}
+      totalStorageUsedBytes={totalStorageUsedBytes}
+      totalStorageTotalBytes={totalStorageTotalBytes}
+    >
+      {children}
+    </DashboardShell>
   );
 }
