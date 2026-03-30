@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, formatBytes } from "@/lib/utils";
 
 export interface SidebarProviderData {
   providerId: string;
@@ -28,13 +28,6 @@ const NAV_ITEMS = [
   { href: "/providers", label: "Providers" },
   { href: "/settings", label: "Settings" },
 ];
-
-function formatBytes(bytes: number): string {
-  if (bytes >= 1e12) return `${(bytes / 1e12).toFixed(1)} TB`;
-  if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`;
-  if (bytes >= 1e6) return `${(bytes / 1e6).toFixed(1)} MB`;
-  return `${(bytes / 1e3).toFixed(1)} KB`;
-}
 
 export function Sidebar({
   className,
@@ -84,7 +77,11 @@ export function Sidebar({
 
         {/* Storage Stats */}
         <div className="mt-auto px-5 space-y-4">
-          <div className="border bg-neutral-50 p-3">
+          <div className="border bg-neutral-50 p-3 relative">
+            <span className="absolute -top-px -left-px w-1.5 h-1.5 border-t border-l border-neutral-400 opacity-40 pointer-events-none" />
+            <span className="absolute -top-px -right-px w-1.5 h-1.5 border-t border-r border-neutral-400 opacity-40 pointer-events-none" />
+            <span className="absolute -bottom-px -left-px w-1.5 h-1.5 border-b border-l border-neutral-400 opacity-40 pointer-events-none" />
+            <span className="absolute -bottom-px -right-px w-1.5 h-1.5 border-b border-r border-neutral-400 opacity-40 pointer-events-none" />
             <p className="mb-2 font-mono text-[9px] uppercase tracking-widest text-neutral-500">
               Storage
             </p>

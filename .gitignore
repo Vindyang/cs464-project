@@ -52,7 +52,7 @@ backend/IMPLEMENTATION_ROADMAP.md
 backend/REED_SOLOMON_INTEGRATION.md
 
 # Database analysis docs (internal reference only)
-references/database-analysis.md
+references/*
 references/schema-diagram.md
 backend/migrations/README.md
 
