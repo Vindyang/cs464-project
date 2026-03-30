@@ -20,6 +20,7 @@ END $$;
 
 CREATE TABLE IF NOT EXISTS files (
     id UUID PRIMARY KEY,
+    user_id TEXT,
     original_name VARCHAR(255),
     original_size BIGINT NOT NULL,
     total_chunks INT NOT NULL,
@@ -77,6 +78,7 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 CREATE INDEX IF NOT EXISTS idx_files_created_at ON files(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_files_user_id ON files(user_id);
 CREATE INDEX IF NOT EXISTS idx_shards_file_id ON shards(file_id);
 CREATE INDEX IF NOT EXISTS idx_shards_file_status ON shards(file_id, status);
 CREATE INDEX IF NOT EXISTS idx_provider_connections_provider_id ON provider_connections(provider_id);

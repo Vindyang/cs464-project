@@ -13,6 +13,7 @@ type FileRepository interface {
 	Create(file *models.File) error
 	GetByID(id uuid.UUID) (*models.File, error)
 	GetAll() ([]*models.File, error)
+	GetByUserID(userID string) ([]*models.FileWithHealth, error)
 	UpdateStatus(id uuid.UUID, status models.FileStatus) error
 	Delete(id uuid.UUID) error
 }
@@ -130,4 +131,28 @@ func (r *fileRepository) Delete(id uuid.UUID) error {
 	}
 
 	return nil
+}
+
+func (r *fileRepository) GetByUserID(userID string) ([]*models.FileWithHealth, error) {
+	query := `
+		SELECT
+			f.id, f.original_name, f.original_size, f.total_chunks, f.n, f.k, f.shard_size, f.status, f.created_at, f.updated_at,
+			COUNT(CASE WHEN s.status = 'HEALTHY'   THEN 1 END) AS healthy_shards,
+			COUNT(CASE WHEN s.status = 'CORRUPTED' THEN 1 END) AS corrupted_shards,
+			COUNT(CASE WHEN s.status = 'MISSING'   THEN 1 END) AS missing_shards,
+			COUNT(s.id)                                         AS total_shards
+		FROM files f
+		LEFT JOIN shards s ON s.file_id = f.id
+		WHERE f.user_id = $1
+		GROUP BY f.id, f.original_name, f.original_size, f.total_chunks, f.n, f.k, f.shard_size, f.status, f.created_at, f.updated_at
+		ORDER BY f.created_at DESC
+	`
+
+	var files []*models.FileWithHealth
+	err := r.db.Select(&files, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get files by user: %w", err)
+	}
+
+	return files, nil
 }
