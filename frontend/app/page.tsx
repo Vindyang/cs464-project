@@ -19,12 +19,6 @@ export default function LandingPage() {
           </div>
 
           <div className="flex items-center gap-6">
-            <Link
-              href="/login"
-              className="font-mono text-sm text-neutral-600 transition-colors hover:text-black"
-            >
-              Log in
-            </Link>
             <Button asChild size="sm" className="font-mono text-sm">
               <Link href="/dashboard">Get Started</Link>
             </Button>

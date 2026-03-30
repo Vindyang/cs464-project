@@ -1,8 +1,6 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { getProviders } from "@/lib/api/providers";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
 import { getFiles } from "@/lib/api/files";
 
 export default async function DashboardLayout({
@@ -10,12 +8,9 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth.api.getSession({ headers: await headers() });
-  const userId = session?.user?.id ?? null;
-
   const [providers, files] = await Promise.all([
     getProviders().catch(() => []),
-    userId ? getFiles(userId).catch(() => []) : Promise.resolve([]),
+    getFiles().catch(() => []),
   ]);
 
   const totalStorageUsedBytes = files.reduce(

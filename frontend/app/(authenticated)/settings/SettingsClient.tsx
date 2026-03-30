@@ -2,15 +2,10 @@
 
 import { useState } from "react";
 import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-
-interface SettingsClientProps {
-  email: string;
-  authProvider: string;
-}
 
 const REDUNDANCY_PRESETS = [
   { val: "(6,4)" as const, label: "(6,4)", name: "Standard", overhead: "1.5× overhead", desc: "4 data + 2 parity shards. Requires 4 to recover." },
@@ -18,7 +13,7 @@ const REDUNDANCY_PRESETS = [
   { val: "(10,8)" as const, label: "(10,8)", name: "Efficient", overhead: "1.25× overhead", desc: "8 data + 2 parity shards. Requires 8 to recover." },
 ];
 
-export function SettingsClient({ email, authProvider }: SettingsClientProps) {
+export function SettingsClient() {
   const [redundancy, setRedundancy] = useState<"(6,4)" | "(8,4)" | "(10,8)">("(6,4)");
   const [encryptDefault, setEncryptDefault] = useState(true);
   const [autoDelete, setAutoDelete] = useState(false);
@@ -34,16 +29,6 @@ export function SettingsClient({ email, authProvider }: SettingsClientProps) {
     );
   };
 
-  const handleDeleteAccount = () => {
-    toast("Delete account?", {
-      description: "This action cannot be undone. All shards will be marked for deletion.",
-      action: {
-        label: "Delete",
-        onClick: () => toast.error("Account deletion is disabled in demo mode"),
-      },
-    });
-  };
-
   return (
     <div className="space-y-5">
       <div>
@@ -53,9 +38,9 @@ export function SettingsClient({ email, authProvider }: SettingsClientProps) {
         </p>
       </div>
 
-      <Tabs defaultValue="account" className="space-y-6">
+      <Tabs defaultValue="redundancy" className="space-y-6">
         <TabsList className="bg-neutral-50 border p-1 rounded-none h-auto gap-0.5">
-          {["account", "redundancy", "storage"].map((t) => (
+          {["redundancy", "storage"].map((t) => (
             <TabsTrigger
               key={t}
               value={t}
@@ -65,33 +50,6 @@ export function SettingsClient({ email, authProvider }: SettingsClientProps) {
             </TabsTrigger>
           ))}
         </TabsList>
-
-        {/* ── Account ── */}
-        <TabsContent value="account">
-          <SettingsCard>
-            <SettingsCardHeader title="Account Information" subtitle="Your identity and access credentials." />
-            <div className="p-5 space-y-5">
-              <Field label="Email Address">
-                <div className="font-mono text-xs px-3 py-2 border bg-neutral-50 text-neutral-700">
-                  {email || "—"}
-                </div>
-              </Field>
-              <Field label="Authentication Provider">
-                <div className="font-mono text-xs px-3 py-2 border bg-neutral-50 text-neutral-700">
-                  {authProvider}
-                </div>
-              </Field>
-              <div className="pt-2 border-t">
-                <button
-                  onClick={handleDeleteAccount}
-                  className="font-mono text-[10px] uppercase tracking-wider border border-neutral-300 px-3 py-2 text-neutral-400 hover:border-neutral-900 hover:text-neutral-900 transition-colors"
-                >
-                  Delete Account
-                </button>
-              </div>
-            </div>
-          </SettingsCard>
-        </TabsContent>
 
         {/* ── Redundancy ── */}
         <TabsContent value="redundancy">
@@ -213,17 +171,6 @@ function SettingsCardHeader({
           {tag}
         </span>
       )}
-    </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1.5">
-      <Label className="font-mono text-[9px] uppercase tracking-widest text-neutral-500">
-        {label}
-      </Label>
-      {children}
     </div>
   );
 }

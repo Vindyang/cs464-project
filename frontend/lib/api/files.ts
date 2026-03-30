@@ -48,8 +48,8 @@ export interface ShardMap {
   shards: ShardInfo[];
 }
 
-export async function getFiles(userId: string): Promise<FileMetadata[]> {
-  const res = await fetch(`${API_URL}/api/v1/files?user_id=${encodeURIComponent(userId)}`, {
+export async function getFiles(): Promise<FileMetadata[]> {
+  const res = await fetch(`${API_URL}/api/v1/files`, {
     cache: "no-store",
   });
   if (!res.ok) throw new Error("Failed to fetch files");
