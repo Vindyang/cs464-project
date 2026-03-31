@@ -68,6 +68,12 @@ func main() {
 
 	shardIOHandler := handlers.NewShardIOHandler(registry)
 
+	shardmapURL := os.Getenv("SHARDMAP_URL")
+	if shardmapURL == "" {
+		shardmapURL = "http://localhost:8081"
+	}
+	fileHandler := handlers.NewFileHandler(shardmapURL)
+
 	app := &App{Registry: registry}
 
 	// Set up routes
@@ -82,6 +88,7 @@ func main() {
 	mux.HandleFunc("/api/oauth/gdrive/callback", oauthHandler.Callback)
 	mux.HandleFunc("/api/oauth/gdrive/disconnect", oauthHandler.Disconnect)
 	shardIOHandler.RegisterRoutes(mux)
+	fileHandler.RegisterRoutes(mux)
 
 	server := &http.Server{
 		Addr:         ":" + port,

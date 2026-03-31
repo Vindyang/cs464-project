@@ -68,3 +68,12 @@ type FileWithShards struct {
 	File   File    `json:"file"`
 	Shards []Shard `json:"shards"`
 }
+
+// FileWithHealth represents a file row with aggregated shard health counts
+type FileWithHealth struct {
+	File
+	HealthyShards   int `db:"healthy_shards"`
+	CorruptedShards int `db:"corrupted_shards"`
+	MissingShards   int `db:"missing_shards"`
+	TotalShards     int `db:"total_shards"`
+}

@@ -28,6 +28,42 @@ func (h *ShardMapHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/shards/record", h.RecordShards)
 	mux.HandleFunc("/api/v1/shards/file/", h.GetShardMap)
 	mux.HandleFunc("/api/v1/shards/", h.handleShardRoutes)
+	mux.HandleFunc("/api/v1/files", h.ListFiles)
+	mux.HandleFunc("/api/v1/files/", h.handleFileRoutes)
+}
+
+// handleFileRoutes dispatches DELETE /api/v1/files/:fileId
+func (h *ShardMapHandler) handleFileRoutes(w http.ResponseWriter, r *http.Request) {
+	fileIDStr := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/api/v1/files/"), "/")
+	if fileIDStr == "" {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "Not found"})
+		return
+	}
+
+	if r.Method != http.MethodDelete {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
+		return
+	}
+
+	fileID, err := uuid.Parse(fileIDStr)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid file ID format"})
+		return
+	}
+
+	if err := h.service.DeleteFile(fileID); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{
+			"error":   "Failed to delete file",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"success": true,
+		"file_id": fileIDStr,
+		"message": "File deleted successfully",
+	})
 }
 
 // handleShardRoutes routes between GetShardByID and MarkShardStatus
@@ -307,6 +343,31 @@ func (h *ShardMapHandler) MarkShardStatus(w http.ResponseWriter, r *http.Request
 		"shard_id": shardIDStr,
 		"status":   req.Status,
 	})
+}
+
+// ListFiles handles GET /api/v1/files?user_id=
+func (h *ShardMapHandler) ListFiles(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
+		return
+	}
+
+	userID := r.URL.Query().Get("user_id")
+	if userID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "user_id query parameter is required"})
+		return
+	}
+
+	files, err := h.service.ListFilesByUser(userID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{
+			"error":   "Failed to list files",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, files)
 }
 
 // writeJSON is a helper to write JSON responses

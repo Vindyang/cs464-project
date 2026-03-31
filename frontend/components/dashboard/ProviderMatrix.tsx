@@ -1,8 +1,13 @@
+"use client";
+
 import { cn } from "@/lib/utils";
 import { Cloud, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useProviderStore } from "@/lib/store/providerStore";
-import { useEffect } from "react";
+import { ProviderMetadata } from "@/lib/api/providers";
+
+interface ProviderMatrixProps {
+  providers: ProviderMetadata[];
+}
 
 const statusConfig = {
   online: {
@@ -50,13 +55,7 @@ const providerIcons: Record<string, string> = {
   oneDrive: "OD",
 };
 
-export function ProviderMatrix() {
-  const { providers, fetchProviders } = useProviderStore();
-
-  useEffect(() => {
-    fetchProviders();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+export function ProviderMatrix({ providers }: ProviderMatrixProps) {
 
   return (
     <div className="col-span-1 row-span-2 flex flex-col gap-6">

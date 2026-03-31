@@ -1,8 +1,6 @@
-"use client";
-
 import { DashboardCard } from "./DashboardCard";
 import { Database, Layers } from "lucide-react";
-import { useProviderStore } from "@/lib/store/providerStore";
+import { ProviderMetadata } from "@/lib/api/providers";
 
 function formatBytes(bytes: number): { value: string; unit: string } {
   if (bytes >= 1e12) return { value: (bytes / 1e12).toFixed(1), unit: "TB" };
@@ -10,9 +8,12 @@ function formatBytes(bytes: number): { value: string; unit: string } {
   return { value: (bytes / 1e6).toFixed(1), unit: "MB" };
 }
 
-export function StorageOverview() {
-  const { providers } = useProviderStore();
+interface StorageOverviewProps {
+  providers: ProviderMetadata[];
+  fileCount: number;
+}
 
+export function StorageOverview({ providers, fileCount }: StorageOverviewProps) {
   const totalBytes = providers.reduce((sum, p) => sum + p.quotaTotalBytes, 0);
   const usedBytes = providers.reduce((sum, p) => sum + p.quotaUsedBytes, 0);
   const utilizationPercent = totalBytes > 0 ? Math.round((usedBytes / totalBytes) * 100) : 0;
@@ -53,7 +54,7 @@ export function StorageOverview() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 border-t pt-4">
-        <StatItem icon={Database} label="Files" value="—" />
+        <StatItem icon={Database} label="Files" value={String(fileCount)} />
         <StatItem icon={Layers} label="Providers" value={String(providers.length)} />
       </div>
     </DashboardCard>

@@ -4,130 +4,122 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import {
-  Folder,
-  Settings,
-  LayoutDashboard,
-  Plus,
-  HardDrive,
-  Activity,
-} from "lucide-react";
+import { cn, formatBytes } from "@/lib/utils";
+
+export interface SidebarProviderData {
+  providerId: string;
+  displayName: string;
+  status: string;
+  quotaUsedBytes: number;
+  quotaTotalBytes: number;
+}
 
 interface SidebarProps {
   className?: string;
   onUploadClick: () => void;
+  providers?: SidebarProviderData[];
+  totalStorageUsedBytes?: number;
+  totalStorageTotalBytes?: number;
 }
 
-export function Sidebar({ className, onUploadClick }: SidebarProps) {
+const NAV_ITEMS = [
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/files", label: "Files" },
+  { href: "/providers", label: "Providers" },
+  { href: "/settings", label: "Settings" },
+];
+
+export function Sidebar({
+  className,
+  onUploadClick,
+  providers = [],
+  totalStorageUsedBytes = 0,
+  totalStorageTotalBytes = 0,
+}: SidebarProps) {
+  const usedPct =
+    totalStorageTotalBytes > 0
+      ? Math.round((totalStorageUsedBytes / totalStorageTotalBytes) * 100)
+      : 0;
+
   return (
-    <div
-      className={cn(
-        "flex w-64 flex-col border-r bg-white",
-        className
-      )}
-    >
-      <div className="flex flex-1 flex-col space-y-4 py-4">
+    <div className={cn("flex w-56 flex-col border-r bg-white", className)}>
+      <div className="flex flex-1 flex-col py-6">
         {/* Logo */}
-        <div className="px-6 py-2">
-          <div className="mb-6 flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center border-2 border-black">
-              <div className="h-2 w-2 bg-black" />
+        <div className="mb-6 px-5">
+          <div className="flex items-center gap-2">
+            <div className="flex h-5 w-5 items-center justify-center border-2 border-black">
+              <div className="h-1.5 w-1.5 bg-black" />
             </div>
-            <span className="font-mono text-sm font-bold tracking-wider">
-              NEBULA_DRIVE
+            <span className="font-mono text-xs font-bold tracking-widest uppercase">
+              Nebula Drive
             </span>
-          </div>
-
-          {/* Upload Button */}
-          <Button
-            className="mb-6 w-full font-mono text-xs"
-            onClick={onUploadClick}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            UPLOAD FILE
-          </Button>
-
-          {/* Navigation */}
-          <div className="space-y-1">
-            <NavItem href="/dashboard" icon={LayoutDashboard}>
-              Dashboard
-            </NavItem>
-            <NavItem href="/nodes" icon={Activity}>
-              Nodes
-            </NavItem>
-            <NavItem href="/files" icon={Folder}>
-              My Files
-            </NavItem>
-            <NavItem href="/providers" icon={HardDrive}>
-              Providers
-            </NavItem>
-            <NavItem href="/settings" icon={Settings}>
-              Settings
-            </NavItem>
           </div>
         </div>
 
-        {/* Storage Stats */}
-        <div className="mt-auto px-6">
-          <div className="border bg-neutral-50 p-4">
-            <h3 className="mb-3 font-mono text-[10px] uppercase tracking-wider text-neutral-500">
-              Storage Used
-            </h3>
+        {/* Upload Button */}
+        <div className="mb-6 px-5">
+          <Button
+            className="w-full font-mono text-[11px] tracking-wider"
+            onClick={onUploadClick}
+          >
+            + UPLOAD FILE
+          </Button>
+        </div>
 
-            <div className="mb-2 flex items-baseline gap-1">
-              <span className="font-mono text-2xl font-bold">4.2</span>
-              <span className="font-mono text-xs text-neutral-500">TB</span>
-              <span className="ml-auto font-mono text-xs text-neutral-500">
-                / 12.0 TB
+        {/* Navigation */}
+        <nav className="flex-1 px-2 space-y-0.5">
+          {NAV_ITEMS.map((item) => (
+            <NavItem key={item.href} href={item.href}>
+              {item.label}
+            </NavItem>
+          ))}
+        </nav>
+
+        {/* Storage Stats */}
+        <div className="mt-auto px-5 space-y-4">
+          <div className="border bg-neutral-50 p-3 relative">
+            <span className="absolute -top-px -left-px w-1.5 h-1.5 border-t border-l border-neutral-400 opacity-40 pointer-events-none" />
+            <span className="absolute -top-px -right-px w-1.5 h-1.5 border-t border-r border-neutral-400 opacity-40 pointer-events-none" />
+            <span className="absolute -bottom-px -left-px w-1.5 h-1.5 border-b border-l border-neutral-400 opacity-40 pointer-events-none" />
+            <span className="absolute -bottom-px -right-px w-1.5 h-1.5 border-b border-r border-neutral-400 opacity-40 pointer-events-none" />
+            <p className="mb-2 font-mono text-[9px] uppercase tracking-widest text-neutral-500">
+              Storage
+            </p>
+            <div className="mb-1.5 flex items-baseline gap-1">
+              <span className="font-mono text-lg font-bold">
+                {formatBytes(totalStorageUsedBytes)}
+              </span>
+              <span className="ml-auto font-mono text-[10px] text-neutral-500">
+                / {totalStorageTotalBytes > 0 ? formatBytes(totalStorageTotalBytes) : "—"}
               </span>
             </div>
-
-            {/* Progress bar */}
-            <div className="mb-2 h-1.5 w-full overflow-hidden bg-neutral-200">
+            <div className="mb-1.5 h-1 w-full bg-neutral-200">
               <div
-                className="h-full bg-black"
-                style={{ width: "35%" }}
+                className="h-full bg-black transition-all"
+                style={{ width: `${usedPct}%` }}
               />
             </div>
-
-            <div className="flex items-center justify-between">
-              <p className="font-mono text-[10px] text-neutral-500">
-                35% utilized
-              </p>
-              <div className="flex items-center gap-1">
-                <div className="h-1.5 w-1.5 bg-black" />
-                <span className="font-mono text-[9px] uppercase tracking-wider">
-                  OK
-                </span>
-              </div>
-            </div>
+            <p className="font-mono text-[9px] text-neutral-500">{usedPct}% utilized</p>
           </div>
 
           {/* Provider Status */}
-          <div className="mt-4 space-y-2">
-            <h4 className="font-mono text-[10px] uppercase tracking-wider text-neutral-500">
-              Provider Status
-            </h4>
-            <ProviderStatus name="Google Drive" status="online" />
-            <ProviderStatus name="AWS S3" status="online" />
-            <ProviderStatus name="Dropbox" status="offline" />
-          </div>
+          {providers.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="font-mono text-[9px] uppercase tracking-widest text-neutral-500">
+                Providers
+              </p>
+              {providers.map((p) => (
+                <ProviderRow key={p.providerId} name={p.displayName} status={p.status} />
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function NavItem({
-  href,
-  icon: Icon,
-  children,
-}: {
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-  children: React.ReactNode;
-}) {
+function NavItem({ href, children }: { href: string; children: React.ReactNode }) {
   const pathname = usePathname();
   const isActive =
     href === "/dashboard"
@@ -138,42 +130,33 @@ function NavItem({
     <Link
       href={href}
       className={cn(
-        "flex items-center gap-3 px-3 py-2.5 font-mono text-xs uppercase tracking-wider transition-all",
+        "block px-3 py-2 font-mono text-[11px] uppercase tracking-wider transition-colors",
         isActive
           ? "bg-black text-white"
-          : "text-neutral-600 hover:bg-neutral-100"
+          : "text-neutral-500 hover:bg-neutral-100 hover:text-black"
       )}
     >
-      <Icon className="h-4 w-4" />
       {children}
     </Link>
   );
 }
 
-function ProviderStatus({
-  name,
-  status,
-}: {
-  name: string;
-  status: "online" | "offline";
-}) {
+function ProviderRow({ name, status }: { name: string; status: string }) {
+  const isOnline = status === "connected" || status === "online";
   return (
     <div className="flex items-center justify-between">
-      <span className="font-mono text-[10px] text-neutral-600">{name}</span>
-      <div className="flex items-center gap-1.5">
-        <div
-          className={cn(
-            "h-1.5 w-1.5",
-            status === "online" ? "bg-black" : "bg-neutral-300"
-          )}
-        />
+      <span className="font-mono text-[9px] text-neutral-600 truncate max-w-[100px]">
+        {name}
+      </span>
+      <div className="flex items-center gap-1">
+        <div className={cn("h-1.5 w-1.5", isOnline ? "bg-black" : "bg-neutral-300")} />
         <span
           className={cn(
-            "font-mono text-[9px] uppercase tracking-wider",
-            status === "online" ? "text-black" : "text-neutral-400"
+            "font-mono text-[8px] uppercase tracking-wider",
+            isOnline ? "text-black" : "text-neutral-400"
           )}
         >
-          {status === "online" ? "OK" : "OFF"}
+          {isOnline ? "OK" : "OFF"}
         </span>
       </div>
     </div>

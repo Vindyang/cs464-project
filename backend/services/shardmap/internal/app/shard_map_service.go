@@ -16,6 +16,8 @@ type ShardMapService interface {
 	GetShardMap(fileID uuid.UUID) (*dto.GetShardMapResponse, error)
 	GetShardByID(shardID uuid.UUID) (*dto.ShardInfo, error)
 	MarkShardStatus(shardID uuid.UUID, req *dto.MarkShardStatusRequest) error
+	ListFilesByUser(userID string) ([]dto.FileMetadataResponse, error)
+	DeleteFile(fileID uuid.UUID) error
 }
 
 type shardMapService struct {
@@ -201,6 +203,59 @@ func (s *shardMapService) GetShardByID(shardID uuid.UUID) (*dto.ShardInfo, error
 		ChecksumSHA256: shard.ChecksumSHA256,
 		Status:         string(shard.Status),
 	}, nil
+}
+
+func (s *shardMapService) DeleteFile(fileID uuid.UUID) error {
+	if err := s.fileRepo.Delete(fileID); err != nil {
+		return fmt.Errorf("failed to delete file: %w", err)
+	}
+	return nil
+}
+
+func (s *shardMapService) ListFilesByUser(userID string) ([]dto.FileMetadataResponse, error) {
+	files, err := s.fileRepo.GetByUserID(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list files by user: %w", err)
+	}
+
+	responses := make([]dto.FileMetadataResponse, len(files))
+	for i, f := range files {
+		name := ""
+		if f.OriginalName != nil {
+			name = *f.OriginalName
+		}
+
+		totalShards := f.TotalShards
+		healthPercent := 0.0
+		if totalShards > 0 {
+			healthPercent = float64(f.HealthyShards) / float64(totalShards) * 100
+		}
+		recoverable := f.HealthyShards >= f.K
+
+		responses[i] = dto.FileMetadataResponse{
+			FileID:       f.ID.String(),
+			OriginalName: name,
+			OriginalSize: f.OriginalSize,
+			TotalChunks:  f.TotalChunks,
+			TotalShards:  totalShards,
+			N:            f.N,
+			K:            f.K,
+			ShardSize:    f.ShardSize,
+			Status:       string(f.Status),
+			CreatedAt:    f.CreatedAt.Format(time.RFC3339),
+			UpdatedAt:    f.UpdatedAt.Format(time.RFC3339),
+			HealthStatus: &dto.FileHealthStatus{
+				HealthyShards:   f.HealthyShards,
+				CorruptedShards: f.CorruptedShards,
+				MissingShards:   f.MissingShards,
+				TotalShards:     totalShards,
+				HealthPercent:   healthPercent,
+				Recoverable:     recoverable,
+			},
+		}
+	}
+
+	return responses, nil
 }
 
 func (s *shardMapService) MarkShardStatus(shardID uuid.UUID, req *dto.MarkShardStatusRequest) error {

@@ -48,9 +48,13 @@
 }
 
 :root {
+  /* Reference design tokens */
+  --grid-line: #F5F5F5;
+  --bg-subtle: #FAFAFA;
+
   /* Black & White Theme */
   --background: #ffffff;
-  --foreground: #000000;
+  --foreground: #111111;
 
   --card: #ffffff;
   --card-foreground: #000000;
