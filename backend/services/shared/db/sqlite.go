@@ -20,6 +20,15 @@ type Store struct {
 	db *sql.DB
 }
 
+// CredentialRecord is the safe, listable representation of provider credentials.
+// It intentionally excludes client_secret.
+type CredentialRecord struct {
+	ProviderID  string    `json:"provider_id"`
+	ClientID    string    `json:"client_id"`
+	RedirectURI string    `json:"redirect_uri"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
 // NewStore opens (or creates) a SQLite database at the given file path
 // and runs the schema migrations.
 func NewStore(path string) (*Store, error) {
@@ -172,6 +181,32 @@ func (s *Store) DeleteCredentials(providerID string) error {
 		return fmt.Errorf("db: delete credentials for %q: %w", providerID, err)
 	}
 	return nil
+}
+
+// ListCredentials returns all configured provider credentials with safe fields only.
+func (s *Store) ListCredentials() ([]CredentialRecord, error) {
+	rows, err := s.db.Query(`
+		SELECT provider_id, client_id, redirect_uri, updated_at
+		FROM credentials
+		ORDER BY provider_id ASC
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("db: list credentials: %w", err)
+	}
+	defer rows.Close()
+
+	out := make([]CredentialRecord, 0)
+	for rows.Next() {
+		var rec CredentialRecord
+		if err := rows.Scan(&rec.ProviderID, &rec.ClientID, &rec.RedirectURI, &rec.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("db: scan credential row: %w", err)
+		}
+		out = append(out, rec)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("db: iterate credentials rows: %w", err)
+	}
+	return out, nil
 }
 
 // ── Key-Value Config ──────────────────────────────────────────────────────────

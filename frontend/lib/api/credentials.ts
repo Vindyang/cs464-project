@@ -1,23 +1,19 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
+export const CREDENTIAL_PROVIDERS = ["googleDrive", "awsS3", "oneDrive"] as const;
+export type CredentialProvider = (typeof CREDENTIAL_PROVIDERS)[number];
+
 export interface ProviderCredential {
-  providerId: string;
-  payload: unknown;
-  updatedAt: string;
+  provider_id: string;
+  client_id: string;
+  redirect_uri: string;
+  updated_at: string;
 }
 
 export interface CredentialStatus {
   configured: boolean;
   count: number;
   providers: string[];
-}
-
-export async function getCredentialStatus(): Promise<CredentialStatus> {
-  const res = await fetch(`${API_URL}/api/credentials/status`, { cache: "no-store" });
-  if (!res.ok) {
-    throw new Error("Failed to fetch credential status");
-  }
-  return res.json();
 }
 
 export async function getCredentials(): Promise<ProviderCredential[]> {
@@ -28,11 +24,30 @@ export async function getCredentials(): Promise<ProviderCredential[]> {
   return res.json();
 }
 
-export async function saveCredential(providerId: string, payload: unknown): Promise<void> {
+export async function getCredentialStatus(): Promise<CredentialStatus> {
+  const res = await fetch(`${API_URL}/api/credentials/status`, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error("Failed to fetch credential status");
+  }
+  return res.json();
+}
+
+export async function saveCredential(
+  providerId: string,
+  payload: {
+    clientId: string;
+    clientSecret: string;
+    redirectUri: string;
+  },
+): Promise<void> {
   const res = await fetch(`${API_URL}/api/credentials/${providerId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ payload }),
+    body: JSON.stringify({
+      client_id: payload.clientId,
+      client_secret: payload.clientSecret,
+      redirect_uri: payload.redirectUri,
+    }),
   });
   if (!res.ok) {
     throw new Error("Failed to save credentials");

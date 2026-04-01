@@ -18,7 +18,49 @@ func NewCredentialsHandler(store *db.Store) *CredentialsHandler {
 }
 
 func (h *CredentialsHandler) RegisterRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("/api/credentials/status", h.status)
+	mux.HandleFunc("/api/credentials", h.collection)
 	mux.HandleFunc("/api/credentials/", h.route)
+}
+
+// collection handles GET /api/credentials.
+func (h *CredentialsHandler) collection(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		httpx.WriteError(w, http.StatusMethodNotAllowed, "Method not allowed", nil)
+		return
+	}
+
+	records, err := h.store.ListCredentials()
+	if err != nil {
+		httpx.WriteError(w, http.StatusInternalServerError, "failed to list credentials", err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, records)
+}
+
+// status handles GET /api/credentials/status.
+func (h *CredentialsHandler) status(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		httpx.WriteError(w, http.StatusMethodNotAllowed, "Method not allowed", nil)
+		return
+	}
+
+	records, err := h.store.ListCredentials()
+	if err != nil {
+		httpx.WriteError(w, http.StatusInternalServerError, "failed to list credentials status", err)
+		return
+	}
+
+	providers := make([]string, 0, len(records))
+	for _, rec := range records {
+		providers = append(providers, rec.ProviderID)
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+		"configured": len(records) > 0,
+		"count":      len(records),
+		"providers":  providers,
+	})
 }
 
 // route dispatches to the correct method handler based on HTTP verb.

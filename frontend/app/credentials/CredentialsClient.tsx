@@ -3,7 +3,9 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  CREDENTIAL_PROVIDERS,
   deleteCredential,
+  getCredentialStatus,
   ProviderCredential,
   saveCredential,
 } from "@/lib/api/credentials";
@@ -23,7 +25,9 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
   const router = useRouter();
   const [credentials, setCredentials] = useState(initialCredentials);
   const [providerId, setProviderId] = useState("googleDrive");
-  const [jsonText, setJsonText] = useState("{}");
+  const [clientId, setClientId] = useState("");
+  const [clientSecret, setClientSecret] = useState("");
+  const [redirectUri, setRedirectUri] = useState("http://localhost:8080/api/oauth/gdrive/callback");
   const [saving, setSaving] = useState(false);
 
   const selectedName = useMemo(
@@ -32,24 +36,26 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
   );
 
   async function handleSave() {
-    let payload: unknown;
-    try {
-      payload = JSON.parse(jsonText);
-    } catch {
-      toast.error("Payload must be valid JSON");
+    if (!clientId || !clientSecret || !redirectUri) {
+      toast.error("client_id, client_secret, and redirect_uri are required");
       return;
     }
 
     setSaving(true);
     try {
-      await saveCredential(providerId, payload);
-      const next = credentials.filter((c) => c.providerId !== providerId);
-      next.push({
-        providerId,
-        payload,
-        updatedAt: new Date().toISOString(),
+      await saveCredential(providerId, {
+        clientId,
+        clientSecret,
+        redirectUri,
       });
-      next.sort((a, b) => a.providerId.localeCompare(b.providerId));
+      const next = credentials.filter((c) => c.provider_id !== providerId);
+      next.push({
+        provider_id: providerId,
+        client_id: clientId,
+        redirect_uri: redirectUri,
+        updated_at: new Date().toISOString(),
+      });
+      next.sort((a, b) => a.provider_id.localeCompare(b.provider_id));
       setCredentials(next);
       toast.success(`${selectedName} credentials saved`);
       router.refresh();
@@ -63,11 +69,24 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
   async function handleDelete(id: string) {
     try {
       await deleteCredential(id);
-      setCredentials((prev) => prev.filter((c) => c.providerId !== id));
+      setCredentials((prev) => prev.filter((c) => c.provider_id !== id));
       toast.success("Credentials deleted");
       router.refresh();
     } catch {
       toast.error("Failed to delete credentials");
+    }
+  }
+
+  async function handleContinue() {
+    try {
+      const status = await getCredentialStatus();
+      if (!status.configured) {
+        toast.error("Please save at least one credential first");
+        return;
+      }
+      router.push("/dashboard");
+    } catch {
+      toast.error("Unable to verify credentials status");
     }
   }
 
@@ -108,13 +127,38 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
 
             <label className="block">
               <span className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-neutral-500">
-                JSON Payload
+                Client ID
               </span>
-              <textarea
-                value={jsonText}
-                onChange={(e) => setJsonText(e.target.value)}
-                rows={12}
+              <input
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
                 className="w-full border bg-white px-3 py-2 font-mono text-xs outline-none focus:ring-1 focus:ring-black"
+                placeholder="Google OAuth client_id"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-neutral-500">
+                Client Secret
+              </span>
+              <input
+                type="password"
+                value={clientSecret}
+                onChange={(e) => setClientSecret(e.target.value)}
+                className="w-full border bg-white px-3 py-2 font-mono text-xs outline-none focus:ring-1 focus:ring-black"
+                placeholder="Google OAuth client_secret"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-neutral-500">
+                Redirect URI
+              </span>
+              <input
+                value={redirectUri}
+                onChange={(e) => setRedirectUri(e.target.value)}
+                className="w-full border bg-white px-3 py-2 font-mono text-xs outline-none focus:ring-1 focus:ring-black"
+                placeholder="http://localhost:8080/api/oauth/gdrive/callback"
               />
             </label>
 
@@ -143,18 +187,21 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
           ) : (
             <ul className="space-y-2">
               {credentials.map((cred) => (
-                <li key={cred.providerId} className="border px-3 py-2">
+                <li key={cred.provider_id} className="border px-3 py-2">
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs">{cred.providerId}</span>
+                    <span className="font-mono text-xs">{cred.provider_id}</span>
                     <button
-                      onClick={() => handleDelete(cred.providerId)}
+                      onClick={() => handleDelete(cred.provider_id)}
                       className="font-mono text-[10px] uppercase tracking-wider text-neutral-400 hover:text-black"
                     >
                       Delete
                     </button>
                   </div>
                   <p className="mt-1 font-mono text-[10px] text-neutral-400">
-                    Updated {new Date(cred.updatedAt).toLocaleString()}
+                    {cred.client_id.slice(0, 14)}... · {cred.redirect_uri}
+                  </p>
+                  <p className="mt-0.5 font-mono text-[10px] text-neutral-300">
+                    Updated {new Date(cred.updated_at).toLocaleString()}
                   </p>
                 </li>
               ))}
@@ -162,7 +209,7 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
           )}
 
           <button
-            onClick={() => router.push("/dashboard")}
+            onClick={handleContinue}
             disabled={credentials.length === 0}
             className="mt-4 font-mono text-[10px] uppercase tracking-wider border px-4 py-2 transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:border-neutral-200 disabled:text-neutral-300 disabled:hover:bg-transparent"
           >
@@ -170,6 +217,9 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
           </button>
         </div>
       </section>
+      <p className="mt-4 font-mono text-[10px] text-neutral-400">
+        Supported providers in backend right now: {CREDENTIAL_PROVIDERS.join(", ")}
+      </p>
     </main>
   );
 }
