@@ -21,7 +21,7 @@
 - [ ] Add health check support in compose for deterministic frontend startup dependency.
 
 ## Adapter Service
-- [ ] Replace PostgreSQL token storage dependency with local persistent token store (file-based or SQLite-backed abstraction).
+- [x] Replace PostgreSQL token storage dependency with local persistent token store (file-based or SQLite-backed abstraction).
 - [ ] Remove hard failure on missing DATABASE_URL in local mode.
 - [ ] Add runtime endpoint(s) to configure Google OAuth credentials from frontend setup screen.
 - [ ] Persist OAuth credential config locally and load it on startup.
@@ -60,7 +60,7 @@
 - [ ] Re-test rollback behavior on partial shard upload failures after adapter/shardmap storage changes.
 
 ## Shared Database / Schema Modules
-- [ ] Swap PostgreSQL dependencies for SQLite dependency where needed.
+- [x] Swap PostgreSQL dependencies for SQLite dependency where needed.
 - [ ] Introduce/maintain local schema definition compatible with SQLite constraints.
 - [ ] Decide whether to keep existing PostgreSQL schema as legacy reference or fully replace.
 - [ ] Update DB initialization path to avoid Postgres-only assumptions.
