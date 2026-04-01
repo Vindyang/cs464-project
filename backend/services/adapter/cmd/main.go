@@ -52,6 +52,7 @@ func main() {
 	oauthHandler := oauthhandler.New(store, registry)
 
 	credentialsHandler := handlers.NewCredentialsHandler(store)
+	settingsHandler := handlers.NewSettingsHandler(store)
 	shardIOHandler := handlers.NewShardIOHandler(registry)
 
 	shardmapURL := os.Getenv("SHARDMAP_URL")
@@ -74,6 +75,7 @@ func main() {
 	mux.HandleFunc("/api/oauth/gdrive/callback", oauthHandler.Callback)
 	mux.HandleFunc("/api/oauth/gdrive/disconnect", oauthHandler.Disconnect)
 	credentialsHandler.RegisterRoutes(mux)
+	settingsHandler.RegisterRoutes(mux)
 	shardIOHandler.RegisterRoutes(mux)
 	fileHandler.RegisterRoutes(mux)
 

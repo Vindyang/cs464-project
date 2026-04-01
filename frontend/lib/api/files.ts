@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+import { getApiBaseUrl } from "./base-url";
 
 export interface FileHealthStatus {
   healthy_shards: number;
@@ -48,7 +48,15 @@ export interface ShardMap {
   shards: ShardInfo[];
 }
 
+export interface UploadFileResult {
+  status: string;
+  file_id?: string;
+  error?: string;
+  details?: string;
+}
+
 export async function getFiles(): Promise<FileMetadata[]> {
+  const API_URL = getApiBaseUrl();
   const res = await fetch(`${API_URL}/api/v1/files`, {
     cache: "no-store",
   });
@@ -57,6 +65,7 @@ export async function getFiles(): Promise<FileMetadata[]> {
 }
 
 export async function getFileById(fileId: string): Promise<ShardMap | null> {
+  const API_URL = getApiBaseUrl();
   const res = await fetch(`${API_URL}/api/v1/files/${fileId}`, {
     cache: "no-store",
   });
@@ -66,6 +75,7 @@ export async function getFileById(fileId: string): Promise<ShardMap | null> {
 }
 
 export async function getFileShards(fileId: string): Promise<ShardMap | null> {
+  const API_URL = getApiBaseUrl();
   const res = await fetch(`${API_URL}/api/v1/shards/file/${fileId}`, {
     cache: "no-store",
   });
@@ -75,7 +85,34 @@ export async function getFileShards(fileId: string): Promise<ShardMap | null> {
 }
 
 export async function deleteFile(fileId: string, deleteShards = false): Promise<void> {
+  const API_URL = getApiBaseUrl();
   const url = `${API_URL}/api/v1/files/${fileId}${deleteShards ? "?delete_shards=true" : ""}`;
   const res = await fetch(url, { method: "DELETE" });
   if (!res.ok) throw new Error("Failed to delete file");
+}
+
+export async function uploadFile(file: File, k = 4, n = 6): Promise<UploadFileResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("k", String(k));
+  formData.append("n", String(n));
+
+  const res = await fetch("/api/upload", {
+    method: "POST",
+    body: formData,
+  });
+
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    const message = data?.details || data?.error || "Failed to upload file";
+    throw new Error(message);
+  }
+
+  const result = (data ?? {}) as UploadFileResult;
+  const ok = result.status === "success" || result.status === "committed";
+  if (!ok) {
+    throw new Error(result.error || result.details || "Upload did not complete successfully");
+  }
+
+  return result;
 }

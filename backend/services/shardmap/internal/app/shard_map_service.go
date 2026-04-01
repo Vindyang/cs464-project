@@ -16,7 +16,7 @@ type ShardMapService interface {
 	GetShardMap(fileID uuid.UUID) (*dto.GetShardMapResponse, error)
 	GetShardByID(shardID uuid.UUID) (*dto.ShardInfo, error)
 	MarkShardStatus(shardID uuid.UUID, req *dto.MarkShardStatusRequest) error
-	ListFilesByUser(userID string) ([]dto.FileMetadataResponse, error)
+	ListFiles() ([]dto.FileMetadataResponse, error)
 	DeleteFile(fileID uuid.UUID) error
 }
 
@@ -212,10 +212,10 @@ func (s *shardMapService) DeleteFile(fileID uuid.UUID) error {
 	return nil
 }
 
-func (s *shardMapService) ListFilesByUser(userID string) ([]dto.FileMetadataResponse, error) {
-	files, err := s.fileRepo.GetByUserID(userID)
+func (s *shardMapService) ListFiles() ([]dto.FileMetadataResponse, error) {
+	files, err := s.fileRepo.GetAllWithHealth()
 	if err != nil {
-		return nil, fmt.Errorf("failed to list files by user: %w", err)
+		return nil, fmt.Errorf("failed to list files: %w", err)
 	}
 
 	responses := make([]dto.FileMetadataResponse, len(files))

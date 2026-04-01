@@ -20,6 +20,7 @@ func NewFileHandler(shardmapURL string) *FileHandler {
 
 // RegisterRoutes registers all file and shard-map proxy routes.
 func (h *FileHandler) RegisterRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("/api/v1/files", h.handleFileRoutes)
 	mux.HandleFunc("/api/v1/files/", h.handleFileRoutes)
 	mux.HandleFunc("/api/v1/shards/file/", h.proxyShardMap)
 }
@@ -55,14 +56,9 @@ func (h *FileHandler) handleFileRoutes(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "Not found"})
 }
 
-// ListFiles handles GET /api/v1/files?user_id= by proxying to the shardmap service.
+// ListFiles handles GET /api/v1/files by proxying to the shardmap service.
 func (h *FileHandler) ListFiles(w http.ResponseWriter, r *http.Request) {
-	userID := r.URL.Query().Get("user_id")
-	if userID == "" {
-		httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "user_id query parameter is required"})
-		return
-	}
-	h.proxyGET(w, r, h.shardmapURL+"/api/v1/files?user_id="+userID)
+	h.proxyGET(w, r, h.shardmapURL+"/api/v1/files")
 }
 
 // GetFileMetadata handles GET /api/v1/files/:fileId by proxying to the shardmap service.

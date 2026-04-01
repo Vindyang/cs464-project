@@ -13,7 +13,7 @@ type FileRepository interface {
 	Create(file *models.File) error
 	GetByID(id uuid.UUID) (*models.File, error)
 	GetAll() ([]*models.File, error)
-	GetByUserID(userID string) ([]*models.FileWithHealth, error)
+	GetAllWithHealth() ([]*models.FileWithHealth, error)
 	UpdateStatus(id uuid.UUID, status models.FileStatus) error
 	Delete(id uuid.UUID) error
 }
@@ -29,13 +29,12 @@ func NewFileRepository(db *sqlx.DB) FileRepository {
 func (r *fileRepository) Create(file *models.File) error {
 	query := `
 		INSERT INTO files (id, original_name, original_size, total_chunks, n, k, shard_size, status, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-		RETURNING id, created_at, updated_at
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
-	err := r.db.QueryRow(
+	_, err := r.db.Exec(
 		query,
-		file.ID,
+		file.ID.String(),
 		file.OriginalName,
 		file.OriginalSize,
 		file.TotalChunks,
@@ -45,7 +44,7 @@ func (r *fileRepository) Create(file *models.File) error {
 		file.Status,
 		file.CreatedAt,
 		file.UpdatedAt,
-	).Scan(&file.ID, &file.CreatedAt, &file.UpdatedAt)
+	)
 
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
@@ -59,10 +58,10 @@ func (r *fileRepository) GetByID(id uuid.UUID) (*models.File, error) {
 	query := `
 		SELECT id, original_name, original_size, total_chunks, n, k, shard_size, status, created_at, updated_at
 		FROM files
-		WHERE id = $1
+		WHERE id = ?
 	`
 
-	err := r.db.Get(file, query, id)
+	err := r.db.Get(file, query, id.String())
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("file not found: %w", err)
@@ -92,11 +91,11 @@ func (r *fileRepository) GetAll() ([]*models.File, error) {
 func (r *fileRepository) UpdateStatus(id uuid.UUID, status models.FileStatus) error {
 	query := `
 		UPDATE files
-		SET status = $1, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $2
+		SET status = ?, updated_at = CURRENT_TIMESTAMP
+		WHERE id = ?
 	`
 
-	result, err := r.db.Exec(query, status, id)
+	result, err := r.db.Exec(query, status, id.String())
 	if err != nil {
 		return fmt.Errorf("failed to update file status: %w", err)
 	}
@@ -114,9 +113,9 @@ func (r *fileRepository) UpdateStatus(id uuid.UUID, status models.FileStatus) er
 }
 
 func (r *fileRepository) Delete(id uuid.UUID) error {
-	query := `DELETE FROM files WHERE id = $1`
+	query := `DELETE FROM files WHERE id = ?`
 
-	result, err := r.db.Exec(query, id)
+	result, err := r.db.Exec(query, id.String())
 	if err != nil {
 		return fmt.Errorf("failed to delete file: %w", err)
 	}
@@ -133,7 +132,7 @@ func (r *fileRepository) Delete(id uuid.UUID) error {
 	return nil
 }
 
-func (r *fileRepository) GetByUserID(userID string) ([]*models.FileWithHealth, error) {
+func (r *fileRepository) GetAllWithHealth() ([]*models.FileWithHealth, error) {
 	query := `
 		SELECT
 			f.id, f.original_name, f.original_size, f.total_chunks, f.n, f.k, f.shard_size, f.status, f.created_at, f.updated_at,
@@ -143,15 +142,14 @@ func (r *fileRepository) GetByUserID(userID string) ([]*models.FileWithHealth, e
 			COUNT(s.id)                                         AS total_shards
 		FROM files f
 		LEFT JOIN shards s ON s.file_id = f.id
-		WHERE f.user_id = $1
 		GROUP BY f.id, f.original_name, f.original_size, f.total_chunks, f.n, f.k, f.shard_size, f.status, f.created_at, f.updated_at
 		ORDER BY f.created_at DESC
 	`
 
 	var files []*models.FileWithHealth
-	err := r.db.Select(&files, query, userID)
+	err := r.db.Select(&files, query)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get files by user: %w", err)
+		return nil, fmt.Errorf("failed to get files: %w", err)
 	}
 
 	return files, nil

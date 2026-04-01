@@ -11,11 +11,12 @@ import (
 )
 
 type mockFileRepo struct {
-	createFn       func(*models.File) error
-	getByIDFn      func(uuid.UUID) (*models.File, error)
-	getAllFn       func() ([]*models.File, error)
-	updateStatusFn func(uuid.UUID, models.FileStatus) error
-	deleteFn       func(uuid.UUID) error
+	createFn           func(*models.File) error
+	getByIDFn          func(uuid.UUID) (*models.File, error)
+	getAllFn           func() ([]*models.File, error)
+	getAllWithHealthFn func() ([]*models.FileWithHealth, error)
+	updateStatusFn     func(uuid.UUID, models.FileStatus) error
+	deleteFn           func(uuid.UUID) error
 }
 
 func (m *mockFileRepo) Create(file *models.File) error {
@@ -33,6 +34,12 @@ func (m *mockFileRepo) GetByID(id uuid.UUID) (*models.File, error) {
 func (m *mockFileRepo) GetAll() ([]*models.File, error) {
 	if m.getAllFn != nil {
 		return m.getAllFn()
+	}
+	return nil, nil
+}
+func (m *mockFileRepo) GetAllWithHealth() ([]*models.FileWithHealth, error) {
+	if m.getAllWithHealthFn != nil {
+		return m.getAllWithHealthFn()
 	}
 	return nil, nil
 }

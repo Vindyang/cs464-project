@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   CREDENTIAL_PROVIDERS,
   deleteCredential,
+  getCredentials,
   getCredentialStatus,
   ProviderCredential,
   saveCredential,
@@ -48,15 +49,8 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
         clientSecret,
         redirectUri,
       });
-      const next = credentials.filter((c) => c.provider_id !== providerId);
-      next.push({
-        provider_id: providerId,
-        client_id: clientId,
-        redirect_uri: redirectUri,
-        updated_at: new Date().toISOString(),
-      });
-      next.sort((a, b) => a.provider_id.localeCompare(b.provider_id));
-      setCredentials(next);
+      const persisted = await getCredentials();
+      setCredentials(persisted);
       toast.success(`${selectedName} credentials saved`);
       router.refresh();
     } catch {
@@ -69,7 +63,8 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
   async function handleDelete(id: string) {
     try {
       await deleteCredential(id);
-      setCredentials((prev) => prev.filter((c) => c.provider_id !== id));
+      const persisted = await getCredentials();
+      setCredentials(persisted);
       toast.success("Credentials deleted");
       router.refresh();
     } catch {

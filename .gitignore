@@ -63,3 +63,5 @@ skills-lock.json
 
 # Local SQLite store (contains OAuth tokens and credentials)
 *.db
+*.db-wal
+*.db-shm

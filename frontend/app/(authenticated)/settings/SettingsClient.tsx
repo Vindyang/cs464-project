@@ -6,6 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { AppSettings, saveSettings } from "@/lib/api/settings";
 
 const REDUNDANCY_PRESETS = [
   { val: "(6,4)" as const, label: "(6,4)", name: "Standard", overhead: "1.5× overhead", desc: "4 data + 2 parity shards. Requires 4 to recover." },
@@ -13,20 +14,30 @@ const REDUNDANCY_PRESETS = [
   { val: "(10,8)" as const, label: "(10,8)", name: "Efficient", overhead: "1.25× overhead", desc: "8 data + 2 parity shards. Requires 8 to recover." },
 ];
 
-export function SettingsClient() {
-  const [redundancy, setRedundancy] = useState<"(6,4)" | "(8,4)" | "(10,8)">("(6,4)");
-  const [encryptDefault, setEncryptDefault] = useState(true);
-  const [autoDelete, setAutoDelete] = useState(false);
+interface SettingsClientProps {
+  initialSettings: AppSettings;
+}
 
-  const handleSave = () => {
-    toast.promise(
-      new Promise((resolve) => setTimeout(resolve, 600)),
-      {
-        loading: "Saving preferences...",
-        success: "Preferences saved",
-        error: "Failed to save",
-      }
-    );
+export function SettingsClient({ initialSettings }: SettingsClientProps) {
+  const [redundancy, setRedundancy] = useState<"(6,4)" | "(8,4)" | "(10,8)">(initialSettings.redundancy);
+  const [encryptDefault, setEncryptDefault] = useState(initialSettings.encrypt_default);
+  const [autoDelete, setAutoDelete] = useState(initialSettings.auto_delete);
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await saveSettings({
+        redundancy,
+        encrypt_default: encryptDefault,
+        auto_delete: autoDelete,
+      });
+      toast.success("Preferences saved");
+    } catch {
+      toast.error("Failed to save");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -93,9 +104,10 @@ export function SettingsClient() {
               <div className="flex justify-end pt-2">
                 <button
                   onClick={handleSave}
+                  disabled={saving}
                   className="font-mono text-[10px] uppercase tracking-wider border border-neutral-900 bg-neutral-900 text-white px-4 py-2 hover:bg-neutral-700 transition-colors"
                 >
-                  Save Configuration
+                  {saving ? "Saving..." : "Save Configuration"}
                 </button>
               </div>
             </div>
@@ -127,9 +139,10 @@ export function SettingsClient() {
             <div className="px-5 pb-5 flex justify-end">
               <button
                 onClick={handleSave}
+                disabled={saving}
                 className="font-mono text-[10px] uppercase tracking-wider border border-neutral-900 bg-neutral-900 text-white px-4 py-2 hover:bg-neutral-700 transition-colors"
               >
-                Save Preferences
+                {saving ? "Saving..." : "Save Preferences"}
               </button>
             </div>
           </SettingsCard>

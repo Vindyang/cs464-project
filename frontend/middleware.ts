@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+const API_URL = process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 async function hasConfiguredCredentials(): Promise<boolean> {
   try {
@@ -22,7 +22,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Only protect app pages that should require configured credentials.
-  const protectedRoutes = ["/dashboard", "/providers", "/nodes", "/settings"];
+  const protectedRoutes = ["/dashboard", "/files", "/providers", "/nodes", "/settings"];
   const isProtected = protectedRoutes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
@@ -42,5 +42,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/providers/:path*", "/nodes/:path*", "/settings/:path*"],
+  matcher: ["/dashboard/:path*", "/files/:path*", "/providers/:path*", "/nodes/:path*", "/settings/:path*"],
 };

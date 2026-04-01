@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+import { getApiBaseUrl } from "./base-url";
 
 export const CREDENTIAL_PROVIDERS = ["googleDrive", "awsS3", "oneDrive"] as const;
 export type CredentialProvider = (typeof CREDENTIAL_PROVIDERS)[number];
@@ -17,6 +17,7 @@ export interface CredentialStatus {
 }
 
 export async function getCredentials(): Promise<ProviderCredential[]> {
+  const API_URL = getApiBaseUrl();
   const res = await fetch(`${API_URL}/api/credentials`, { cache: "no-store" });
   if (!res.ok) {
     throw new Error("Failed to fetch credentials");
@@ -25,6 +26,7 @@ export async function getCredentials(): Promise<ProviderCredential[]> {
 }
 
 export async function getCredentialStatus(): Promise<CredentialStatus> {
+  const API_URL = getApiBaseUrl();
   const res = await fetch(`${API_URL}/api/credentials/status`, { cache: "no-store" });
   if (!res.ok) {
     throw new Error("Failed to fetch credential status");
@@ -40,6 +42,7 @@ export async function saveCredential(
     redirectUri: string;
   },
 ): Promise<void> {
+  const API_URL = getApiBaseUrl();
   const res = await fetch(`${API_URL}/api/credentials/${providerId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -55,6 +58,7 @@ export async function saveCredential(
 }
 
 export async function deleteCredential(providerId: string): Promise<void> {
+  const API_URL = getApiBaseUrl();
   const res = await fetch(`${API_URL}/api/credentials/${providerId}`, {
     method: "DELETE",
   });

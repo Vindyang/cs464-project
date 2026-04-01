@@ -121,8 +121,8 @@ func (s *Service) UploadFile(ctx context.Context, fileName string, shards [][]by
 		}
 	}
 
-	if len(healthyProviders) < 2 {
-		return nil, fmt.Errorf("insufficient healthy providers: need 2, have %d", len(healthyProviders))
+	if len(healthyProviders) < 1 {
+		return nil, fmt.Errorf("insufficient healthy providers: need 1, have %d", len(healthyProviders))
 	}
 
 	allocation := make(map[int]string)
