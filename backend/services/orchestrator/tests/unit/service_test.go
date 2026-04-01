@@ -65,7 +65,16 @@ func TestUploadHappyPath(t *testing.T) {
 			json.NewDecoder(r.Body).Decode(&recordReq)
 			recordedShardCount = len(recordReq.Shards)
 			w.Header().Set("Content-Type", "application/json")
+			respShards := make([]types.ShardInfo, 0, len(recordReq.Shards))
+			for i, s := range recordReq.Shards {
+				s.ShardID = fmt.Sprintf("shard-%d", i)
+				respShards = append(respShards, s)
+			}
 			w.WriteHeader(http.StatusCreated)
+			json.NewEncoder(w).Encode(types.RecordShardResp{
+				FileID: recordReq.FileID,
+				Shards: respShards,
+			})
 		}
 	}))
 	defer shardMapServer.Close()
@@ -233,7 +242,19 @@ func TestUploadSkipsDegradedProviders(t *testing.T) {
 				Status: "PENDING",
 			})
 		} else if r.Method == "POST" && r.URL.Path == "/api/v1/shards/record" {
+			var recordReq types.RecordShardReq
+			json.NewDecoder(r.Body).Decode(&recordReq)
+			w.Header().Set("Content-Type", "application/json")
+			respShards := make([]types.ShardInfo, 0, len(recordReq.Shards))
+			for i, s := range recordReq.Shards {
+				s.ShardID = fmt.Sprintf("shard-%d", i)
+				respShards = append(respShards, s)
+			}
 			w.WriteHeader(http.StatusCreated)
+			json.NewEncoder(w).Encode(types.RecordShardResp{
+				FileID: recordReq.FileID,
+				Shards: respShards,
+			})
 		}
 	}))
 	defer shardMapServer.Close()
@@ -390,8 +411,22 @@ func BenchmarkUploadParallel(b *testing.B) {
 		if r.Method == "POST" && r.URL.Path == "/api/v1/shards/register" {
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(types.RegisterFileResp{FileID: "file-123"})
-		} else {
+		} else if r.Method == "POST" && r.URL.Path == "/api/v1/shards/record" {
+			var recordReq types.RecordShardReq
+			_ = json.NewDecoder(r.Body).Decode(&recordReq)
+			w.Header().Set("Content-Type", "application/json")
+			respShards := make([]types.ShardInfo, 0, len(recordReq.Shards))
+			for i, s := range recordReq.Shards {
+				s.ShardID = fmt.Sprintf("shard-%d", i)
+				respShards = append(respShards, s)
+			}
 			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(types.RecordShardResp{
+				FileID: recordReq.FileID,
+				Shards: respShards,
+			})
+		} else {
+			w.WriteHeader(http.StatusOK)
 		}
 	}))
 	defer shardMapServer.Close()

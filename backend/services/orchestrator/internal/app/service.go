@@ -30,7 +30,7 @@ type AdapterClient interface {
 
 type ShardMapClient interface {
 	RegisterFile(ctx context.Context, req *types.RegisterFileReq) (*types.RegisterFileResp, error)
-	RecordShards(ctx context.Context, req *types.RecordShardReq) error
+	RecordShards(ctx context.Context, req *types.RecordShardReq) (*types.RecordShardResp, error)
 	GetShardMap(ctx context.Context, fileID string) (*types.GetShardMapResp, error)
 	MarkShardStatus(ctx context.Context, shardID string, status string) error
 }
@@ -169,13 +169,31 @@ func (s *Service) UploadFile(ctx context.Context, fileName string, shards [][]by
 		})
 	}
 
-	if err := s.shardMap.RecordShards(ctx, recordReq); err != nil {
+	recordResp, err := s.shardMap.RecordShards(ctx, recordReq)
+	if err != nil {
 		s.rollbackUpload(ctx, uploadResults)
 		return &types.UploadResp{
 			FileID: fileID,
 			Status: "failed",
 			Error:  fmt.Sprintf("failed to record shards: %v", err),
 		}, nil
+	}
+
+	for _, shard := range recordResp.Shards {
+		if shard.ShardID == "" {
+			return &types.UploadResp{
+				FileID: fileID,
+				Status: "failed",
+				Error:  "failed to mark shard health: missing shard_id in record response",
+			}, nil
+		}
+		if err := s.shardMap.MarkShardStatus(ctx, shard.ShardID, "HEALTHY"); err != nil {
+			return &types.UploadResp{
+				FileID: fileID,
+				Status: "failed",
+				Error:  fmt.Sprintf("failed to mark shard %s healthy: %v", shard.ShardID, err),
+			}, nil
+		}
 	}
 
 	shardInfos := []types.ShardInfo{}

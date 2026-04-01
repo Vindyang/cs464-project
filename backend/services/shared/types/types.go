@@ -21,7 +21,13 @@ type RecordShardReq struct {
 	Shards []ShardInfo `json:"shards"`
 }
 
+type RecordShardResp struct {
+	FileID string      `json:"file_id"`
+	Shards []ShardInfo `json:"shards"`
+}
+
 type ShardInfo struct {
+	ShardID     string `json:"shard_id,omitempty"`
 	ChunkIndex  int    `json:"chunk_index"`
 	ShardIndex  int    `json:"shard_index"`
 	Type        string `json:"type"` // "data" or "parity"
