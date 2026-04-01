@@ -22,13 +22,13 @@
 
 ## Adapter Service
 - [x] Replace PostgreSQL token storage dependency with local persistent token store (file-based or SQLite-backed abstraction).
-- [ ] Remove hard failure on missing DATABASE_URL in local mode.
+- [x] Remove hard failure on missing DATABASE_URL in local mode.
 - [x] Add runtime endpoint(s) to configure Google OAuth credentials from frontend setup screen.
 - [x] Persist OAuth credential config locally and load it on startup.
 - [x] Keep optional env fallback for credentials during migration period.
 - [x] Preserve OAuth authorize/callback/disconnect behavior after storage migration.
 - [x] Restore Google provider connection from local persisted token on service restart.
-- [ ] Ensure CORS/config allows setup endpoint access from frontend origin.
+- [x] Ensure CORS/config allows setup endpoint access from frontend origin.
 
 ## Shared OAuth Handler
 - [x] Refactor credential loading order: runtime-configured credentials first, env fallback second.

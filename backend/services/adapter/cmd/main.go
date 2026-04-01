@@ -17,8 +17,6 @@ import (
 	"github.com/vindyang/cs464-project/backend/services/shared/oauthhandler"
 )
 
-const driveScope = "https://www.googleapis.com/auth/drive.file"
-
 type App struct {
 	Registry *adapter.Registry
 }
@@ -53,6 +51,7 @@ func main() {
 	// OAuth handler for Google Drive
 	oauthHandler := oauthhandler.New(store, registry)
 
+	credentialsHandler := handlers.NewCredentialsHandler(store)
 	shardIOHandler := handlers.NewShardIOHandler(registry)
 
 	shardmapURL := os.Getenv("SHARDMAP_URL")
@@ -74,6 +73,7 @@ func main() {
 	mux.HandleFunc("/api/oauth/gdrive/authorize", oauthHandler.Authorize)
 	mux.HandleFunc("/api/oauth/gdrive/callback", oauthHandler.Callback)
 	mux.HandleFunc("/api/oauth/gdrive/disconnect", oauthHandler.Disconnect)
+	credentialsHandler.RegisterRoutes(mux)
 	shardIOHandler.RegisterRoutes(mux)
 	fileHandler.RegisterRoutes(mux)
 
@@ -108,9 +108,6 @@ func main() {
 // tryRestoreGDriveAdapter loads a stored token from the local store and re-registers the adapter.
 // Non-fatal: logs and returns nil if no token is found.
 func tryRestoreGDriveAdapter(store *db.Store, registry *adapter.Registry) error {
-	// Delegate to the oauth handler's lazy credential loading by constructing a
-	// temporary handler and asking it to build the config.
-	// Instead, rebuild directly here using the same credential priority as the handler.
 	tok, err := store.LoadToken("googleDrive")
 	if err != nil {
 		// No token stored yet — user hasn't connected. Not an error.
