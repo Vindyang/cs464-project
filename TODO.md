@@ -25,15 +25,15 @@
 - [ ] Remove hard failure on missing DATABASE_URL in local mode.
 - [x] Add runtime endpoint(s) to configure Google OAuth credentials from frontend setup screen.
 - [x] Persist OAuth credential config locally and load it on startup.
-- [ ] Keep optional env fallback for credentials during migration period.
-- [ ] Preserve OAuth authorize/callback/disconnect behavior after storage migration.
-- [ ] Restore Google provider connection from local persisted token on service restart.
+- [x] Keep optional env fallback for credentials during migration period.
+- [x] Preserve OAuth authorize/callback/disconnect behavior after storage migration.
+- [x] Restore Google provider connection from local persisted token on service restart.
 - [ ] Ensure CORS/config allows setup endpoint access from frontend origin.
 
 ## Shared OAuth Handler
-- [ ] Refactor credential loading order: runtime-configured credentials first, env fallback second.
-- [ ] Ensure callback path handles missing/invalid runtime config with clear errors.
-- [ ] Keep state token validation and redirect flow intact.
+- [x] Refactor credential loading order: runtime-configured credentials first, env fallback second.
+- [x] Ensure callback path handles missing/invalid runtime config with clear errors.
+- [x] Keep state token validation and redirect flow intact.
 
 ## Shared Google Drive Adapter
 - [ ] Implement find-or-create behavior for folder named nebula on first successful connection.

@@ -13,6 +13,7 @@ import (
 	"google.golang.org/api/option"
 
 	"github.com/vindyang/cs464-project/backend/services/shared/adapter"
+	"github.com/vindyang/cs464-project/backend/services/shared/db"
 )
 
 // driveScope grants access only to files created by this app.
@@ -23,17 +24,15 @@ const driveScope = "https://www.googleapis.com/auth/drive.file"
 // GDriveAdapter implements StorageProvider using the Google Drive API v3.
 // Authenticates via OAuth2 user credentials (Web app flow).
 type GDriveAdapter struct {
-	FolderID string
+	folderID string    // resolved nebula folder ID (populated lazily in Phase 4)
+	store    *db.Store // used to persist and retrieve the nebula folder ID
 	service  *drive.Service
 }
 
-// NewGDriveAdapter constructs a GDriveAdapter from an OAuth2 config and token.
+// NewGDriveAdapter constructs a GDriveAdapter from an OAuth2 config, token, and store.
 // The token source auto-refreshes using the refresh token.
-//
-//   - config: OAuth2 config with client credentials and redirect URI.
-//   - token: stored OAuth2 token (loaded from DB by the caller).
-//   - folderID: Google Drive folder ID where shards will be stored.
-func NewGDriveAdapter(config *oauth2.Config, token *oauth2.Token, folderID string) (*GDriveAdapter, error) {
+// The store is used to persist the resolved nebula folder ID across restarts.
+func NewGDriveAdapter(config *oauth2.Config, token *oauth2.Token, store *db.Store) (*GDriveAdapter, error) {
 	tokenSource := config.TokenSource(context.Background(), token)
 
 	svc, err := drive.NewService(context.Background(), option.WithTokenSource(tokenSource))
@@ -42,8 +41,8 @@ func NewGDriveAdapter(config *oauth2.Config, token *oauth2.Token, folderID strin
 	}
 
 	return &GDriveAdapter{
-		FolderID: folderID,
-		service:  svc,
+		store:   store,
+		service: svc,
 	}, nil
 }
 
@@ -87,7 +86,7 @@ func (g *GDriveAdapter) UploadShard(ctx context.Context, fileID string, index in
 
 	meta := &drive.File{
 		Name:    name,
-		Parents: []string{g.FolderID},
+		Parents: []string{g.folderID},
 	}
 
 	file, err := g.service.Files.Create(meta).
