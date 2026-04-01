@@ -36,10 +36,10 @@
 - [x] Keep state token validation and redirect flow intact.
 
 ## Shared Google Drive Adapter
-- [ ] Implement find-or-create behavior for folder named nebula on first successful connection.
-- [ ] Persist resolved folder ID for reuse (avoid searching/creating every request).
-- [ ] Remove hard dependency on preconfigured GDRIVE_FOLDER_ID for local mode.
-- [ ] Verify shard upload naming and parent folder assignment remain correct.
+- [x] Implement find-or-create behavior for folder named nebula on first successful connection.
+- [x] Persist resolved folder ID for reuse (avoid searching/creating every request).
+- [x] Remove hard dependency on preconfigured GDRIVE_FOLDER_ID for local mode.
+- [x] Verify shard upload naming and parent folder assignment remain correct.
 
 ## Sharding Service
 - [ ] Confirm no DB dependency remains and service stays stateless/local.
