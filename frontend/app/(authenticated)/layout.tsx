@@ -2,12 +2,24 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { getProviders } from "@/lib/api/providers";
 import { getFiles } from "@/lib/api/files";
+import { getCredentialStatus } from "@/lib/api/credentials";
+import { redirect } from "next/navigation";
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const credentialStatus = await getCredentialStatus().catch(() => ({
+    configured: false,
+    count: 0,
+    providers: [],
+  }));
+
+  if (!credentialStatus.configured) {
+    redirect("/credentials");
+  }
+
   const [providers, files] = await Promise.all([
     getProviders().catch(() => []),
     getFiles().catch(() => []),

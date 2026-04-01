@@ -21,6 +21,7 @@ const navItems = [
   { title: "Dashboard", href: "/dashboard" },
   { title: "Nodes", href: "/nodes" },
   { title: "Providers", href: "/providers" },
+  { title: "Credentials", href: "/credentials" },
   { title: "Settings", href: "/settings" },
 ];
 
