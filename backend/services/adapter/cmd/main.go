@@ -66,7 +66,7 @@ func main() {
 	if shardmapURL == "" {
 		shardmapURL = "http://localhost:8081"
 	}
-	fileHandler := handlers.NewFileHandler(shardmapURL)
+	fileHandler := handlers.NewFileHandler(shardmapURL, registry)
 
 	app := &App{Registry: registry}
 
