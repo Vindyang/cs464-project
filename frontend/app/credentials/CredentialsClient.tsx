@@ -22,6 +22,7 @@ const PROVIDER_FIELDS: Record<string, {
   field1: { label: string; placeholder: string };
   field2: { label: string; placeholder: string };
   field3: { label: string; placeholder: string; default: string };
+  field4?: { label: string; placeholder: string };
 }> = {
   googleDrive: {
     field1: { label: "Client ID", placeholder: "Google OAuth client_id" },
@@ -31,7 +32,7 @@ const PROVIDER_FIELDS: Record<string, {
   awsS3: {
     field1: { label: "Access Key ID", placeholder: "AKIAIOSFODNN7EXAMPLE" },
     field2: { label: "Secret Access Key", placeholder: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" },
-    field3: { label: "Region", placeholder: "us-east-1", default: "" },
+    field3: { label: "Region", placeholder: "us-east-1", default: "ap-southeast-1" },
   },
   oneDrive: {
     field1: { label: "Client ID", placeholder: "Azure app (client) ID" },
@@ -65,7 +66,6 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
       toast.error(`${fields.field1.label}, ${fields.field2.label}, and ${fields.field3.label} are required`);
       return;
     }
-
     setSaving(true);
     try {
       await saveCredential(providerId, {

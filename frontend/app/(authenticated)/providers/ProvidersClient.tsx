@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ProviderMetadata, getProviders, disconnectGDrive, getGDriveAuthorizeURL } from "@/lib/api/providers";
+import { ProviderMetadata, getProviders, disconnectGDrive, getGDriveAuthorizeURL, connectS3, disconnectS3 } from "@/lib/api/providers";
 import { FileMetadata, getFiles, uploadFile } from "@/lib/api/files";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -10,7 +10,7 @@ import { Upload, X } from "lucide-react";
 
 const CONNECT_OPTIONS = [
   { id: "googleDrive", name: "Google Drive", description: "Connect your Google Drive account.", available: true },
-  { id: "awsS3", name: "Amazon S3", description: "Coming soon.", available: false },
+  { id: "awsS3", name: "Amazon S3", description: "Connect using Access Key credentials.", available: true },
   { id: "oneDrive", name: "OneDrive", description: "Coming soon.", available: false },
 ];
 
@@ -101,13 +101,26 @@ export function ProvidersClient({ initialProviders }: ProvidersClientProps) {
   );
 
   const handleConnect = async (providerId: string) => {
-    if (providerId !== "googleDrive") return;
     setConnecting(providerId);
-    try {
-      const { authURL } = await getGDriveAuthorizeURL();
-      window.location.assign(authURL);
-    } catch {
-      toast.error("Failed to start Google Drive connection");
+    if (providerId === "googleDrive") {
+      try {
+        const { authURL } = await getGDriveAuthorizeURL();
+        window.location.assign(authURL);
+      } catch {
+        toast.error("Failed to start Google Drive connection");
+        setConnecting(null);
+      }
+    } else if (providerId === "awsS3") {
+      try {
+        await connectS3();
+        toast.success("AWS S3 connected successfully");
+        refresh();
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to connect S3");
+      } finally {
+        setConnecting(null);
+      }
+    } else {
       setConnecting(null);
     }
   };
@@ -120,6 +133,7 @@ export function ProvidersClient({ initialProviders }: ProvidersClientProps) {
         onClick: async () => {
           try {
             if (providerId === "googleDrive") await disconnectGDrive();
+            else if (providerId === "awsS3") await disconnectS3();
             toast.success("Provider disconnected");
             refresh();
           } catch {
@@ -556,7 +570,7 @@ function ConnectModal({
                     : "text-neutral-300 border-neutral-200 cursor-not-allowed"
                 )}
               >
-                {connecting === p.id ? "Redirecting..." : "Connect"}
+                {connecting === p.id ? "Connecting..." : "Connect"}
               </button>
             </div>
           ))}

@@ -15,6 +15,7 @@ import (
 	"github.com/vindyang/cs464-project/backend/services/shared/adapter"
 	"github.com/vindyang/cs464-project/backend/services/shared/db"
 	"github.com/vindyang/cs464-project/backend/services/shared/oauthhandler"
+	"github.com/vindyang/cs464-project/backend/services/shared/s3handler"
 )
 
 type App struct {
@@ -48,6 +49,12 @@ func main() {
 		log.Printf("Google Drive adapter not restored: %v", err)
 	}
 
+	// Restore S3 adapter from stored credentials if available
+	s3Handler := s3handler.New(store, registry)
+	if err := s3Handler.RestoreAdapter(); err != nil {
+		log.Printf("S3 adapter not restored: %v", err)
+	}
+
 	// OAuth handler for Google Drive
 	oauthHandler := oauthhandler.New(store, registry)
 
@@ -74,6 +81,8 @@ func main() {
 	mux.HandleFunc("/api/oauth/gdrive/authorize", oauthHandler.Authorize)
 	mux.HandleFunc("/api/oauth/gdrive/callback", oauthHandler.Callback)
 	mux.HandleFunc("/api/oauth/gdrive/disconnect", oauthHandler.Disconnect)
+	mux.HandleFunc("/api/providers/awsS3/connect", s3Handler.Connect)
+	mux.HandleFunc("/api/providers/awsS3/disconnect", s3Handler.Disconnect)
 	credentialsHandler.RegisterRoutes(mux)
 	settingsHandler.RegisterRoutes(mux)
 	shardIOHandler.RegisterRoutes(mux)
