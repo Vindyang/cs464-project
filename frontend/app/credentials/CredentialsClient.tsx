@@ -18,6 +18,28 @@ const PROVIDERS = [
   { id: "oneDrive", label: "OneDrive" },
 ];
 
+const PROVIDER_FIELDS: Record<string, {
+  field1: { label: string; placeholder: string };
+  field2: { label: string; placeholder: string };
+  field3: { label: string; placeholder: string; default: string };
+}> = {
+  googleDrive: {
+    field1: { label: "Client ID", placeholder: "Google OAuth client_id" },
+    field2: { label: "Client Secret", placeholder: "Google OAuth client_secret" },
+    field3: { label: "Redirect URI", placeholder: "http://localhost:8080/api/oauth/gdrive/callback", default: "http://localhost:8080/api/oauth/gdrive/callback" },
+  },
+  awsS3: {
+    field1: { label: "Access Key ID", placeholder: "AKIAIOSFODNN7EXAMPLE" },
+    field2: { label: "Secret Access Key", placeholder: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" },
+    field3: { label: "Region", placeholder: "us-east-1", default: "" },
+  },
+  oneDrive: {
+    field1: { label: "Client ID", placeholder: "Azure app (client) ID" },
+    field2: { label: "Client Secret", placeholder: "Azure app client secret" },
+    field3: { label: "Redirect URI", placeholder: "http://localhost:8080/api/oauth/onedrive/callback", default: "" },
+  },
+};
+
 interface CredentialsClientProps {
   initialCredentials: ProviderCredential[];
 }
@@ -29,6 +51,8 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
   const [clientId, setClientId] = useState("");
   const [clientSecret, setClientSecret] = useState("");
   const [redirectUri, setRedirectUri] = useState("http://localhost:8080/api/oauth/gdrive/callback");
+
+  const fields = PROVIDER_FIELDS[providerId] ?? PROVIDER_FIELDS.googleDrive;
   const [saving, setSaving] = useState(false);
 
   const selectedName = useMemo(
@@ -38,7 +62,7 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
 
   async function handleSave() {
     if (!clientId || !clientSecret || !redirectUri) {
-      toast.error("client_id, client_secret, and redirect_uri are required");
+      toast.error(`${fields.field1.label}, ${fields.field2.label}, and ${fields.field3.label} are required`);
       return;
     }
 
@@ -86,7 +110,7 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
   }
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-5xl p-6">
+    <main className="max-w-5xl">
       <div className="mb-6 border-b pb-4">
         <p className="font-mono text-[11px] uppercase tracking-widest text-neutral-500">
           Setup
@@ -109,7 +133,13 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
               </span>
               <select
                 value={providerId}
-                onChange={(e) => setProviderId(e.target.value)}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setProviderId(id);
+                  setClientId("");
+                  setClientSecret("");
+                  setRedirectUri(PROVIDER_FIELDS[id]?.field3.default ?? "");
+                }}
                 className="w-full border bg-white px-3 py-2 font-mono text-xs outline-none focus:ring-1 focus:ring-black"
               >
                 {PROVIDERS.map((p) => (
@@ -122,38 +152,38 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
 
             <label className="block">
               <span className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-neutral-500">
-                Client ID
+                {fields.field1.label}
               </span>
               <input
                 value={clientId}
                 onChange={(e) => setClientId(e.target.value)}
                 className="w-full border bg-white px-3 py-2 font-mono text-xs outline-none focus:ring-1 focus:ring-black"
-                placeholder="Google OAuth client_id"
+                placeholder={fields.field1.placeholder}
               />
             </label>
 
             <label className="block">
               <span className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-neutral-500">
-                Client Secret
+                {fields.field2.label}
               </span>
               <input
                 type="password"
                 value={clientSecret}
                 onChange={(e) => setClientSecret(e.target.value)}
                 className="w-full border bg-white px-3 py-2 font-mono text-xs outline-none focus:ring-1 focus:ring-black"
-                placeholder="Google OAuth client_secret"
+                placeholder={fields.field2.placeholder}
               />
             </label>
 
             <label className="block">
               <span className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-neutral-500">
-                Redirect URI
+                {fields.field3.label}
               </span>
               <input
                 value={redirectUri}
                 onChange={(e) => setRedirectUri(e.target.value)}
                 className="w-full border bg-white px-3 py-2 font-mono text-xs outline-none focus:ring-1 focus:ring-black"
-                placeholder="http://localhost:8080/api/oauth/gdrive/callback"
+                placeholder={fields.field3.placeholder}
               />
             </label>
 
