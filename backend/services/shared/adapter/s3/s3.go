@@ -44,6 +44,30 @@ func (a *S3Adapter) GetMetadata(ctx context.Context) (*adapter.ProviderMetadata,
 	if err != nil {
 		status = "error"
 	}
+
+	var quotaUsed int64
+	if err == nil {
+		var token *string
+		for {
+			out, listErr := a.client.ListObjectsV2(ctx, &s3.ListObjectsV2Input{
+				Bucket:            aws.String(a.Bucket),
+				ContinuationToken: token,
+			})
+			if listErr != nil {
+				break
+			}
+			for _, obj := range out.Contents {
+				if obj.Size != nil {
+					quotaUsed += *obj.Size
+				}
+			}
+			if !aws.ToBool(out.IsTruncated) || out.NextContinuationToken == nil {
+				break
+			}
+			token = out.NextContinuationToken
+		}
+	}
+
 	return &adapter.ProviderMetadata{
 		ProviderID:   "awsS3",
 		DisplayName:  "AWS S3",
@@ -52,7 +76,7 @@ func (a *S3Adapter) GetMetadata(ctx context.Context) (*adapter.ProviderMetadata,
 		Region:       a.Region,
 		Capabilities: map[string]interface{}{"maxPartSize": 5242880},
 		QuotaTotal:   0,
-		QuotaUsed:    0,
+		QuotaUsed:    quotaUsed,
 		LastCheck:    time.Now().UTC().Format(time.RFC3339),
 	}, nil
 }

@@ -39,7 +39,7 @@ export function StorageOverview({ providers, fileCount }: StorageOverviewProps) 
         <span className="font-mono text-5xl font-bold">{used.value}</span>
         <span className="font-mono text-xl text-neutral-500">{used.unit}</span>
         <span className="ml-auto font-mono text-sm text-neutral-500">
-          / {total.value} {total.unit}
+          / {totalBytes > 0 ? `${total.value} ${total.unit}` : "—"}
         </span>
       </div>
 

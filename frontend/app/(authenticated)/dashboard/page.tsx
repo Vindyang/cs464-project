@@ -157,7 +157,7 @@ export default async function DashboardPage() {
                           {usedPct}%
                         </span>
                         <span className="font-mono text-[10px] text-neutral-400 shrink-0 truncate">
-                          {formatBytes(p.quotaUsedBytes)} / {formatBytes(p.quotaTotalBytes)}
+                          {formatBytes(p.quotaUsedBytes)}{p.quotaTotalBytes > 0 ? ` / ${formatBytes(p.quotaTotalBytes)}` : " / —"}
                         </span>
                       </div>
                     </div>

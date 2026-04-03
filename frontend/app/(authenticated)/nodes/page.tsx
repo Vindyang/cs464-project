@@ -141,7 +141,7 @@ export default async function NodesPage() {
                         {formatBytes(p.quotaUsedBytes)}
                       </span>
                       <span className="font-mono text-[10px] text-neutral-400">
-                        / {formatBytes(p.quotaTotalBytes)}
+                        / {p.quotaTotalBytes > 0 ? formatBytes(p.quotaTotalBytes) : "—"}
                       </span>
                     </div>
                     <div className="h-1 w-full bg-neutral-100">
