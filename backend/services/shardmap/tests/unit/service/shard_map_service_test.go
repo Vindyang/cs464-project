@@ -49,6 +49,11 @@ func (m *mockFileRepo) Delete(id uuid.UUID) error {
 	return nil
 }
 
+func (m *mockFileRepo) GetByUserID(_ string) ([]*models.FileWithHealth, error) {
+	return nil, nil
+}
+
+
 type mockShardRepo struct {
 	createFn         func(*models.Shard) error
 	createBatchFn    func([]*models.Shard) error

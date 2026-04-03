@@ -32,12 +32,21 @@ func main() {
 	// Initialize repositories
 	fileRepo := repository.NewFileRepository(db)
 	shardRepo := repository.NewShardRepository(db)
+	lifecycleRepo := repository.NewLifecycleRepository(db)
+
+	// Ensure lifecycle schema exists (idempotent, safe on every startup)
+	if err := lifecycleRepo.EnsureSchema(); err != nil {
+		log.Fatalf("Failed to initialize lifecycle schema: %v", err)
+	}
+	log.Println("✅ Lifecycle schema ready")
 
 	// Initialize services
 	shardMapService := app.NewShardMapService(fileRepo, shardRepo)
+	lifecycleService := app.NewLifecycleService(lifecycleRepo)
 
 	// Initialize handlers
 	shardMapHandler := handlers.NewShardMapHandler(shardMapService)
+	lifecycleHandler := handlers.NewLifecycleHandler(lifecycleService)
 
 	// Set up HTTP mux
 	mux := http.NewServeMux()
@@ -53,6 +62,7 @@ func main() {
 
 	// Register API routes
 	shardMapHandler.RegisterRoutes(mux)
+	lifecycleHandler.RegisterRoutes(mux)
 
 	// Apply middleware
 	handler := middleware.Logger(middleware.CORS(middleware.Recovery(mux)))
@@ -69,3 +79,4 @@ func main() {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }
+

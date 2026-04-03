@@ -1,8 +1,18 @@
 name: CI — Integration
 
 on:
+  push:
+    branches: [main, "feature/**"]
+    paths:
+      - 'backend/services/**'
+      - 'backend/tests/**'
+      - '.github/workflows/integration.yml'
   pull_request:
     branches: [main]
+    paths:
+      - 'backend/services/**'
+      - 'backend/tests/**'
+      - '.github/workflows/integration.yml'
 
 jobs:
   integration-contracts:

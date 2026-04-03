@@ -1,0 +1,84 @@
+services:
+  # Adapter: real service. Tests point ADAPTER_URL to a mock running in the Go test process.
+  # We expose a lightweight no-op adapter that just lets the orchestrator reach it.
+  # The actual cloud provider logic is NOT exercised in CI e2e tests.
+
+  shardmap-test:
+    build:
+      context: ./backend
+      dockerfile: services/shardmap/Dockerfile
+    restart: "no"
+    environment:
+      PORT: "8081"
+      DATABASE_URL: "postgresql://nebula:nebula@postgres-test:5432/nebula_test?sslmode=disable"
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+    ports:
+      - "19081:8081"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/health || exit 1"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+    profiles: ["e2e"]
+
+  sharding-test:
+    build:
+      context: ./backend
+      dockerfile: services/sharding/Dockerfile
+    restart: "no"
+    environment:
+      PORT: "8083"
+    ports:
+      - "19083:8083"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8083/api/sharding/health || exit 1"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+    profiles: ["e2e"]
+
+  orchestrator-test:
+    build:
+      context: ./backend
+      dockerfile: services/orchestrator/Dockerfile
+    restart: "no"
+    environment:
+      PORT: "8082"
+      # Adapter URL is set at test runtime via ADAPTER_TEST_URL env (mock running in test process).
+      # The ADAPTER_URL below is overridden when the test stack is started with --env.
+      ADAPTER_URL: "${ADAPTER_TEST_URL:-http://host.docker.internal:19080}"
+      SHARDMAP_URL: "http://shardmap-test:8081"
+      SHARDING_URL: "http://sharding-test:8083"
+    depends_on:
+      shardmap-test:
+        condition: service_healthy
+      sharding-test:
+        condition: service_healthy
+    ports:
+      - "19082:8082"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/health || exit 1"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    profiles: ["e2e"]
+
+  postgres-test:
+    image: postgres:16-alpine
+    restart: "no"
+    environment:
+      POSTGRES_DB: nebula_test
+      POSTGRES_USER: nebula
+      POSTGRES_PASSWORD: nebula
+    ports:
+      - "15432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nebula -d nebula_test"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    profiles: ["e2e"]

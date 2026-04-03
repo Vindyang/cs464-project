@@ -134,3 +134,56 @@ func (c *Client) MarkShardStatus(ctx context.Context, shardID string, status str
 	}
 	return nil
 }
+
+// LogLifecycleEvent sends a lifecycle event (upload / download) to the shardmap
+// service for persistence. The caller should treat failures as non-fatal.
+func (c *Client) LogLifecycleEvent(ctx context.Context, event *types.LifecycleEvent) error {
+	body, err := json.Marshal(event)
+	if err != nil {
+		return fmt.Errorf("failed to marshal lifecycle event: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/v1/lifecycle", bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("failed to create lifecycle request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("failed to log lifecycle event: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusNoContent {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("shardmap lifecycle returned %d: %s", resp.StatusCode, respBody)
+	}
+	return nil
+}
+
+// GetFileHistory retrieves all lifecycle events for a given file from the shardmap service.
+func (c *Client) GetFileHistory(ctx context.Context, fileID string) (*types.FileHistoryResp, error) {
+	url := fmt.Sprintf("%s/api/v1/lifecycle/%s", c.baseURL, fileID)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create history request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get file history: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("shardmap history returned %d: %s", resp.StatusCode, respBody)
+	}
+
+	var out types.FileHistoryResp
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, fmt.Errorf("failed to decode history response: %w", err)
+	}
+	return &out, nil
+}
