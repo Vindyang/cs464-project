@@ -1,6 +1,6 @@
-# Nebula Drive Backend
+# Omnishard Backend
 
-Nebula Drive is organized as independently deployable Go services with strict ownership boundaries.
+Omnishard is organized as independently deployable Go services with strict ownership boundaries.
 The orchestrator is the workflow owner and coordinates sharding, storage, and shard metadata.
 The gateway is the public API entrypoint and enforces endpoint/versioning standards.
 
@@ -36,6 +36,7 @@ Legacy monolith code under top-level `internal/` has been removed.
 ## End-to-End Workflow Ownership
 
 Upload workflow:
+
 1. Gateway receives the request on `/api/v1/upload`.
 2. Gateway forwards to orchestrator.
 3. Orchestrator receives file upload.
@@ -44,6 +45,7 @@ Upload workflow:
 6. Orchestrator calls shardmap to register and record shard metadata.
 
 Download workflow:
+
 1. Gateway receives the request on `/api/v1/download/{fileId}`.
 2. Gateway forwards to orchestrator.
 3. Orchestrator requests shard locations from shardmap.

@@ -2,6 +2,15 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Trash2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   CREDENTIAL_PROVIDERS,
   deleteCredential,
@@ -52,6 +61,8 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
   const [clientId, setClientId] = useState("");
   const [clientSecret, setClientSecret] = useState("");
   const [redirectUri, setRedirectUri] = useState("http://localhost:8080/api/oauth/gdrive/callback");
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fields = PROVIDER_FIELDS[providerId] ?? PROVIDER_FIELDS.googleDrive;
   const [saving, setSaving] = useState(false);
@@ -85,14 +96,18 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
   }
 
   async function handleDelete(id: string) {
+    setDeleting(true);
     try {
       await deleteCredential(id);
       const persisted = await getCredentials();
       setCredentials(persisted);
       toast.success("Credentials deleted");
       router.refresh();
+      setPendingDeleteId(null);
     } catch {
       toast.error("Failed to delete credentials");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -216,16 +231,14 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
                   <div className="flex items-center justify-between">
                     <span className="font-mono text-sm">{cred.provider_id}</span>
                     <button
-                      onClick={() => handleDelete(cred.provider_id)}
-                      className="font-mono text-[11px] uppercase tracking-wider text-neutral-400 hover:text-black"
+                      onClick={() => setPendingDeleteId(cred.provider_id)}
+                      aria-label={`Delete ${cred.provider_id} credential`}
+                      className="text-red-500 transition-colors hover:text-red-700"
                     >
-                      Delete
+                      <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
-                  <p className="mt-1 font-mono text-[11px] text-neutral-400">
-                    {cred.client_id.slice(0, 14)}... · {cred.redirect_uri}
-                  </p>
-                  <p className="mt-0.5 font-mono text-[11px] text-neutral-300">
+                  <p className="mt-1 font-mono text-[11px] text-neutral-300">
                     Updated {new Date(cred.updated_at).toLocaleString()}
                   </p>
                 </li>
@@ -245,6 +258,44 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
       <p className="mt-4 font-mono text-[11px] text-neutral-400">
         Supported providers in backend right now: {CREDENTIAL_PROVIDERS.join(", ")}
       </p>
+
+      <Dialog
+        open={pendingDeleteId !== null}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setPendingDeleteId(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-mono text-sm uppercase tracking-wider">
+              Delete Credential
+            </DialogTitle>
+            <DialogDescription className="font-mono text-[12px] text-neutral-600">
+              {pendingDeleteId
+                ? `Remove stored credential for ${pendingDeleteId}? This action cannot be undone.`
+                : "Remove this stored credential? This action cannot be undone."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => setPendingDeleteId(null)}
+              disabled={deleting}
+              className="font-mono text-[11px] uppercase tracking-wider border px-3 py-2 text-neutral-600 transition-colors hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => pendingDeleteId && handleDelete(pendingDeleteId)}
+              disabled={!pendingDeleteId || deleting}
+              className="font-mono text-[11px] uppercase tracking-wider border border-red-600 bg-red-600 px-3 py-2 text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {deleting ? "Deleting..." : "Delete"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

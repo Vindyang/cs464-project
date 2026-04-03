@@ -1,4 +1,4 @@
--- Nebula Drive Database Schema
+-- Omnishard Database Schema
 -- PostgreSQL 14+ (Supabase)
 -- Generated: 2026-03-21
 -- Includes: User ownership, providers, permissions, audit logs, and data integrity

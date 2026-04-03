@@ -3,16 +3,16 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: nebula
-      POSTGRES_USER: nebula
-      POSTGRES_PASSWORD: nebula
+      POSTGRES_DB: Omnishard
+      POSTGRES_USER: Omnishard
+      POSTGRES_PASSWORD: Omnishard
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/docker/init-local.sql:/docker-entrypoint-initdb.d/001-init-local.sql:ro
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U nebula -d nebula"]
+      test: ["CMD-SHELL", "pg_isready -U Omnishard -d Omnishard"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -28,7 +28,7 @@ services:
     environment:
       PORT: "8080"
       SHARDMAP_URL: "http://shardmap:8081"
-      NEBULA_DB_PATH: "/app/data/nebula.db"
+      Omnishard_DB_PATH: "/app/data/Omnishard.db"
     depends_on:
       postgres:
         condition: service_healthy
@@ -47,7 +47,7 @@ services:
       - ./backend/.env
     environment:
       PORT: "8081"
-      NEBULA_SHARDMAP_DB_PATH: "/app/data/nebula-shardmap.db"
+      Omnishard_SHARDMAP_DB_PATH: "/app/data/Omnishard-shardmap.db"
     depends_on:
       postgres:
         condition: service_healthy

@@ -45,7 +45,7 @@ export default async function DashboardLayout({
           <SidebarTrigger className="-ml-1" />
           <div className="h-5 w-px bg-neutral-200" />
           <span className="font-mono text-[12px] font-medium uppercase tracking-widest text-neutral-500">
-            Nebula Drive
+            Omnishard
           </span>
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto p-6">{children}</div>

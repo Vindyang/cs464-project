@@ -24,7 +24,7 @@ server {
 
     location = / {
         default_type application/json;
-        return 200 '{"app": "nebula drive cs464", "service":"api-gateway","version":"v1","docs":"/api/v1/docs"}';
+        return 200 '{"app": "Omnishard cs464", "service":"api-gateway","version":"v1","docs":"/api/v1/docs"}';
     }
 
     location = /api/v1/docs {

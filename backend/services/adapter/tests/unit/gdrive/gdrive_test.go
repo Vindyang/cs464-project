@@ -78,7 +78,7 @@ func TestGDriveIntegration(t *testing.T) {
 	})
 
 	t.Run("UploadDownloadDelete", func(t *testing.T) {
-		const payload = "nebula-shard-test-payload"
+		const payload = "Omnishard-shard-test-payload"
 
 		remoteID, err := a.UploadShard(ctx, "test-file-001", 0, strings.NewReader(payload))
 		if err != nil {

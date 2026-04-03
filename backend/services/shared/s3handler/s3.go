@@ -71,8 +71,8 @@ func (h *S3Handler) Disconnect(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// buildAdapter loads stored credentials, ensures the nebula bucket exists, and
-// constructs an S3Adapter. The bucket name (nebula-<accountID>) is cached in
+// buildAdapter loads stored credentials, ensures the Omnishard bucket exists, and
+// constructs an S3Adapter. The bucket name (Omnishard-<accountID>) is cached in
 // provider_config so subsequent startups don't need an extra STS call.
 func (h *S3Handler) buildAdapter(ctx context.Context) (*s3adapter.S3Adapter, error) {
 	// region is stored in the redirect_uri column
@@ -97,7 +97,7 @@ func (h *S3Handler) buildAdapter(ctx context.Context) (*s3adapter.S3Adapter, err
 	return s3adapter.NewS3Adapter(accessKeyID, secretAccessKey, region, bucket)
 }
 
-// ensureBucket returns the nebula bucket name for this account, creating it if needed.
+// ensureBucket returns the Omnishard bucket name for this account, creating it if needed.
 // The name is cached in provider_config to avoid STS calls on every restart.
 func (h *S3Handler) ensureBucket(ctx context.Context, cfg aws.Config, region string) (string, error) {
 	// Check cache first
@@ -111,7 +111,7 @@ func (h *S3Handler) ensureBucket(ctx context.Context, cfg aws.Config, region str
 	if err != nil {
 		return "", fmt.Errorf("get caller identity: %w", err)
 	}
-	bucket := "nebula-" + aws.ToString(identity.Account)
+	bucket := "Omnishard-" + aws.ToString(identity.Account)
 
 	// Create bucket if it doesn't exist
 	s3Client := s3.NewFromConfig(cfg)

@@ -1,5 +1,5 @@
 import { getProviders } from "@/lib/api/providers";
-import { ProvidersClient } from "./ProvidersClient";
+import { ProvidersClient } from "./componentsAction/ProvidersClient";
 import { Suspense } from "react";
 
 export default async function ProvidersPage() {

@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: Nebula Drive API Gateway
+  title: Omnishard API Gateway
   version: v1
   description: Public API exposed by the gateway service.
 servers:

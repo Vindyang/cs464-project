@@ -67,7 +67,7 @@ export function AppSidebar({
             <div className="h-1.5 w-1.5 bg-neutral-900" />
           </div>
           <span className="font-mono text-[12px] font-bold uppercase tracking-[0.15em] text-neutral-900">
-            Nebula Drive
+            Omnishard
           </span>
         </div>
       </SidebarHeader>

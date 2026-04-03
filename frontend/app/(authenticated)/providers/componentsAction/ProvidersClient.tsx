@@ -83,12 +83,16 @@ export function ProvidersClient({ initialProviders }: ProvidersClientProps) {
   useEffect(() => {
     const connected = searchParams.get("connected");
     const error = searchParams.get("error");
+    const upload = searchParams.get("upload");
     if (connected === "googleDrive") {
       toast.success("Google Drive connected successfully");
       router.replace("/providers");
       refresh();
     } else if (error) {
       toast.error("Failed to connect provider. Please try again.");
+      router.replace("/providers");
+    } else if (upload === "1") {
+      setUploadModalOpen(true);
       router.replace("/providers");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -265,6 +269,7 @@ export function ProvidersClient({ initialProviders }: ProvidersClientProps) {
       {/* Connect Modal */}
       {connectModalOpen && (
         <ConnectModal
+          connectedProviderIds={new Set(providers.map((p) => p.providerId))}
           connecting={connecting}
           onConnect={handleConnect}
           onClose={() => setConnectModalOpen(false)}
@@ -558,10 +563,12 @@ function UploadFilesModal({
 }
 
 function ConnectModal({
+  connectedProviderIds,
   connecting,
   onConnect,
   onClose,
 }: {
+  connectedProviderIds: Set<string>;
   connecting: string | null;
   onConnect: (id: string) => void;
   onClose: () => void;
@@ -606,24 +613,40 @@ function ConnectModal({
         <div className="divide-y">
           {CONNECT_OPTIONS.map((p) => (
             <div key={p.id} className="flex items-center justify-between px-5 py-4">
-              <div>
-                <p className={cn("font-mono text-sm font-medium", !p.available && "text-neutral-500")}>
-                  {p.name}
-                </p>
-                <p className="mt-1 font-mono text-[12px] font-medium text-neutral-500">{p.description}</p>
-              </div>
-              <button
-                disabled={!p.available || connecting === p.id}
-                onClick={() => onConnect(p.id)}
-                className={cn(
-                  "ml-4 shrink-0 border px-3.5 py-2 font-mono text-[12px] uppercase tracking-wider transition-colors",
-                  p.available && connecting !== p.id
-                    ? "hover:bg-black hover:text-white"
-                    : "text-neutral-300 border-neutral-200 cursor-not-allowed"
-                )}
-              >
-                {connecting === p.id ? "Connecting..." : "Connect"}
-              </button>
+              {/** Connected providers should be shown as connected and non-clickable. */}
+              {(() => {
+                const isConnected = connectedProviderIds.has(p.id);
+                const isDisabled = !p.available || connecting === p.id || isConnected;
+                const label = isConnected
+                  ? "Connected"
+                  : connecting === p.id
+                    ? "Connecting..."
+                    : "Connect";
+                return (
+                  <>
+                    <div>
+                      <p className={cn("font-mono text-sm font-medium", !p.available && "text-neutral-500")}>
+                        {p.name}
+                      </p>
+                      <p className="mt-1 font-mono text-[12px] font-medium text-neutral-500">{p.description}</p>
+                    </div>
+                    <button
+                      disabled={isDisabled}
+                      onClick={() => onConnect(p.id)}
+                      className={cn(
+                        "ml-4 shrink-0 border px-3.5 py-2 font-mono text-[12px] uppercase tracking-wider transition-colors",
+                        isConnected
+                          ? "border-neutral-300 bg-neutral-100 text-neutral-500"
+                          : p.available && connecting !== p.id
+                            ? "hover:bg-black hover:text-white"
+                            : "cursor-not-allowed border-neutral-200 text-neutral-300"
+                      )}
+                    >
+                      {label}
+                    </button>
+                  </>
+                );
+              })()}
             </div>
           ))}
         </div>

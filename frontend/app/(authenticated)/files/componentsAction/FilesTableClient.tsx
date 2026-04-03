@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Download, Eye, Loader2, Trash2 } from "lucide-react";
 import { deleteFile, FileMetadata } from "@/lib/api/files";
 import { formatBytes } from "@/lib/utils";
 import { toast } from "sonner";
@@ -69,26 +70,36 @@ export function FilesTableClient({ initialFiles }: FilesTableClientProps) {
                 <span className="font-mono text-[11px] text-neutral-500">
                   {new Date(file.created_at).toLocaleDateString("en-US")}
                 </span>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
                   <Link
                     href={`/files/${file.file_id}`}
-                    className="font-mono text-[11px] uppercase tracking-wider text-neutral-500 hover:text-black"
+                    className="inline-flex h-8 w-8 items-center justify-center border border-transparent text-neutral-500 transition-colors hover:border-neutral-200 hover:text-black"
+                    aria-label={`View details for ${file.original_name}`}
+                    title="Details"
                   >
-                    Details
+                    <Eye className="h-4 w-4" />
                   </Link>
                   <a
                     href={`/api/download/${file.file_id}`}
-                    className="font-mono text-[11px] uppercase tracking-wider text-neutral-500 hover:text-black"
+                    className="inline-flex h-8 w-8 items-center justify-center border border-transparent text-neutral-500 transition-colors hover:border-neutral-200 hover:text-black"
+                    aria-label={`Download ${file.original_name}`}
+                    title="Download"
                   >
-                    Download
+                    <Download className="h-4 w-4" />
                   </a>
                   <button
                     type="button"
                     disabled={deletingId === file.file_id}
                     onClick={() => setFileToDelete(file)}
-                    className="font-mono text-[11px] uppercase tracking-wider text-red-500 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex h-8 w-8 items-center justify-center border border-transparent text-red-500 transition-colors hover:border-red-200 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    aria-label={`Delete ${file.original_name}`}
+                    title="Delete"
                   >
-                    {deletingId === file.file_id ? "Deleting..." : "Delete"}
+                    {deletingId === file.file_id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
               </div>
