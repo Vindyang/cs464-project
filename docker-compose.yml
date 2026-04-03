@@ -27,9 +27,13 @@ services:
       - ./backend/.env
     environment:
       PORT: "8080"
+      SHARDMAP_URL: "http://shardmap:8081"
+      NEBULA_DB_PATH: "/app/data/nebula.db"
     depends_on:
       postgres:
         condition: service_healthy
+    volumes:
+      - adapter_data:/app/data
     ports:
       - "8080:8080"
     profiles: ["backend", "full"]
@@ -43,9 +47,12 @@ services:
       - ./backend/.env
     environment:
       PORT: "8081"
+      NEBULA_SHARDMAP_DB_PATH: "/app/data/nebula-shardmap.db"
     depends_on:
       postgres:
         condition: service_healthy
+    volumes:
+      - shardmap_data:/app/data
     ports:
       - "8081:8081"
     profiles: ["backend", "full"]
@@ -119,6 +126,8 @@ services:
     environment:
       PORT: "3000"
       NEXT_PUBLIC_API_URL: "http://localhost:8080"
+      API_INTERNAL_URL: "http://adapter:8080"
+      GATEWAY_URL: "http://gateway:8084"
       NEXT_PUBLIC_BETTER_AUTH_URL: "http://localhost:3000"
     depends_on:
       adapter:
@@ -133,3 +142,5 @@ services:
 
 volumes:
   postgres_data:
+  adapter_data:
+  shardmap_data:

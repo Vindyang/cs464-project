@@ -21,25 +21,25 @@
 - [ ] Add health check support in compose for deterministic frontend startup dependency.
 
 ## Adapter Service
-- [ ] Replace PostgreSQL token storage dependency with local persistent token store (file-based or SQLite-backed abstraction).
-- [ ] Remove hard failure on missing DATABASE_URL in local mode.
-- [ ] Add runtime endpoint(s) to configure Google OAuth credentials from frontend setup screen.
-- [ ] Persist OAuth credential config locally and load it on startup.
-- [ ] Keep optional env fallback for credentials during migration period.
-- [ ] Preserve OAuth authorize/callback/disconnect behavior after storage migration.
-- [ ] Restore Google provider connection from local persisted token on service restart.
-- [ ] Ensure CORS/config allows setup endpoint access from frontend origin.
+- [x] Replace PostgreSQL token storage dependency with local persistent token store (file-based or SQLite-backed abstraction).
+- [x] Remove hard failure on missing DATABASE_URL in local mode.
+- [x] Add runtime endpoint(s) to configure Google OAuth credentials from frontend setup screen.
+- [x] Persist OAuth credential config locally and load it on startup.
+- [x] Keep optional env fallback for credentials during migration period.
+- [x] Preserve OAuth authorize/callback/disconnect behavior after storage migration.
+- [x] Restore Google provider connection from local persisted token on service restart.
+- [x] Ensure CORS/config allows setup endpoint access from frontend origin.
 
 ## Shared OAuth Handler
-- [ ] Refactor credential loading order: runtime-configured credentials first, env fallback second.
-- [ ] Ensure callback path handles missing/invalid runtime config with clear errors.
-- [ ] Keep state token validation and redirect flow intact.
+- [x] Refactor credential loading order: runtime-configured credentials first, env fallback second.
+- [x] Ensure callback path handles missing/invalid runtime config with clear errors.
+- [x] Keep state token validation and redirect flow intact.
 
 ## Shared Google Drive Adapter
-- [ ] Implement find-or-create behavior for folder named nebula on first successful connection.
-- [ ] Persist resolved folder ID for reuse (avoid searching/creating every request).
-- [ ] Remove hard dependency on preconfigured GDRIVE_FOLDER_ID for local mode.
-- [ ] Verify shard upload naming and parent folder assignment remain correct.
+- [x] Implement find-or-create behavior for folder named nebula on first successful connection.
+- [x] Persist resolved folder ID for reuse (avoid searching/creating every request).
+- [x] Remove hard dependency on preconfigured GDRIVE_FOLDER_ID for local mode.
+- [x] Verify shard upload naming and parent folder assignment remain correct.
 
 ## Sharding Service
 - [ ] Confirm no DB dependency remains and service stays stateless/local.
@@ -60,7 +60,7 @@
 - [ ] Re-test rollback behavior on partial shard upload failures after adapter/shardmap storage changes.
 
 ## Shared Database / Schema Modules
-- [ ] Swap PostgreSQL dependencies for SQLite dependency where needed.
+- [x] Swap PostgreSQL dependencies for SQLite dependency where needed.
 - [ ] Introduce/maintain local schema definition compatible with SQLite constraints.
 - [ ] Decide whether to keep existing PostgreSQL schema as legacy reference or fully replace.
 - [ ] Update DB initialization path to avoid Postgres-only assumptions.

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 	"time"
 
 	"golang.org/x/oauth2"
@@ -13,6 +14,7 @@ import (
 	"google.golang.org/api/option"
 
 	"github.com/vindyang/cs464-project/backend/services/shared/adapter"
+	"github.com/vindyang/cs464-project/backend/services/shared/db"
 )
 
 // driveScope grants access only to files created by this app.
@@ -20,20 +22,21 @@ import (
 // so files remain accessible across server restarts.
 const driveScope = "https://www.googleapis.com/auth/drive.file"
 
+const nebulaFolderConfigKey = "gdrive_nebula_folder_id"
+
 // GDriveAdapter implements StorageProvider using the Google Drive API v3.
 // Authenticates via OAuth2 user credentials (Web app flow).
 type GDriveAdapter struct {
-	FolderID string
+	folderID string    // in-memory cache of the resolved nebula folder ID
+	store    *db.Store // persists the nebula folder ID across restarts
 	service  *drive.Service
+	mu       sync.Mutex // guards folderID during lazy resolution
 }
 
-// NewGDriveAdapter constructs a GDriveAdapter from an OAuth2 config and token.
+// NewGDriveAdapter constructs a GDriveAdapter from an OAuth2 config, token, and store.
 // The token source auto-refreshes using the refresh token.
-//
-//   - config: OAuth2 config with client credentials and redirect URI.
-//   - token: stored OAuth2 token (loaded from DB by the caller).
-//   - folderID: Google Drive folder ID where shards will be stored.
-func NewGDriveAdapter(config *oauth2.Config, token *oauth2.Token, folderID string) (*GDriveAdapter, error) {
+// The store is used to persist the resolved nebula folder ID across restarts.
+func NewGDriveAdapter(config *oauth2.Config, token *oauth2.Token, store *db.Store) (*GDriveAdapter, error) {
 	tokenSource := config.TokenSource(context.Background(), token)
 
 	svc, err := drive.NewService(context.Background(), option.WithTokenSource(tokenSource))
@@ -42,8 +45,8 @@ func NewGDriveAdapter(config *oauth2.Config, token *oauth2.Token, folderID strin
 	}
 
 	return &GDriveAdapter{
-		FolderID: folderID,
-		service:  svc,
+		store:   store,
+		service: svc,
 	}, nil
 }
 
@@ -80,14 +83,73 @@ func (g *GDriveAdapter) GetMetadata(ctx context.Context) (*adapter.ProviderMetad
 	}, nil
 }
 
-// UploadShard uploads binary shard data as a file in the configured folder.
+// ensureNebulaFolder returns the Drive folder ID for the "nebula" folder,
+// creating it if it doesn't exist. The result is cached in memory and
+// persisted in the local store so it survives restarts.
+func (g *GDriveAdapter) ensureNebulaFolder(ctx context.Context) (string, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	// 1. In-memory cache (fastest path after first call).
+	if g.folderID != "" {
+		return g.folderID, nil
+	}
+
+	// 2. Persisted in SQLite from a previous run.
+	if id, err := g.store.GetConfig(nebulaFolderConfigKey); err == nil {
+		g.folderID = id
+		return id, nil
+	}
+
+	// 3. Search Drive for an existing "nebula" folder created by this app.
+	query := "name='nebula' and mimeType='application/vnd.google-apps.folder' and trashed=false"
+	list, err := g.service.Files.List().
+		Q(query).
+		Fields("files(id,name)").
+		PageSize(1).
+		Context(ctx).
+		Do()
+	if err != nil {
+		return "", fmt.Errorf("gdrive: search for nebula folder: %w", err)
+	}
+
+	var folderID string
+	if len(list.Files) > 0 {
+		folderID = list.Files[0].Id
+	} else {
+		// 4. Create the folder.
+		folder, err := g.service.Files.Create(&drive.File{
+			Name:     "nebula",
+			MimeType: "application/vnd.google-apps.folder",
+		}).Fields("id").Context(ctx).Do()
+		if err != nil {
+			return "", fmt.Errorf("gdrive: create nebula folder: %w", err)
+		}
+		folderID = folder.Id
+	}
+
+	// Persist for future restarts.
+	if err := g.store.SetConfig(nebulaFolderConfigKey, folderID); err != nil {
+		return "", fmt.Errorf("gdrive: persist nebula folder id: %w", err)
+	}
+	g.folderID = folderID
+	return folderID, nil
+}
+
+// UploadShard uploads binary shard data as a file inside the "nebula" folder.
+// The nebula folder is created automatically on the first upload if it doesn't exist.
 // Returns the Drive file ID as the remoteID for future retrieval or deletion.
 func (g *GDriveAdapter) UploadShard(ctx context.Context, fileID string, index int, data io.Reader) (string, error) {
+	folderID, err := g.ensureNebulaFolder(ctx)
+	if err != nil {
+		return "", err
+	}
+
 	name := fmt.Sprintf("shard_%s_%03d", fileID, index)
 
 	meta := &drive.File{
 		Name:    name,
-		Parents: []string{g.FolderID},
+		Parents: []string{folderID},
 	}
 
 	file, err := g.service.Files.Create(meta).

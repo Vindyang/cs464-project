@@ -60,3 +60,8 @@ backend/migrations/README.md
 .claude/
 .agents/
 skills-lock.json
+
+# Local SQLite store (contains OAuth tokens and credentials)
+*.db
+*.db-wal
+*.db-shm

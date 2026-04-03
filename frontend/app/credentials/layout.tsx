@@ -3,36 +3,20 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 import { getProviders } from "@/lib/api/providers";
 import { getFiles } from "@/lib/api/files";
 import { getCredentialStatus } from "@/lib/api/credentials";
-import { redirect } from "next/navigation";
 
-export default async function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const credentialStatus = await getCredentialStatus().catch(() => ({
-    configured: false,
-    count: 0,
-    providers: [],
-  }));
+export default async function CredentialsLayout({ children }: { children: React.ReactNode }) {
+  const credentialStatus = await getCredentialStatus().catch(() => ({ configured: false }));
 
   if (!credentialStatus.configured) {
-    redirect("/credentials");
+    return <div className="mx-auto min-h-screen w-full max-w-5xl p-6">{children}</div>;
   }
 
   const [providers, files] = await Promise.all([
     getProviders().catch(() => []),
     getFiles().catch(() => []),
   ]);
-
-  const totalStorageUsedBytes = files.reduce(
-    (sum, f) => sum + (f.original_size ?? 0),
-    0
-  );
-  const totalStorageTotalBytes = providers.reduce(
-    (sum, p) => sum + (p.quotaTotalBytes ?? 0),
-    0
-  );
+  const totalStorageUsedBytes = files.reduce((sum, f) => sum + (f.original_size ?? 0), 0);
+  const totalStorageTotalBytes = providers.reduce((sum, p) => sum + (p.quotaTotalBytes ?? 0), 0);
 
   return (
     <SidebarProvider className="h-svh !min-h-0">

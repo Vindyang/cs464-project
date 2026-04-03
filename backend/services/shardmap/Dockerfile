@@ -1,4 +1,4 @@
-FROM golang:1.24-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /src
 
@@ -15,11 +15,13 @@ FROM alpine:3.21
 
 RUN apk add --no-cache ca-certificates tzdata && \
     addgroup -S app && \
-    adduser -S app -G app
+    adduser -S app -G app && \
+    mkdir -p /app /app/data && \
+    chown -R app:app /app
 
 WORKDIR /app
 
-COPY --from=builder /out/shardmap /app/shardmap
+COPY --from=builder --chown=app:app /out/shardmap /app/shardmap
 
 USER app
 

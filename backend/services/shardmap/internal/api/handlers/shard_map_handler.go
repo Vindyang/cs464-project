@@ -345,20 +345,14 @@ func (h *ShardMapHandler) MarkShardStatus(w http.ResponseWriter, r *http.Request
 	})
 }
 
-// ListFiles handles GET /api/v1/files?user_id=
+// ListFiles handles GET /api/v1/files
 func (h *ShardMapHandler) ListFiles(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
 		return
 	}
 
-	userID := r.URL.Query().Get("user_id")
-	if userID == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "user_id query parameter is required"})
-		return
-	}
-
-	files, err := h.service.ListFilesByUser(userID)
+	files, err := h.service.ListFiles()
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{
 			"error":   "Failed to list files",

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/vindyang/cs464-project/backend/services/shared/types"
 )
@@ -54,33 +55,49 @@ func (c *Client) RegisterFile(ctx context.Context, req *types.RegisterFileReq) (
 	return &out, nil
 }
 
-func (c *Client) RecordShards(ctx context.Context, req *types.RecordShardReq) error {
+func (c *Client) RecordShards(ctx context.Context, req *types.RecordShardReq) (*types.RecordShardResp, error) {
 	if len(req.Shards) == 0 {
-		return fmt.Errorf("must provide at least 1 shard")
+		return nil, fmt.Errorf("must provide at least 1 shard")
 	}
 
 	body, err := json.Marshal(req)
 	if err != nil {
-		return fmt.Errorf("failed to marshal request: %w", err)
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/v1/shards/record", bytes.NewReader(body))
 	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
+		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
-		return fmt.Errorf("failed to record shards: %w", err)
+		return nil, fmt.Errorf("failed to record shards: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("shard map returned %d: %s", resp.StatusCode, respBody)
+		return nil, fmt.Errorf("shard map returned %d: %s", resp.StatusCode, respBody)
 	}
-	return nil
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	// Some shard-map implementations return 201 with an empty body for record calls.
+	// Treat that as success for compatibility instead of failing with EOF.
+	if len(strings.TrimSpace(string(respBody))) == 0 {
+		return &types.RecordShardResp{FileID: req.FileID}, nil
+	}
+
+	var out types.RecordShardResp
+	if err := json.Unmarshal(respBody, &out); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+	return &out, nil
 }
 
 func (c *Client) GetShardMap(ctx context.Context, fileID string) (*types.GetShardMapResp, error) {

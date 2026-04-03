@@ -9,9 +9,9 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/vindyang/cs464-project/backend/services/shardmap/internal/api/handlers"
 	"github.com/vindyang/cs464-project/backend/services/shardmap/internal/app"
+	"github.com/vindyang/cs464-project/backend/services/shardmap/internal/infra/persistence"
 	"github.com/vindyang/cs464-project/backend/services/shardmap/internal/infra/repository"
 	"github.com/vindyang/cs464-project/backend/services/shared/api/middleware"
-	"github.com/vindyang/cs464-project/backend/services/shared/database"
 )
 
 func main() {
@@ -20,8 +20,12 @@ func main() {
 		log.Printf("Warning: .env file not found: %v", err)
 	}
 
-	// Connect to database
-	db, err := database.ConnectFromEnv()
+	// Connect to local SQLite database for shard map/file metadata.
+	dbPath := os.Getenv("NEBULA_SHARDMAP_DB_PATH")
+	if dbPath == "" {
+		dbPath = "nebula-shardmap.db"
+	}
+	db, err := persistence.ConnectSQLite(dbPath)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
