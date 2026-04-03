@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/vindyang/cs464-project/backend/services/shared/types"
 )
@@ -81,8 +82,19 @@ func (c *Client) RecordShards(ctx context.Context, req *types.RecordShardReq) (*
 		return nil, fmt.Errorf("shard map returned %d: %s", resp.StatusCode, respBody)
 	}
 
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	// Some shard-map implementations return 201 with an empty body for record calls.
+	// Treat that as success for compatibility instead of failing with EOF.
+	if len(strings.TrimSpace(string(respBody))) == 0 {
+		return &types.RecordShardResp{FileID: req.FileID}, nil
+	}
+
 	var out types.RecordShardResp
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+	if err := json.Unmarshal(respBody, &out); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 	return &out, nil
