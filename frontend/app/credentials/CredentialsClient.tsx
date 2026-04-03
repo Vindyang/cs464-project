@@ -112,7 +112,7 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
   return (
     <main className="max-w-5xl">
       <div className="mb-6 border-b pb-4">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-neutral-500">
+        <p className="font-mono text-[12px] uppercase tracking-widest text-neutral-500">
           Setup
         </p>
         <h1 className="text-2xl font-semibold tracking-tight">Provider Credentials</h1>
@@ -123,12 +123,12 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
 
       <section className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
         <div className="border p-4">
-          <h2 className="font-mono text-xs uppercase tracking-wider text-neutral-500">
+          <h2 className="font-mono text-sm uppercase tracking-wider text-neutral-500">
             Add or Update
           </h2>
           <div className="mt-3 space-y-3">
             <label className="block">
-              <span className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-neutral-500">
+              <span className="mb-1 block font-mono text-[11px] uppercase tracking-wider text-neutral-500">
                 Provider
               </span>
               <select
@@ -140,7 +140,7 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
                   setClientSecret("");
                   setRedirectUri(PROVIDER_FIELDS[id]?.field3.default ?? "");
                 }}
-                className="w-full border bg-white px-3 py-2 font-mono text-xs outline-none focus:ring-1 focus:ring-black"
+                className="w-full border bg-white px-3 py-2 font-mono text-sm outline-none focus:ring-1 focus:ring-black"
               >
                 {PROVIDERS.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -151,38 +151,38 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
             </label>
 
             <label className="block">
-              <span className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-neutral-500">
+              <span className="mb-1 block font-mono text-[11px] uppercase tracking-wider text-neutral-500">
                 {fields.field1.label}
               </span>
               <input
                 value={clientId}
                 onChange={(e) => setClientId(e.target.value)}
-                className="w-full border bg-white px-3 py-2 font-mono text-xs outline-none focus:ring-1 focus:ring-black"
+                className="w-full border bg-white px-3 py-2 font-mono text-sm outline-none focus:ring-1 focus:ring-black"
                 placeholder={fields.field1.placeholder}
               />
             </label>
 
             <label className="block">
-              <span className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-neutral-500">
+              <span className="mb-1 block font-mono text-[11px] uppercase tracking-wider text-neutral-500">
                 {fields.field2.label}
               </span>
               <input
                 type="password"
                 value={clientSecret}
                 onChange={(e) => setClientSecret(e.target.value)}
-                className="w-full border bg-white px-3 py-2 font-mono text-xs outline-none focus:ring-1 focus:ring-black"
+                className="w-full border bg-white px-3 py-2 font-mono text-sm outline-none focus:ring-1 focus:ring-black"
                 placeholder={fields.field2.placeholder}
               />
             </label>
 
             <label className="block">
-              <span className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-neutral-500">
+              <span className="mb-1 block font-mono text-[11px] uppercase tracking-wider text-neutral-500">
                 {fields.field3.label}
               </span>
               <input
                 value={redirectUri}
                 onChange={(e) => setRedirectUri(e.target.value)}
-                className="w-full border bg-white px-3 py-2 font-mono text-xs outline-none focus:ring-1 focus:ring-black"
+                className="w-full border bg-white px-3 py-2 font-mono text-sm outline-none focus:ring-1 focus:ring-black"
                 placeholder={fields.field3.placeholder}
               />
             </label>
@@ -190,7 +190,7 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
             <button
               onClick={handleSave}
               disabled={saving}
-              className="font-mono text-[10px] uppercase tracking-wider border border-black bg-black px-4 py-2 text-white transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
+              className="font-mono text-[11px] uppercase tracking-wider border border-black bg-black px-4 py-2 text-white transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {saving ? "Saving..." : "Save Credentials"}
             </button>
@@ -199,33 +199,33 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
 
         <div className="border p-4">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="font-mono text-xs uppercase tracking-wider text-neutral-500">
+            <h2 className="font-mono text-sm uppercase tracking-wider text-neutral-500">
               Stored Credentials
             </h2>
-            <span className="font-mono text-[10px] text-neutral-400">
+            <span className="font-mono text-[11px] text-neutral-400">
               {credentials.length} total
             </span>
           </div>
 
           {credentials.length === 0 ? (
-            <p className="font-mono text-xs text-neutral-400">No credentials saved yet.</p>
+            <p className="font-mono text-sm text-neutral-400">No credentials saved yet.</p>
           ) : (
             <ul className="space-y-2">
               {credentials.map((cred) => (
                 <li key={cred.provider_id} className="border px-3 py-2">
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs">{cred.provider_id}</span>
+                    <span className="font-mono text-sm">{cred.provider_id}</span>
                     <button
                       onClick={() => handleDelete(cred.provider_id)}
-                      className="font-mono text-[10px] uppercase tracking-wider text-neutral-400 hover:text-black"
+                      className="font-mono text-[11px] uppercase tracking-wider text-neutral-400 hover:text-black"
                     >
                       Delete
                     </button>
                   </div>
-                  <p className="mt-1 font-mono text-[10px] text-neutral-400">
+                  <p className="mt-1 font-mono text-[11px] text-neutral-400">
                     {cred.client_id.slice(0, 14)}... · {cred.redirect_uri}
                   </p>
-                  <p className="mt-0.5 font-mono text-[10px] text-neutral-300">
+                  <p className="mt-0.5 font-mono text-[11px] text-neutral-300">
                     Updated {new Date(cred.updated_at).toLocaleString()}
                   </p>
                 </li>
@@ -236,13 +236,13 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
           <button
             onClick={handleContinue}
             disabled={credentials.length === 0}
-            className="mt-4 font-mono text-[10px] uppercase tracking-wider border px-4 py-2 transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:border-neutral-200 disabled:text-neutral-300 disabled:hover:bg-transparent"
+            className="mt-4 font-mono text-[11px] uppercase tracking-wider border px-4 py-2 transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:border-neutral-200 disabled:text-neutral-300 disabled:hover:bg-transparent"
           >
             Continue to Dashboard
           </button>
         </div>
       </section>
-      <p className="mt-4 font-mono text-[10px] text-neutral-400">
+      <p className="mt-4 font-mono text-[11px] text-neutral-400">
         Supported providers in backend right now: {CREDENTIAL_PROVIDERS.join(", ")}
       </p>
     </main>

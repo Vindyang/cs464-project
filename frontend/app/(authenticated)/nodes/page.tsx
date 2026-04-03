@@ -41,7 +41,7 @@ export default async function NodesPage() {
       {/* Header */}
       <div className="flex items-end justify-between border-b pb-4">
         <div>
-          <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-neutral-400 mb-0.5">
+          <p className="font-mono text-[11px] uppercase tracking-[0.15em] text-neutral-400 mb-0.5">
             Infrastructure
           </p>
           <h1 className="text-2xl font-semibold tracking-tight">Storage Nodes</h1>
@@ -54,10 +54,10 @@ export default async function NodesPage() {
       {/* Health Map */}
       <section className="border bg-white p-5">
         <div className="flex items-center justify-between mb-4">
-          <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-neutral-500">
+          <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-neutral-500">
             Node Health Map
           </span>
-          <span className="font-mono text-[10px] text-neutral-400">
+          <span className="font-mono text-[11px] text-neutral-400">
             {healthyShards}/{totalShards} shards healthy
           </span>
         </div>
@@ -68,20 +68,20 @@ export default async function NodesPage() {
             ))}
           </div>
         ) : (
-          <div className="py-4 font-mono text-xs text-neutral-400">No data available.</div>
+          <div className="py-4 font-mono text-sm text-neutral-400">No data available.</div>
         )}
         <div className="flex items-center gap-4 mt-4">
           <div className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 bg-neutral-800" />
-            <span className="font-mono text-[9px] text-neutral-500">Healthy</span>
+            <span className="font-mono text-[11px] text-neutral-500">Healthy</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 bg-neutral-400" />
-            <span className="font-mono text-[9px] text-neutral-500">Degraded</span>
+            <span className="font-mono text-[11px] text-neutral-500">Degraded</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 bg-neutral-200" />
-            <span className="font-mono text-[9px] text-neutral-500">Offline</span>
+            <span className="font-mono text-[11px] text-neutral-500">Offline</span>
           </div>
         </div>
       </section>
@@ -90,14 +90,14 @@ export default async function NodesPage() {
       <section className="border bg-white">
         <div className="grid grid-cols-[1.5fr_1fr_80px_80px_1.5fr] gap-4 px-5 py-3 border-b bg-neutral-50">
           {["Provider", "Region", "Status", "Latency", "Storage Capacity"].map((h) => (
-            <span key={h} className="font-mono text-[9px] uppercase tracking-[0.08em] text-neutral-400">
+            <span key={h} className="font-mono text-[11px] uppercase tracking-[0.08em] text-neutral-400">
               {h}
             </span>
           ))}
         </div>
 
         {providers.length === 0 ? (
-          <div className="px-5 py-10 text-center font-mono text-xs text-neutral-400">
+          <div className="px-5 py-10 text-center font-mono text-sm text-neutral-400">
             No providers connected.
           </div>
         ) : (
@@ -128,7 +128,7 @@ export default async function NodesPage() {
                         isActive ? "bg-neutral-800" : isDegraded ? "bg-neutral-400" : "bg-neutral-200"
                       )}
                     />
-                    <span className="font-mono text-[11px] text-neutral-600 capitalize">
+                    <span className="font-mono text-[12px] text-neutral-600 capitalize">
                       {p.status}
                     </span>
                   </div>
@@ -137,10 +137,10 @@ export default async function NodesPage() {
                   </div>
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="font-mono text-[11px] text-neutral-700">
+                      <span className="font-mono text-[12px] text-neutral-700">
                         {formatBytes(p.quotaUsedBytes)}
                       </span>
-                      <span className="font-mono text-[10px] text-neutral-400">
+                      <span className="font-mono text-[11px] text-neutral-400">
                         / {p.quotaTotalBytes > 0 ? formatBytes(p.quotaTotalBytes) : "—"}
                       </span>
                     </div>

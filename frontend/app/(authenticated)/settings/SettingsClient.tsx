@@ -44,7 +44,7 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
     <div className="space-y-5">
       <div>
         <h2 className="font-mono text-sm font-bold uppercase tracking-widest">System Settings</h2>
-        <p className="font-mono text-[11px] text-neutral-500 mt-1">
+        <p className="font-mono text-[12px] text-neutral-500 mt-1">
           Vault configuration, redundancy strategy, and storage behaviors.
         </p>
       </div>
@@ -55,7 +55,7 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
             <TabsTrigger
               key={t}
               value={t}
-              className="rounded-none font-mono text-[10px] uppercase tracking-wider data-[state=active]:bg-white data-[state=active]:shadow-none data-[state=active]:border data-[state=inactive]:text-neutral-400"
+              className="rounded-none font-mono text-[11px] uppercase tracking-wider data-[state=active]:bg-white data-[state=active]:shadow-none data-[state=active]:border data-[state=inactive]:text-neutral-400"
             >
               {t}
             </TabsTrigger>
@@ -92,11 +92,11 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
                         </>
                       )}
                       <div className="flex items-baseline justify-between mb-0.5">
-                        <span className="font-mono text-xs font-bold">{preset.label}</span>
-                        <span className="font-mono text-[9px] uppercase tracking-widest text-neutral-400">{preset.name}</span>
+                        <span className="font-mono text-sm font-bold">{preset.label}</span>
+                        <span className="font-mono text-[11px] uppercase tracking-widest text-neutral-400">{preset.name}</span>
                       </div>
-                      <div className="font-mono text-[10px] text-neutral-500">{preset.desc}</div>
-                      <div className="font-mono text-[9px] text-neutral-400 mt-0.5">{preset.overhead}</div>
+                      <div className="font-mono text-[11px] text-neutral-500">{preset.desc}</div>
+                      <div className="font-mono text-[11px] text-neutral-400 mt-0.5">{preset.overhead}</div>
                     </button>
                   );
                 })}
@@ -105,7 +105,7 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
                 <button
                   onClick={handleSave}
                   disabled={saving}
-                  className="font-mono text-[10px] uppercase tracking-wider border border-neutral-900 bg-neutral-900 text-white px-4 py-2 hover:bg-neutral-700 transition-colors"
+                  className="font-mono text-[11px] uppercase tracking-wider border border-neutral-900 bg-neutral-900 text-white px-4 py-2 hover:bg-neutral-700 transition-colors"
                 >
                   {saving ? "Saving..." : "Save Configuration"}
                 </button>
@@ -140,7 +140,7 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="font-mono text-[10px] uppercase tracking-wider border border-neutral-900 bg-neutral-900 text-white px-4 py-2 hover:bg-neutral-700 transition-colors"
+                className="font-mono text-[11px] uppercase tracking-wider border border-neutral-900 bg-neutral-900 text-white px-4 py-2 hover:bg-neutral-700 transition-colors"
               >
                 {saving ? "Saving..." : "Save Preferences"}
               </button>
@@ -176,11 +176,11 @@ function SettingsCardHeader({
   return (
     <div className="px-5 py-4 border-b bg-neutral-50 flex items-start justify-between gap-4">
       <div>
-        <h3 className="font-mono text-xs font-bold uppercase tracking-wider">{title}</h3>
-        <p className="font-mono text-[10px] text-neutral-500 mt-0.5">{subtitle}</p>
+        <h3 className="font-mono text-sm font-bold uppercase tracking-wider">{title}</h3>
+        <p className="font-mono text-[11px] text-neutral-500 mt-0.5">{subtitle}</p>
       </div>
       {tag && (
-        <span className="font-mono text-[9px] uppercase tracking-widest border px-2 py-0.5 text-neutral-400 shrink-0">
+        <span className="font-mono text-[11px] uppercase tracking-widest border px-2 py-0.5 text-neutral-400 shrink-0">
           {tag}
         </span>
       )}
@@ -202,8 +202,8 @@ function ToggleRow({
   return (
     <div className="flex items-center justify-between gap-4 py-4">
       <div>
-        <div className="font-mono text-xs font-medium">{label}</div>
-        <div className="font-mono text-[10px] text-neutral-500 mt-0.5">{description}</div>
+        <div className="font-mono text-sm font-medium">{label}</div>
+        <div className="font-mono text-[11px] text-neutral-500 mt-0.5">{description}</div>
       </div>
       <Switch checked={checked} onCheckedChange={onCheckedChange} />
     </div>
