@@ -181,6 +181,7 @@ func main() {
 	})
 
 	// GET /api/orchestrator/files/{fileId}/download
+	// GET /api/orchestrator/files/{fileId}/history
 	mux.HandleFunc("/api/orchestrator/files/", func(w http.ResponseWriter, r *http.Request) {
 		if !httpx.RequireMethod(w, r, http.MethodGet) {
 			return
@@ -188,7 +189,7 @@ func main() {
 
 		path := strings.TrimPrefix(r.URL.Path, "/api/orchestrator/files/")
 		parts := strings.Split(path, "/")
-		if len(parts) != 2 || parts[0] == "" || parts[1] != "download" {
+		if len(parts) != 2 || parts[0] == "" {
 			httpx.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "Not found"})
 			return
 		}
@@ -199,31 +200,43 @@ func main() {
 			return
 		}
 
-		resp, err := service.DownloadFile(r.Context(), fileID)
-		if err != nil {
-			// Check if the error is due to file not found (404 from shard map service)
-			if strings.Contains(err.Error(), "404") {
-				httpx.WriteError(w, http.StatusNotFound, "File not found", err)
-			} else {
-				httpx.WriteError(w, http.StatusInternalServerError, "Failed to download file", err)
+		switch parts[1] {
+		case "download":
+			resp, err := service.DownloadFile(r.Context(), fileID)
+			if err != nil {
+				if strings.Contains(err.Error(), "404") {
+					httpx.WriteError(w, http.StatusNotFound, "File not found", err)
+				} else {
+					httpx.WriteError(w, http.StatusInternalServerError, "Failed to download file", err)
+				}
+				return
 			}
-			return
-		}
+			if len(resp.Shards) == 0 {
+				httpx.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "No file data reconstructed"})
+				return
+			}
+			w.Header().Set("Content-Type", "application/octet-stream")
+			w.Header().Set("Content-Disposition", "attachment; filename=\""+resp.FileName+"\"")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(resp.Shards[0])
 
-		if len(resp.Shards) == 0 {
-			httpx.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "No file data reconstructed"})
-			return
-		}
+		case "history":
+			history, err := service.GetFileHistory(r.Context(), fileID)
+			if err != nil {
+				httpx.WriteError(w, http.StatusInternalServerError, "Failed to get file history", err)
+				return
+			}
+			httpx.WriteJSON(w, http.StatusOK, history)
 
-		w.Header().Set("Content-Type", "application/octet-stream")
-		w.Header().Set("Content-Disposition", "attachment; filename=\""+resp.FileName+"\"")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(resp.Shards[0])
+		default:
+			httpx.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "Not found"})
+		}
 	})
 
 	// Start server
 	log.Printf("Orchestrator service starting on :%s", port)
 	if err := http.ListenAndServe(":"+port, mux); err != nil {
-		log.Fatalf("failed to start server: %v", err)
+		log.Fatalf("failed to start server: %v\n", err)
 	}
 }
+
