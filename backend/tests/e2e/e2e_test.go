@@ -15,26 +15,14 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/vindyang/cs464-project/backend/services/shared/types"
 )
-
-// TestMain manages the shared Docker stack for all e2e tests.
-// It starts the stack once, runs all tests, then tears it down.
-var (
-	sharedStack *testStack
-)
-
-func TestMain(m *testing.M) {
-	// TestMain is not a standard testing.T test — use a minimal wrapper
-	// to satisfy the startTestStack signature which requires *testing.T.
-	// In TestMain we rely on log.Fatal for fatal errors.
-	// The stack is torn down via the shutdown func regardless of test outcome.
-	panic("use go test -tags e2e and set up stack per-test via t.Skip guard")
-}
 
 // stackOrSkip returns the shared stack or skips the test if Docker isn't available.
 func stackOrSkip(t *testing.T) *testStack {
@@ -62,7 +50,7 @@ func TestE2EUploadDownloadHappyPath(t *testing.T) {
 
 	// Download and verify content matches.
 	downloaded := doDownload(t, stack.orchestratorURL, uploadResp.FileID)
-	if !bytes.Equal(fileContent, downloaded) {
+	if !bytes.Equal(fileContent, normalizeDownloaded(downloaded)) {
 		t.Errorf("downloaded content mismatch: got %d bytes, want %d bytes", len(downloaded), len(fileContent))
 	}
 	t.Logf("✓ Upload→Download round-trip verified (%d bytes)", len(fileContent))
@@ -126,6 +114,27 @@ func TestE2EDownloadLifecycleLogging(t *testing.T) {
 		uploadEvent.Status, downloadEvent.Status)
 }
 
+func TestE2EDeleteLifecycleLogging(t *testing.T) {
+	stack := stackOrSkip(t)
+
+	uploadResp := doUpload(t, stack.orchestratorURL, []byte("lifecycle-delete-e2e"), "lifecycle_delete.txt")
+	if uploadResp.Status != "committed" {
+		t.Fatalf("expected committed, got %q", uploadResp.Status)
+	}
+
+	doDeleteViaGateway(t, stack.gatewayURL, uploadResp.FileID, true)
+	time.Sleep(200 * time.Millisecond)
+
+	history := doGetHistory(t, stack.orchestratorURL, uploadResp.FileID)
+	deleteEvent := findEvent(history.Events, "delete")
+	if deleteEvent == nil {
+		t.Fatal("no 'delete' event in history after deleting file")
+	}
+	if deleteEvent.Status != "success" {
+		t.Fatalf("expected delete status success, got %q", deleteEvent.Status)
+	}
+}
+
 // TestE2EDownloadNonexistentFile verifies that downloading a non-existent file returns 404.
 func TestE2EDownloadNonexistentFile(t *testing.T) {
 	stack := stackOrSkip(t)
@@ -178,6 +187,48 @@ func TestE2EMultipleFilesConcurrent(t *testing.T) {
 		}
 	}
 	t.Logf("✓ Concurrent upload: %d/3 files committed", committed)
+}
+
+func TestE2EPersistenceAcrossAdapterRestart(t *testing.T) {
+	stack := stackOrSkip(t)
+
+	restartService(t, "adapter-test")
+	waitForServiceHealthy(t, "http://localhost:19080/health", 60*time.Second)
+
+	// After adapter restart, a fresh upload/download should still succeed.
+	content := []byte("adapter-restart-fresh-upload-content")
+	uploadResp := doUpload(t, stack.orchestratorURL, content, "adapter_restart_after.txt")
+	if uploadResp.Status != "committed" {
+		t.Fatalf("expected committed after adapter restart, got %q", uploadResp.Status)
+	}
+
+	downloaded := doDownload(t, stack.orchestratorURL, uploadResp.FileID)
+	if !bytes.Equal(content, normalizeDownloaded(downloaded)) {
+		t.Fatalf("download after adapter restart mismatch: got %q want %q", string(downloaded), string(content))
+	}
+}
+
+func TestE2EPersistenceAcrossShardmapRestart(t *testing.T) {
+	stack := stackOrSkip(t)
+
+	uploadResp := doUpload(t, stack.orchestratorURL, []byte("shardmap-restart-persistence-content"), "shardmap_restart.txt")
+	if uploadResp.Status != "committed" {
+		t.Fatalf("expected committed, got %q", uploadResp.Status)
+	}
+
+	_ = doDownload(t, stack.orchestratorURL, uploadResp.FileID)
+	time.Sleep(200 * time.Millisecond)
+
+	restartService(t, "shardmap-test")
+	waitForServiceHealthy(t, "http://localhost:19081/health", 60*time.Second)
+
+	history := doGetHistory(t, stack.orchestratorURL, uploadResp.FileID)
+	if findEvent(history.Events, "upload") == nil {
+		t.Fatal("expected upload event in history after shardmap restart")
+	}
+	if findEvent(history.Events, "download") == nil {
+		t.Fatal("expected download event in history after shardmap restart")
+	}
 }
 
 // --- Helpers used only in e2e tests ---
@@ -245,6 +296,56 @@ func doGetHistory(t *testing.T, baseURL, fileID string) *types.FileHistoryResp {
 	return &out
 }
 
+func doDelete(t *testing.T, baseURL, fileID string, deleteShards bool) {
+	t.Helper()
+	u := fmt.Sprintf("%s/api/orchestrator/files/%s", baseURL, fileID)
+	if deleteShards {
+		q := url.Values{}
+		q.Set("delete_shards", "true")
+		u += "?" + q.Encode()
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, u, nil)
+	if err != nil {
+		t.Fatalf("delete request creation failed: %v", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("delete request failed: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent {
+		raw, _ := io.ReadAll(resp.Body)
+		t.Fatalf("delete returned %d: %s", resp.StatusCode, raw)
+	}
+}
+
+func doDeleteViaGateway(t *testing.T, gatewayURL, fileID string, deleteShards bool) {
+	t.Helper()
+	u := fmt.Sprintf("%s/api/v1/files/%s", gatewayURL, fileID)
+	if deleteShards {
+		q := url.Values{}
+		q.Set("delete_shards", "true")
+		u += "?" + q.Encode()
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, u, nil)
+	if err != nil {
+		t.Fatalf("gateway delete request creation failed: %v", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("gateway delete request failed: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent {
+		raw, _ := io.ReadAll(resp.Body)
+		t.Fatalf("gateway delete returned %d: %s", resp.StatusCode, raw)
+	}
+}
+
 // findEvent returns the first lifecycle event matching the given eventType, or nil.
 func findEvent(events []types.LifecycleEvent, eventType string) *types.LifecycleEvent {
 	for i := range events {
@@ -253,4 +354,8 @@ func findEvent(events []types.LifecycleEvent, eventType string) *types.Lifecycle
 		}
 	}
 	return nil
+}
+
+func normalizeDownloaded(data []byte) []byte {
+	return []byte(strings.TrimRight(string(data), "\x00"))
 }

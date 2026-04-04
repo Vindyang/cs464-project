@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getFileById } from "@/lib/api/files";
+import { getFileById, getFileShards } from "@/lib/api/files";
 import { formatBytes } from "@/lib/utils";
 
 export default async function FileDetailPage({
@@ -9,8 +9,11 @@ export default async function FileDetailPage({
   params: Promise<{ fileId: string }>;
 }) {
   const { fileId } = await params;
-  const file = await getFileById(fileId);
-  if (!file) notFound();
+  const [file, shardMap] = await Promise.all([
+    getFileById(fileId),
+    getFileShards(fileId),
+  ]);
+  if (!file || !shardMap) notFound();
 
   return (
     <div className="space-y-5">
@@ -50,7 +53,7 @@ export default async function FileDetailPage({
             ))}
           </div>
           <div className="divide-y">
-            {file.shards.map((s) => (
+            {shardMap.shards.map((s) => (
               <div
                 key={s.shard_id}
                 className="grid grid-cols-[0.8fr_0.8fr_0.9fr_1.2fr_1fr_0.9fr] gap-3 py-2.5"

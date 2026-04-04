@@ -2,12 +2,12 @@ name: CI — Shared Code Tests
 
 on:
   push:
-    branches: [main, "feature/**"]
+    branches: [main, microservices, "feature/**"]
     paths:
       - 'backend/services/shared/**'
       - '.github/workflows/ci-shared-tests.yml'
   pull_request:
-    branches: [main, "feature/**"]
+    branches: [main, microservices, "feature/**"]
     paths:
       - 'backend/services/shared/**'
       - '.github/workflows/ci-shared-tests.yml'
@@ -55,20 +55,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Build and start test containers
-        run: |
-          docker compose -f docker-compose.test.yml \
-            --profile e2e \
-            up -d --build --wait
-        env:
-          # Adapter mock runs in the test process; set its expected URL for orchestrator.
-          ADAPTER_TEST_URL: "http://host.docker.internal:19080"
-
       - name: Run e2e tests
         working-directory: ./backend
         run: go test -tags e2e ./tests/e2e/... -count=1 -v -timeout 300s
-
-      - name: Teardown containers (always)
-        if: always()
-        run: |
-          docker compose -f docker-compose.test.yml --profile e2e down -v

@@ -32,7 +32,7 @@ func (h *ShardMapHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/files/", h.handleFileRoutes)
 }
 
-// handleFileRoutes dispatches DELETE /api/v1/files/:fileId
+// handleFileRoutes dispatches GET/DELETE /api/v1/files/:fileId
 func (h *ShardMapHandler) handleFileRoutes(w http.ResponseWriter, r *http.Request) {
 	fileIDStr := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/api/v1/files/"), "/")
 	if fileIDStr == "" {
@@ -40,7 +40,7 @@ func (h *ShardMapHandler) handleFileRoutes(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if r.Method != http.MethodDelete {
+	if r.Method != http.MethodGet && r.Method != http.MethodDelete {
 		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
 		return
 	}
@@ -48,6 +48,19 @@ func (h *ShardMapHandler) handleFileRoutes(w http.ResponseWriter, r *http.Reques
 	fileID, err := uuid.Parse(fileIDStr)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid file ID format"})
+		return
+	}
+
+	if r.Method == http.MethodGet {
+		file, err := h.service.GetFileMetadata(fileID)
+		if err != nil {
+			writeJSON(w, http.StatusNotFound, map[string]string{
+				"error":   "File not found",
+				"details": err.Error(),
+			})
+			return
+		}
+		writeJSON(w, http.StatusOK, file)
 		return
 	}
 

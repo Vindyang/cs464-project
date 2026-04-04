@@ -17,6 +17,8 @@ import (
 	"github.com/vindyang/cs464-project/backend/services/shared/transport/httpx"
 )
 
+// CI testing
+
 func main() {
 	// Load service URLs from env
 	adapterURL := os.Getenv("ADAPTER_URL")
@@ -180,6 +182,19 @@ func main() {
 		httpx.WriteJSON(w, http.StatusCreated, resp)
 	})
 
+	// GET /api/orchestrator/history
+	mux.HandleFunc("/api/orchestrator/history", func(w http.ResponseWriter, r *http.Request) {
+		if !httpx.RequireMethod(w, r, http.MethodGet) {
+			return
+		}
+		history, err := service.GetAllHistory(r.Context())
+		if err != nil {
+			httpx.WriteError(w, http.StatusInternalServerError, "Failed to get lifecycle history", err)
+			return
+		}
+		httpx.WriteJSON(w, http.StatusOK, history)
+	})
+
 	// GET  /api/orchestrator/files/{fileId}/download
 	// GET  /api/orchestrator/files/{fileId}/history
 	// DELETE /api/orchestrator/files/{fileId}
@@ -258,4 +273,3 @@ func main() {
 		log.Fatalf("failed to start server: %v\n", err)
 	}
 }
-

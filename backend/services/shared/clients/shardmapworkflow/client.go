@@ -204,3 +204,28 @@ func (c *Client) GetFileHistory(ctx context.Context, fileID string) (*types.File
 	}
 	return &out, nil
 }
+
+// GetAllHistory retrieves lifecycle events across all files.
+func (c *Client) GetAllHistory(ctx context.Context) (*types.GlobalHistoryResp, error) {
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/v1/lifecycle", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create global history request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get global lifecycle history: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("shardmap global history returned %d: %s", resp.StatusCode, respBody)
+	}
+
+	var out types.GlobalHistoryResp
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, fmt.Errorf("failed to decode global history response: %w", err)
+	}
+	return &out, nil
+}

@@ -1,7 +1,24 @@
 services:
-  # Adapter: real service. Tests point ADAPTER_URL to a mock running in the Go test process.
-  # We expose a lightweight no-op adapter that just lets the orchestrator reach it.
-  # The actual cloud provider logic is NOT exercised in CI e2e tests.
+  adapter-test:
+    build:
+      context: ./backend
+      dockerfile: services/adapter/Dockerfile
+    restart: "no"
+    environment:
+      PORT: "8080"
+      SHARDMAP_URL: "http://shardmap-test:8081"
+      Omnishard_DB_PATH: "/app/data/Omnishard-e2e-adapter.db"
+      ADAPTER_MOCK_MODE: "true"
+    volumes:
+      - adapter_test_data:/app/data
+    ports:
+      - "19080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+    profiles: ["e2e"]
 
   shardmap-test:
     build:
@@ -10,6 +27,9 @@ services:
     restart: "no"
     environment:
       PORT: "8081"
+      Omnishard_SHARDMAP_DB_PATH: "/app/data/Omnishard-e2e-shardmap.db"
+    volumes:
+      - shardmap_test_data:/app/data
     ports:
       - "19081:8081"
     healthcheck:
@@ -42,23 +62,42 @@ services:
     restart: "no"
     environment:
       PORT: "8082"
-      # Adapter URL is set at test runtime via ADAPTER_TEST_URL env (mock running in test process).
-      # The ADAPTER_URL below is overridden when the test stack is started with --env.
-      ADAPTER_URL: "${ADAPTER_TEST_URL:-http://host.docker.internal:19080}"
+      ADAPTER_URL: "http://adapter-test:8080"
       SHARDMAP_URL: "http://shardmap-test:8081"
       SHARDING_URL: "http://sharding-test:8083"
     depends_on:
+      adapter-test:
+        condition: service_healthy
       shardmap-test:
         condition: service_healthy
       sharding-test:
         condition: service_healthy
     ports:
       - "19082:8082"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8082/health || exit 1"]
       interval: 3s
       timeout: 3s
       retries: 20
     profiles: ["e2e"]
+
+  gateway-test:
+    build:
+      context: ./backend
+      dockerfile: services/gateway/Dockerfile
+    restart: "no"
+    environment:
+      ORCHESTRATOR_URL: "http://orchestrator-test:8082"
+      ADAPTER_URL: "http://adapter-test:8080"
+    depends_on:
+      orchestrator-test:
+        condition: service_healthy
+      adapter-test:
+        condition: service_healthy
+    ports:
+      - "19084:8084"
+    profiles: ["e2e"]
+
+volumes:
+  adapter_test_data:
+  shardmap_test_data:

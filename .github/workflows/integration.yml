@@ -2,13 +2,13 @@ name: CI — Integration
 
 on:
   push:
-    branches: [main, "feature/**"]
+    branches: [main, microservices, "feature/**"]
     paths:
       - 'backend/services/**'
       - 'backend/tests/**'
       - '.github/workflows/integration.yml'
   pull_request:
-    branches: [main]
+    branches: [main, microservices]
     paths:
       - 'backend/services/**'
       - 'backend/tests/**'

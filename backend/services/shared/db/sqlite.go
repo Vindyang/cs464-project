@@ -36,6 +36,8 @@ func NewStore(path string) (*Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("db: open %q: %w", path, err)
 	}
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
 	// SQLite only supports one writer at a time; WAL mode improves concurrency.
 	if _, err := db.Exec("PRAGMA journal_mode=WAL;"); err != nil {
 		return nil, fmt.Errorf("db: set WAL mode: %w", err)

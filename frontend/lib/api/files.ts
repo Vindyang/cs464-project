@@ -22,6 +22,8 @@ export interface FileMetadata {
   status: string;
   created_at: string;
   updated_at: string;
+  first_created_at?: string | null;
+  last_downloaded_at?: string | null;
   health_status?: FileHealthStatus;
 }
 
@@ -45,6 +47,8 @@ export interface ShardMap {
   k: number;
   shard_size: number;
   status: string;
+  first_created_at?: string | null;
+  last_downloaded_at?: string | null;
   shards: ShardInfo[];
 }
 
@@ -64,7 +68,7 @@ export async function getFiles(): Promise<FileMetadata[]> {
   return res.json();
 }
 
-export async function getFileById(fileId: string): Promise<ShardMap | null> {
+export async function getFileById(fileId: string): Promise<FileMetadata | null> {
   const API_URL = getApiBaseUrl();
   const res = await fetch(`${API_URL}/api/v1/files/${fileId}`, {
     cache: "no-store",
@@ -85,8 +89,7 @@ export async function getFileShards(fileId: string): Promise<ShardMap | null> {
 }
 
 export async function deleteFile(fileId: string, deleteShards = false): Promise<void> {
-  const API_URL = getApiBaseUrl();
-  const url = `${API_URL}/api/v1/files/${fileId}${deleteShards ? "?delete_shards=true" : ""}`;
+  const url = `/api/files/${fileId}${deleteShards ? "?delete_shards=true" : ""}`;
   const res = await fetch(url, { method: "DELETE" });
   if (!res.ok) throw new Error("Failed to delete file");
 }

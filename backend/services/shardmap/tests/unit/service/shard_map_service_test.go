@@ -3,11 +3,14 @@ package service_test
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/vindyang/cs464-project/backend/services/shardmap/internal/app"
+	"github.com/vindyang/cs464-project/backend/services/shardmap/internal/infra/repository"
 	"github.com/vindyang/cs464-project/backend/services/shared/api/dto"
 	"github.com/vindyang/cs464-project/backend/services/shared/models"
+	"github.com/vindyang/cs464-project/backend/services/shared/types"
 )
 
 type mockFileRepo struct {
@@ -60,6 +63,28 @@ func (m *mockFileRepo) GetByUserID(_ string) ([]*models.FileWithHealth, error) {
 	return nil, nil
 }
 
+type mockLifecycleRepo struct {
+	getSummaryFn func(string) (*repository.LifecycleSummary, error)
+}
+
+func (m *mockLifecycleRepo) EnsureSchema() error {
+	return nil
+}
+func (m *mockLifecycleRepo) Insert(event *types.LifecycleEvent) error {
+	return nil
+}
+func (m *mockLifecycleRepo) GetByFileID(fileID string) ([]types.LifecycleEvent, error) {
+	return nil, nil
+}
+func (m *mockLifecycleRepo) GetAll() ([]types.LifecycleEvent, error) {
+	return nil, nil
+}
+func (m *mockLifecycleRepo) GetLifecycleSummary(fileID string) (*repository.LifecycleSummary, error) {
+	if m.getSummaryFn != nil {
+		return m.getSummaryFn(fileID)
+	}
+	return &repository.LifecycleSummary{}, nil
+}
 
 type mockShardRepo struct {
 	createFn         func(*models.Shard) error
@@ -115,7 +140,7 @@ func (m *mockShardRepo) Delete(id uuid.UUID) error {
 }
 
 func TestShardMapService_RegisterFileValidation(t *testing.T) {
-	svc := app.NewShardMapService(&mockFileRepo{}, &mockShardRepo{})
+	svc := app.NewShardMapService(&mockFileRepo{}, &mockShardRepo{}, &mockLifecycleRepo{})
 
 	_, err := svc.RegisterFile(&dto.RegisterFileRequest{K: 3, N: 2})
 	if err == nil {
@@ -133,7 +158,7 @@ func TestShardMapService_RegisterFileSuccess(t *testing.T) {
 			}
 			return nil
 		},
-	}, &mockShardRepo{})
+	}, &mockShardRepo{}, &mockLifecycleRepo{})
 
 	resp, err := svc.RegisterFile(&dto.RegisterFileRequest{
 		OriginalName: "a.txt",
@@ -155,7 +180,7 @@ func TestShardMapService_RegisterFileSuccess(t *testing.T) {
 }
 
 func TestShardMapService_RecordShardsValidation(t *testing.T) {
-	svc := app.NewShardMapService(&mockFileRepo{}, &mockShardRepo{})
+	svc := app.NewShardMapService(&mockFileRepo{}, &mockShardRepo{}, &mockLifecycleRepo{})
 
 	_, err := svc.RecordShards(&dto.RecordShardsRequest{FileID: "not-a-uuid"})
 	if err == nil {
@@ -194,7 +219,7 @@ func TestShardMapService_RecordShardsSuccess(t *testing.T) {
 		},
 	}
 
-	svc := app.NewShardMapService(fileRepo, shardRepo)
+	svc := app.NewShardMapService(fileRepo, shardRepo, &mockLifecycleRepo{})
 	resp, err := svc.RecordShards(&dto.RecordShardsRequest{
 		FileID: fileID.String(),
 		Shards: []dto.ShardInfo{
@@ -238,7 +263,15 @@ func TestShardMapService_GetAndUpdate(t *testing.T) {
 		},
 	}
 
-	svc := app.NewShardMapService(fileRepo, shardRepo)
+	now := time.Now().UTC()
+	svc := app.NewShardMapService(fileRepo, shardRepo, &mockLifecycleRepo{
+		getSummaryFn: func(string) (*repository.LifecycleSummary, error) {
+			return &repository.LifecycleSummary{
+				FirstCreatedAt:   &now,
+				LastDownloadedAt: &now,
+			}, nil
+		},
+	})
 
 	mapResp, err := svc.GetShardMap(fileID)
 	if err != nil || mapResp.FileID == "" || len(mapResp.Shards) != 1 {
@@ -256,5 +289,101 @@ func TestShardMapService_GetAndUpdate(t *testing.T) {
 
 	if err := svc.MarkShardStatus(shardID, &dto.MarkShardStatusRequest{Status: "BAD"}); err == nil {
 		t.Fatalf("expected error for invalid status")
+	}
+}
+
+func TestShardMapService_GetFileMetadataIncludesLifecycleSummary(t *testing.T) {
+	fileID := uuid.New()
+	name := "meta.txt"
+	now := time.Now().UTC()
+
+	fileRepo := &mockFileRepo{
+		getByIDFn: func(id uuid.UUID) (*models.File, error) {
+			return &models.File{
+				ID:           fileID,
+				OriginalName: &name,
+				OriginalSize: 12,
+				TotalChunks:  2,
+				N:            6,
+				K:            4,
+				ShardSize:    2,
+				Status:       models.FileStatusUploaded,
+				CreatedAt:    now,
+				UpdatedAt:    now,
+			}, nil
+		},
+	}
+	shardRepo := &mockShardRepo{
+		getByFileIDFn: func(uuid.UUID) ([]*models.Shard, error) {
+			return []*models.Shard{
+				{Status: models.ShardStatusHealthy},
+				{Status: models.ShardStatusHealthy},
+			}, nil
+		},
+	}
+	svc := app.NewShardMapService(fileRepo, shardRepo, &mockLifecycleRepo{
+		getSummaryFn: func(string) (*repository.LifecycleSummary, error) {
+			return &repository.LifecycleSummary{
+				FirstCreatedAt:   &now,
+				LastDownloadedAt: &now,
+			}, nil
+		},
+	})
+
+	resp, err := svc.GetFileMetadata(fileID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.FirstCreatedAt == nil || resp.LastDownloadedAt == nil {
+		t.Fatalf("expected lifecycle summary fields to be set, got %+v", resp)
+	}
+}
+
+func TestShardMapService_ListFilesIncludesLifecycleSummary(t *testing.T) {
+	fileID := uuid.New()
+	name := "meta-list.txt"
+	now := time.Now().UTC()
+
+	fileRepo := &mockFileRepo{
+		getAllWithHealthFn: func() ([]*models.FileWithHealth, error) {
+			return []*models.FileWithHealth{
+				{
+					File: models.File{
+						ID:           fileID,
+						OriginalName: &name,
+						OriginalSize: 10,
+						TotalChunks:  1,
+						N:            6,
+						K:            4,
+						ShardSize:    2,
+						Status:       models.FileStatusUploaded,
+						CreatedAt:    now,
+						UpdatedAt:    now,
+					},
+					HealthyShards: 6,
+					TotalShards:   6,
+				},
+			}, nil
+		},
+	}
+
+	svc := app.NewShardMapService(fileRepo, &mockShardRepo{}, &mockLifecycleRepo{
+		getSummaryFn: func(string) (*repository.LifecycleSummary, error) {
+			return &repository.LifecycleSummary{
+				FirstCreatedAt:   &now,
+				LastDownloadedAt: &now,
+			}, nil
+		},
+	})
+
+	resp, err := svc.ListFiles()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(resp) != 1 {
+		t.Fatalf("expected 1 file, got %d", len(resp))
+	}
+	if resp[0].FirstCreatedAt == nil || resp[0].LastDownloadedAt == nil {
+		t.Fatalf("expected lifecycle summary fields in list response, got %+v", resp[0])
 	}
 }

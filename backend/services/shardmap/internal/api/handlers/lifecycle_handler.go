@@ -22,14 +22,28 @@ func NewLifecycleHandler(service app.LifecycleService) *LifecycleHandler {
 // RegisterRoutes registers lifecycle routes on the given mux.
 //
 //	POST /api/v1/lifecycle           — record a lifecycle event
+//	GET  /api/v1/lifecycle           — get global lifecycle events
 //	GET  /api/v1/lifecycle/{fileId}  — get history for a file
 func (h *LifecycleHandler) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/api/v1/lifecycle", h.handleRecord)
+	mux.HandleFunc("/api/v1/lifecycle", h.handleRoot)
 	mux.HandleFunc("/api/v1/lifecycle/", h.handleHistory)
 }
 
-// handleRecord handles POST /api/v1/lifecycle
-func (h *LifecycleHandler) handleRecord(w http.ResponseWriter, r *http.Request) {
+// handleRoot dispatches POST/GET /api/v1/lifecycle.
+func (h *LifecycleHandler) handleRoot(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		resp, err := h.service.GetAllHistory()
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{
+				"error":   "failed to get lifecycle history",
+				"details": err.Error(),
+			})
+			return
+		}
+		writeJSON(w, http.StatusOK, resp)
+		return
+	}
+
 	if r.Method != http.MethodPost {
 		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
 		return
