@@ -45,7 +45,7 @@ func main() {
 	log.Println("✅ Lifecycle schema ready")
 
 	// Initialize services
-	shardMapService := app.NewShardMapService(fileRepo, shardRepo)
+	shardMapService := app.NewShardMapService(fileRepo, shardRepo, lifecycleRepo)
 	lifecycleService := app.NewLifecycleService(lifecycleRepo)
 
 	// Initialize handlers
@@ -83,4 +83,3 @@ func main() {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }
-

@@ -13,6 +13,10 @@ func ConnectSQLite(path string) (*sqlx.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite db: %w", err)
 	}
+	// SQLite allows only one writer at a time; force a single shared connection
+	// to avoid SQLITE_BUSY under concurrent writes.
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
 
 	if _, err := db.Exec("PRAGMA journal_mode=WAL;"); err != nil {
 		return nil, fmt.Errorf("set WAL mode: %w", err)

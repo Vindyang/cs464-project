@@ -12,6 +12,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/vindyang/cs464-project/backend/services/adapter/internal/api/handlers"
+	mockprovider "github.com/vindyang/cs464-project/backend/services/adapter/internal/mock"
 	"github.com/vindyang/cs464-project/backend/services/shared/adapter"
 	"github.com/vindyang/cs464-project/backend/services/shared/db"
 	"github.com/vindyang/cs464-project/backend/services/shared/oauthhandler"
@@ -44,19 +45,26 @@ func main() {
 	// Initialize adapter registry
 	registry := adapter.NewRegistry()
 
-	// Restore Google Drive adapter from stored token if available
-	if err := tryRestoreGDriveAdapter(store, registry); err != nil {
-		log.Printf("Google Drive adapter not restored: %v", err)
-	}
+	mockModeEnabled := os.Getenv("ADAPTER_MOCK_MODE") == "true"
+	if mockModeEnabled {
+		registry.Register("mockLocal", mockprovider.NewProvider())
+		log.Println("Adapter mock mode enabled: registered mockLocal provider")
+	} else {
+		// Restore Google Drive adapter from stored token if available
+		if err := tryRestoreGDriveAdapter(store, registry); err != nil {
+			log.Printf("Google Drive adapter not restored: %v", err)
+		}
 
-	// Restore S3 adapter from stored credentials if available
-	s3Handler := s3handler.New(store, registry)
-	if err := s3Handler.RestoreAdapter(); err != nil {
-		log.Printf("S3 adapter not restored: %v", err)
+		// Restore S3 adapter from stored credentials if available
+		s3Handler := s3handler.New(store, registry)
+		if err := s3Handler.RestoreAdapter(); err != nil {
+			log.Printf("S3 adapter not restored: %v", err)
+		}
 	}
 
 	// OAuth handler for Google Drive
 	oauthHandler := oauthhandler.New(store, registry)
+	s3Handler := s3handler.New(store, registry)
 
 	credentialsHandler := handlers.NewCredentialsHandler(store)
 	settingsHandler := handlers.NewSettingsHandler(store)
@@ -151,7 +159,6 @@ func (app *App) listProviders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(metadatas)
 }
-
 
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

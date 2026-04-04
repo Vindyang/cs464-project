@@ -41,6 +41,8 @@ type ShardMapClient interface {
 	LogLifecycleEvent(ctx context.Context, event *types.LifecycleEvent) error
 	// GetFileHistory retrieves all lifecycle events for a file from the shardmap service.
 	GetFileHistory(ctx context.Context, fileID string) (*types.FileHistoryResp, error)
+	// GetAllHistory retrieves lifecycle events across all files from the shardmap service.
+	GetAllHistory(ctx context.Context) (*types.GlobalHistoryResp, error)
 }
 
 type ShardingClient interface {
@@ -78,6 +80,12 @@ func (s *Service) logEvent(event *types.LifecycleEvent) {
 // the request through to the shardmap service.
 func (s *Service) GetFileHistory(ctx context.Context, fileID string) (*types.FileHistoryResp, error) {
 	return s.shardMap.GetFileHistory(ctx, fileID)
+}
+
+// GetAllHistory returns lifecycle event history across all files by proxying
+// the request through to the shardmap service.
+func (s *Service) GetAllHistory(ctx context.Context) (*types.GlobalHistoryResp, error) {
+	return s.shardMap.GetAllHistory(ctx)
 }
 
 // DeleteFile deletes a file via the adapter service and logs a lifecycle event.

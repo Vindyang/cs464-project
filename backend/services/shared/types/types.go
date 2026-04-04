@@ -40,12 +40,14 @@ type ShardInfo struct {
 
 // GetShardMapResp from Shard Map Service
 type GetShardMapResp struct {
-	FileID       string          `json:"file_id"`
-	OriginalName string          `json:"original_name"`
-	N            int             `json:"n"`
-	K            int             `json:"k"`
-	Status       string          `json:"status"`
-	Shards       []ShardMapEntry `json:"shards"`
+	FileID           string          `json:"file_id"`
+	OriginalName     string          `json:"original_name"`
+	N                int             `json:"n"`
+	K                int             `json:"k"`
+	Status           string          `json:"status"`
+	FirstCreatedAt   *string         `json:"first_created_at,omitempty"`
+	LastDownloadedAt *string         `json:"last_downloaded_at,omitempty"`
+	Shards           []ShardMapEntry `json:"shards"`
 }
 
 type ShardMapEntry struct {
@@ -102,7 +104,7 @@ type DownloadResp struct {
 // to record file operation history (upload or download).
 type LifecycleEvent struct {
 	FileID     string    `json:"file_id"`
-	EventType  string    `json:"event_type"`  // "upload" or "download"
+	EventType  string    `json:"event_type"` // "upload" or "download"
 	FileName   string    `json:"file_name,omitempty"`
 	FileSize   int64     `json:"file_size,omitempty"`
 	ShardCount int       `json:"shard_count,omitempty"`
@@ -110,12 +112,17 @@ type LifecycleEvent struct {
 	StartedAt  time.Time `json:"started_at"`
 	EndedAt    time.Time `json:"ended_at"`
 	DurationMs int64     `json:"duration_ms"`
-	Status     string    `json:"status"`             // "success" or "failed"
+	Status     string    `json:"status"` // "success" or "failed"
 	ErrorMsg   string    `json:"error_msg,omitempty"`
 }
 
 // FileHistoryResp is returned by the shardmap lifecycle history endpoint.
 type FileHistoryResp struct {
 	FileID string           `json:"file_id"`
+	Events []LifecycleEvent `json:"events"`
+}
+
+// GlobalHistoryResp is returned by the global lifecycle history endpoint.
+type GlobalHistoryResp struct {
 	Events []LifecycleEvent `json:"events"`
 }

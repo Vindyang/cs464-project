@@ -182,6 +182,7 @@ type AdapterMockConfig struct {
 	OnUploadShard   func(http.ResponseWriter, *http.Request)
 	OnDownloadShard func(http.ResponseWriter, *http.Request)
 	OnDeleteShard   func(http.ResponseWriter, *http.Request)
+	OnDeleteFile    func(http.ResponseWriter, *http.Request)
 }
 
 func NewAdapterMock(t *testing.T, cfg AdapterMockConfig) *httptest.Server {
@@ -208,17 +209,24 @@ func NewAdapterMock(t *testing.T, cfg AdapterMockConfig) *httptest.Server {
 				cfg.OnDeleteShard(w, r)
 				return
 			}
+		case r.Method == http.MethodDelete && strings.HasPrefix(r.URL.Path, "/api/v1/files/"):
+			if cfg.OnDeleteFile != nil {
+				cfg.OnDeleteFile(w, r)
+				return
+			}
 		}
 		http.NotFound(w, r)
 	}))
 }
 
 type ShardMapMockConfig struct {
-	OnRegisterFile  func(http.ResponseWriter, *http.Request)
-	OnRecordShards  func(http.ResponseWriter, *http.Request)
-	OnGetShardMap   func(http.ResponseWriter, *http.Request)
-	OnLogLifecycle  func(http.ResponseWriter, *http.Request) // POST /api/v1/lifecycle
-	OnGetLifecycle  func(http.ResponseWriter, *http.Request) // GET  /api/v1/lifecycle/{fileId}
+	OnRegisterFile func(http.ResponseWriter, *http.Request)
+	OnRecordShards func(http.ResponseWriter, *http.Request)
+	OnGetShardMap  func(http.ResponseWriter, *http.Request)
+	OnGetFile      func(http.ResponseWriter, *http.Request)
+	OnDeleteFile   func(http.ResponseWriter, *http.Request)
+	OnLogLifecycle func(http.ResponseWriter, *http.Request) // POST /api/v1/lifecycle
+	OnGetLifecycle func(http.ResponseWriter, *http.Request) // GET  /api/v1/lifecycle/{fileId}
 }
 
 func NewShardMapMock(t *testing.T, cfg ShardMapMockConfig) *httptest.Server {
@@ -238,6 +246,16 @@ func NewShardMapMock(t *testing.T, cfg ShardMapMockConfig) *httptest.Server {
 		case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/api/v1/shards/file/"):
 			if cfg.OnGetShardMap != nil {
 				cfg.OnGetShardMap(w, r)
+				return
+			}
+		case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/api/v1/files/"):
+			if cfg.OnGetFile != nil {
+				cfg.OnGetFile(w, r)
+				return
+			}
+		case r.Method == http.MethodDelete && strings.HasPrefix(r.URL.Path, "/api/v1/files/"):
+			if cfg.OnDeleteFile != nil {
+				cfg.OnDeleteFile(w, r)
 				return
 			}
 		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/lifecycle":

@@ -42,10 +42,18 @@ type LifecycleRepository interface {
 	GetByFileID(fileID string) ([]types.LifecycleEvent, error)
 	// GetAll returns all lifecycle events across all files, newest first (max 200).
 	GetAll() ([]types.LifecycleEvent, error)
+	// GetLifecycleSummary returns first successful upload timestamp and latest
+	// successful download timestamp for a file.
+	GetLifecycleSummary(fileID string) (*LifecycleSummary, error)
 }
 
 type lifecycleRepository struct {
 	db *sqlx.DB
+}
+
+type LifecycleSummary struct {
+	FirstCreatedAt   *time.Time
+	LastDownloadedAt *time.Time
 }
 
 // NewLifecycleRepository creates a new LifecycleRepository backed by the given DB.
@@ -256,6 +264,43 @@ func (r *lifecycleRepository) GetAll() ([]types.LifecycleEvent, error) {
 		return nil, fmt.Errorf("lifecycle row iteration error: %w", err)
 	}
 	return events, nil
+}
+
+func (r *lifecycleRepository) GetLifecycleSummary(fileID string) (*LifecycleSummary, error) {
+	var firstCreatedRaw, lastDownloadedRaw sql.NullString
+	err := r.db.QueryRow(`
+		SELECT
+			MIN(CASE WHEN event_type = 'upload' AND status = 'success' THEN ended_at END) AS first_created_at,
+			MAX(CASE WHEN event_type = 'download' AND status = 'success' THEN ended_at END) AS last_downloaded_at
+		FROM file_lifecycle_log
+		WHERE file_id = ?`,
+		fileID,
+	).Scan(&firstCreatedRaw, &lastDownloadedRaw)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query lifecycle summary: %w", err)
+	}
+
+	summary := &LifecycleSummary{}
+
+	if firstCreatedRaw.Valid && strings.TrimSpace(firstCreatedRaw.String) != "" {
+		t, err := parseSQLiteTime(firstCreatedRaw.String)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse first_created_at: %w", err)
+		}
+		utc := t.UTC()
+		summary.FirstCreatedAt = &utc
+	}
+
+	if lastDownloadedRaw.Valid && strings.TrimSpace(lastDownloadedRaw.String) != "" {
+		t, err := parseSQLiteTime(lastDownloadedRaw.String)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse last_downloaded_at: %w", err)
+		}
+		utc := t.UTC()
+		summary.LastDownloadedAt = &utc
+	}
+
+	return summary, nil
 }
 
 // nullableString returns nil for empty strings so they are stored as NULL.

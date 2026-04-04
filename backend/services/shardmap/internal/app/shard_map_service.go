@@ -14,6 +14,7 @@ type ShardMapService interface {
 	RegisterFile(req *dto.RegisterFileRequest) (*dto.RegisterFileResponse, error)
 	RecordShards(req *dto.RecordShardsRequest) (*dto.RecordShardsResponse, error)
 	GetShardMap(fileID uuid.UUID) (*dto.GetShardMapResponse, error)
+	GetFileMetadata(fileID uuid.UUID) (*dto.FileMetadataResponse, error)
 	GetShardByID(shardID uuid.UUID) (*dto.ShardInfo, error)
 	MarkShardStatus(shardID uuid.UUID, req *dto.MarkShardStatusRequest) error
 	ListFiles() ([]dto.FileMetadataResponse, error)
@@ -21,14 +22,20 @@ type ShardMapService interface {
 }
 
 type shardMapService struct {
-	fileRepo  repository.FileRepository
-	shardRepo repository.ShardRepository
+	fileRepo      repository.FileRepository
+	shardRepo     repository.ShardRepository
+	lifecycleRepo repository.LifecycleRepository
 }
 
-func NewShardMapService(fileRepo repository.FileRepository, shardRepo repository.ShardRepository) ShardMapService {
+func NewShardMapService(
+	fileRepo repository.FileRepository,
+	shardRepo repository.ShardRepository,
+	lifecycleRepo repository.LifecycleRepository,
+) ShardMapService {
 	return &shardMapService{
-		fileRepo:  fileRepo,
-		shardRepo: shardRepo,
+		fileRepo:      fileRepo,
+		shardRepo:     shardRepo,
+		lifecycleRepo: lifecycleRepo,
 	}
 }
 
@@ -170,20 +177,112 @@ func (s *shardMapService) GetShardMap(fileID uuid.UUID) (*dto.GetShardMapRespons
 		}
 	}
 
+	summary, err := s.lifecycleRepo.GetLifecycleSummary(fileID.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get lifecycle summary: %w", err)
+	}
+
+	var firstCreatedAt *string
+	var lastDownloadedAt *string
+	if summary != nil && summary.FirstCreatedAt != nil {
+		v := summary.FirstCreatedAt.Format(time.RFC3339)
+		firstCreatedAt = &v
+	}
+	if summary != nil && summary.LastDownloadedAt != nil {
+		v := summary.LastDownloadedAt.Format(time.RFC3339)
+		lastDownloadedAt = &v
+	}
+
 	name := ""
 	if file.OriginalName != nil {
 		name = *file.OriginalName
 	}
 	return &dto.GetShardMapResponse{
-		FileID:       file.ID.String(),
-		OriginalName: name,
-		OriginalSize: file.OriginalSize,
-		TotalChunks:  file.TotalChunks,
-		N:            file.N,
-		K:            file.K,
-		ShardSize:    file.ShardSize,
-		Status:       string(file.Status),
-		Shards:       shardMetadata,
+		FileID:           file.ID.String(),
+		OriginalName:     name,
+		OriginalSize:     file.OriginalSize,
+		TotalChunks:      file.TotalChunks,
+		N:                file.N,
+		K:                file.K,
+		ShardSize:        file.ShardSize,
+		Status:           string(file.Status),
+		FirstCreatedAt:   firstCreatedAt,
+		LastDownloadedAt: lastDownloadedAt,
+		Shards:           shardMetadata,
+	}, nil
+}
+
+func (s *shardMapService) GetFileMetadata(fileID uuid.UUID) (*dto.FileMetadataResponse, error) {
+	file, err := s.fileRepo.GetByID(fileID)
+	if err != nil {
+		return nil, fmt.Errorf("file not found: %w", err)
+	}
+
+	shards, err := s.shardRepo.GetByFileID(fileID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get shards: %w", err)
+	}
+
+	var healthyShards, corruptedShards, missingShards int
+	for _, shard := range shards {
+		switch shard.Status {
+		case models.ShardStatusHealthy:
+			healthyShards++
+		case models.ShardStatusCorrupted:
+			corruptedShards++
+		case models.ShardStatusMissing:
+			missingShards++
+		}
+	}
+	totalShards := len(shards)
+	healthPercent := 0.0
+	if totalShards > 0 {
+		healthPercent = float64(healthyShards) / float64(totalShards) * 100
+	}
+
+	summary, err := s.lifecycleRepo.GetLifecycleSummary(fileID.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get lifecycle summary: %w", err)
+	}
+
+	var firstCreatedAt *string
+	var lastDownloadedAt *string
+	if summary != nil && summary.FirstCreatedAt != nil {
+		v := summary.FirstCreatedAt.Format(time.RFC3339)
+		firstCreatedAt = &v
+	}
+	if summary != nil && summary.LastDownloadedAt != nil {
+		v := summary.LastDownloadedAt.Format(time.RFC3339)
+		lastDownloadedAt = &v
+	}
+
+	name := ""
+	if file.OriginalName != nil {
+		name = *file.OriginalName
+	}
+
+	return &dto.FileMetadataResponse{
+		FileID:           file.ID.String(),
+		OriginalName:     name,
+		OriginalSize:     file.OriginalSize,
+		TotalChunks:      file.TotalChunks,
+		TotalShards:      totalShards,
+		N:                file.N,
+		K:                file.K,
+		ShardSize:        file.ShardSize,
+		Status:           string(file.Status),
+		CreatedAt:        file.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:        file.UpdatedAt.Format(time.RFC3339),
+		FirstCreatedAt:   firstCreatedAt,
+		LastDownloadedAt: lastDownloadedAt,
+		HealthStatus: &dto.FileHealthStatus{
+			HealthyShards:   healthyShards,
+			CorruptedShards: corruptedShards,
+			MissingShards:   missingShards,
+			TotalShards:     totalShards,
+			HealthPercent:   healthPercent,
+			Recoverable:     healthyShards >= file.K,
+		},
 	}, nil
 }
 
@@ -252,6 +351,19 @@ func (s *shardMapService) ListFiles() ([]dto.FileMetadataResponse, error) {
 				HealthPercent:   healthPercent,
 				Recoverable:     recoverable,
 			},
+		}
+
+		summary, err := s.lifecycleRepo.GetLifecycleSummary(f.ID.String())
+		if err != nil {
+			return nil, fmt.Errorf("failed to get lifecycle summary: %w", err)
+		}
+		if summary != nil && summary.FirstCreatedAt != nil {
+			v := summary.FirstCreatedAt.Format(time.RFC3339)
+			responses[i].FirstCreatedAt = &v
+		}
+		if summary != nil && summary.LastDownloadedAt != nil {
+			v := summary.LastDownloadedAt.Format(time.RFC3339)
+			responses[i].LastDownloadedAt = &v
 		}
 	}
 

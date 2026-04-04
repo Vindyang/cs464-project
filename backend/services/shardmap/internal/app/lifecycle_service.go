@@ -11,6 +11,7 @@ import (
 type LifecycleService interface {
 	RecordEvent(event *types.LifecycleEvent) error
 	GetFileHistory(fileID string) (*types.FileHistoryResp, error)
+	GetAllHistory() (*types.GlobalHistoryResp, error)
 }
 
 type lifecycleService struct {
@@ -53,6 +54,20 @@ func (s *lifecycleService) GetFileHistory(fileID string) (*types.FileHistoryResp
 	}
 	return &types.FileHistoryResp{
 		FileID: fileID,
+		Events: events,
+	}, nil
+}
+
+// GetAllHistory returns lifecycle events across all files.
+func (s *lifecycleService) GetAllHistory() (*types.GlobalHistoryResp, error) {
+	events, err := s.repo.GetAll()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get lifecycle events: %w", err)
+	}
+	if events == nil {
+		events = []types.LifecycleEvent{}
+	}
+	return &types.GlobalHistoryResp{
 		Events: events,
 	}, nil
 }

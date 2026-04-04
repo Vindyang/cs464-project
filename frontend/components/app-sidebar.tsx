@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   Database,
   FolderOpen,
+  History,
   KeyRound,
   LayoutDashboard,
   Network,
@@ -28,6 +29,7 @@ import {
 const navItems = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { title: "Files", href: "/files", icon: FolderOpen },
+  { title: "History", href: "/history", icon: History },
   { title: "Nodes", href: "/nodes", icon: Network },
   { title: "Providers", href: "/providers", icon: Database },
   { title: "Credentials", href: "/credentials", icon: KeyRound },

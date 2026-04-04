@@ -1,13 +1,11 @@
 package handlers
 
 import (
-	"bytes"
 	"encoding/json"
 	"io"
 	"log"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/vindyang/cs464-project/backend/services/shared/adapter"
 	"github.com/vindyang/cs464-project/backend/services/shared/transport/httpx"
@@ -69,20 +67,12 @@ func (h *FileHandler) ListFiles(w http.ResponseWriter, r *http.Request) {
 
 // GetFileMetadata handles GET /api/v1/files/:fileId by proxying to the shardmap service.
 func (h *FileHandler) GetFileMetadata(w http.ResponseWriter, r *http.Request, fileIDStr string) {
-	h.proxyGET(w, r, h.shardmapURL+"/api/v1/shards/file/"+fileIDStr)
+	h.proxyGET(w, r, h.shardmapURL+"/api/v1/files/"+fileIDStr)
 }
 
 // DeleteFile handles DELETE /api/v1/files/:fileId.
 // If ?delete_shards=true, it first deletes each shard from its provider, then removes the DB record.
-// A lifecycle event is logged to the shardmap service after deletion.
 func (h *FileHandler) DeleteFile(w http.ResponseWriter, r *http.Request, fileIDStr string) {
-	startedAt := time.Now()
-
-	// Capture file metadata before deletion for the lifecycle event.
-	var fileName string
-	var shardCount int
-	var providers []string
-
 	type shardEntry struct {
 		RemoteID string `json:"remote_id"`
 		Provider string `json:"provider"`
@@ -110,10 +100,6 @@ func (h *FileHandler) DeleteFile(w http.ResponseWriter, r *http.Request, fileIDS
 		defer smResp.Body.Close()
 
 		if err := json.NewDecoder(smResp.Body).Decode(&fileShardMap); err == nil {
-			fileName = fileShardMap.OriginalName
-			shardCount = len(fileShardMap.Shards)
-
-			seen := map[string]struct{}{}
 			for _, shard := range fileShardMap.Shards {
 				p, err := h.registry.Get(shard.Provider)
 				if err != nil {
@@ -121,11 +107,6 @@ func (h *FileHandler) DeleteFile(w http.ResponseWriter, r *http.Request, fileIDS
 				}
 				if err := p.DeleteShard(r.Context(), shard.RemoteID); err != nil {
 					log.Printf("DeleteShard(%s, %s): %v", shard.Provider, shard.RemoteID, err)
-				}
-				pName := strings.TrimSpace(shard.Provider)
-				if _, ok := seen[pName]; !ok && pName != "" {
-					seen[pName] = struct{}{}
-					providers = append(providers, pName)
 				}
 			}
 		}
@@ -139,50 +120,6 @@ func (h *FileHandler) DeleteFile(w http.ResponseWriter, r *http.Request, fileIDS
 		return
 	}
 	h.doProxy(w, upstream)
-
-	// Fire-and-forget lifecycle event in a goroutine.
-	endedAt := time.Now()
-	go h.logDeleteLifecycle(fileIDStr, fileName, shardCount, providers, startedAt, endedAt)
-}
-
-// logDeleteLifecycle sends a delete lifecycle event to the shardmap service.
-func (h *FileHandler) logDeleteLifecycle(fileID, fileName string, shardCount int, providers []string, startedAt, endedAt time.Time) {
-	event := map[string]interface{}{
-		"file_id":     fileID,
-		"event_type":  "delete",
-		"file_name":   fileName,
-		"shard_count": shardCount,
-		"providers":   providers,
-		"started_at":  startedAt.UTC(),
-		"ended_at":    endedAt.UTC(),
-		"duration_ms": endedAt.Sub(startedAt).Milliseconds(),
-		"status":      "success",
-	}
-
-	body, err := json.Marshal(event)
-	if err != nil {
-		log.Printf("[lifecycle] failed to marshal delete event for %s: %v", fileID, err)
-		return
-	}
-
-	req, err := http.NewRequest(http.MethodPost, h.shardmapURL+"/api/v1/lifecycle", bytes.NewReader(body))
-	if err != nil {
-		log.Printf("[lifecycle] failed to create request for %s: %v", fileID, err)
-		return
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := (&http.Client{Timeout: 5 * time.Second}).Do(req)
-	if err != nil {
-		log.Printf("[lifecycle] failed to log delete event for %s: %v", fileID, err)
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 300 {
-		respBody, _ := io.ReadAll(resp.Body)
-		log.Printf("[lifecycle] shardmap returned %d for delete event %s: %s", resp.StatusCode, fileID, respBody)
-	}
 }
 
 // proxyShardMap handles GET /api/v1/shards/file/:fileId by proxying to the shardmap service.
@@ -214,4 +151,3 @@ func (h *FileHandler) doProxy(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(resp.StatusCode)
 	io.Copy(w, resp.Body)
 }
-

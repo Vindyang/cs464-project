@@ -319,3 +319,64 @@ func TestOrchestratorDownloadLogsFailureEvent(t *testing.T) {
 	}
 	t.Logf("✓ Download failure lifecycle event logged: status=%s error=%q", downloadLogEvent.Status, downloadLogEvent.ErrorMsg)
 }
+
+func TestOrchestratorDeleteLogsSuccessEvent(t *testing.T) {
+	t.Parallel()
+
+	var deleteLogEvent types.LifecycleEvent
+	var deleteLogCalled bool
+
+	adapterServer := helpers.NewAdapterMock(t, helpers.AdapterMockConfig{
+		OnDeleteFile: func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		},
+	})
+	defer adapterServer.Close()
+
+	shardMapServer := helpers.NewShardMapMock(t, helpers.ShardMapMockConfig{
+		OnGetShardMap: func(w http.ResponseWriter, r *http.Request) {
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"file_id":       "file-del-lifecycle",
+				"original_name": "delete.txt",
+				"status":        "UPLOADED",
+				"shards": []map[string]any{
+					{"provider": "provider-a"},
+				},
+			})
+		},
+		OnLogLifecycle: func(w http.ResponseWriter, r *http.Request) {
+			_ = json.NewDecoder(r.Body).Decode(&deleteLogEvent)
+			deleteLogCalled = true
+			w.WriteHeader(http.StatusCreated)
+		},
+	})
+	defer shardMapServer.Close()
+
+	shardingServer := helpers.NewShardingMock(t, helpers.ShardingMockConfig{})
+	defer shardingServer.Close()
+
+	orchestratorURL, shutdown := helpers.StartOrchestrator(t, adapterServer.URL, shardMapServer.URL, shardingServer.URL)
+	defer shutdown()
+
+	req, _ := http.NewRequest(http.MethodDelete, orchestratorURL+"/api/orchestrator/files/file-del-lifecycle?delete_shards=true", nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("delete request failed: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d", resp.StatusCode)
+	}
+
+	time.Sleep(100 * time.Millisecond)
+
+	if !deleteLogCalled {
+		t.Fatal("expected lifecycle log to be called for successful delete, but it was not")
+	}
+	if deleteLogEvent.EventType != "delete" {
+		t.Errorf("expected event_type 'delete', got %q", deleteLogEvent.EventType)
+	}
+	if deleteLogEvent.Status != "success" {
+		t.Errorf("expected status 'success', got %q", deleteLogEvent.Status)
+	}
+}
