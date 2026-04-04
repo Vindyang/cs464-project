@@ -146,3 +146,27 @@ func (c *Client) DeleteShard(ctx context.Context, remoteID string, provider stri
 
 	return nil
 }
+
+// DeleteFile asks the adapter to delete a file (including remote shards when deleteShards is true).
+func (c *Client) DeleteFile(ctx context.Context, fileID string, deleteShards bool) error {
+	url := fmt.Sprintf("%s/api/v1/files/%s", c.baseURL, fileID)
+	if deleteShards {
+		url += "?delete_shards=true"
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create delete request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to delete file: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("adapter returned %d: %s", resp.StatusCode, body)
+	}
+	return nil
+}

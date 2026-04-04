@@ -119,6 +119,39 @@ func UploadFileRaw(t *testing.T, baseURL string, payload []byte) (*http.Response
 	return httpResp, respBody
 }
 
+// DownloadFile performs a download request for the given fileID and returns the raw bytes.
+func DownloadFile(t *testing.T, baseURL string, fileID string) ([]byte, int) {
+	t.Helper()
+	url := fmt.Sprintf("%s/api/orchestrator/files/%s/download", baseURL, fileID)
+	resp, err := http.Get(url)
+	if err != nil {
+		t.Fatalf("download request failed: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	return body, resp.StatusCode
+}
+
+// GetFileHistory queries the orchestrator's lifecycle history endpoint for a file.
+func GetFileHistory(t *testing.T, baseURL string, fileID string) *types.FileHistoryResp {
+	t.Helper()
+	url := fmt.Sprintf("%s/api/orchestrator/files/%s/history", baseURL, fileID)
+	resp, err := http.Get(url)
+	if err != nil {
+		t.Fatalf("history request failed: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("history endpoint returned %d: %s", resp.StatusCode, body)
+	}
+	var out types.FileHistoryResp
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		t.Fatalf("failed to decode history response: %v", err)
+	}
+	return &out
+}
+
 // waitForHTTP polls an endpoint until it responds or the timeout expires.
 func waitForHTTP(url string, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
@@ -181,9 +214,11 @@ func NewAdapterMock(t *testing.T, cfg AdapterMockConfig) *httptest.Server {
 }
 
 type ShardMapMockConfig struct {
-	OnRegisterFile func(http.ResponseWriter, *http.Request)
-	OnRecordShards func(http.ResponseWriter, *http.Request)
-	OnGetShardMap  func(http.ResponseWriter, *http.Request)
+	OnRegisterFile  func(http.ResponseWriter, *http.Request)
+	OnRecordShards  func(http.ResponseWriter, *http.Request)
+	OnGetShardMap   func(http.ResponseWriter, *http.Request)
+	OnLogLifecycle  func(http.ResponseWriter, *http.Request) // POST /api/v1/lifecycle
+	OnGetLifecycle  func(http.ResponseWriter, *http.Request) // GET  /api/v1/lifecycle/{fileId}
 }
 
 func NewShardMapMock(t *testing.T, cfg ShardMapMockConfig) *httptest.Server {
@@ -203,6 +238,19 @@ func NewShardMapMock(t *testing.T, cfg ShardMapMockConfig) *httptest.Server {
 		case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/api/v1/shards/file/"):
 			if cfg.OnGetShardMap != nil {
 				cfg.OnGetShardMap(w, r)
+				return
+			}
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/lifecycle":
+			if cfg.OnLogLifecycle != nil {
+				cfg.OnLogLifecycle(w, r)
+				return
+			}
+			// Default: accept silently so tests that don't care still pass.
+			w.WriteHeader(http.StatusCreated)
+			return
+		case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/api/v1/lifecycle/"):
+			if cfg.OnGetLifecycle != nil {
+				cfg.OnGetLifecycle(w, r)
 				return
 			}
 		}

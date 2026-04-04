@@ -3,6 +3,8 @@ package app
 import (
 	"context"
 	"fmt"
+	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -26,6 +28,7 @@ type AdapterClient interface {
 	UploadShard(ctx context.Context, shardID string, provider string, data []byte) (*types.UploadShardResp, error)
 	DownloadShard(ctx context.Context, remoteID string, provider string) ([]byte, error)
 	DeleteShard(ctx context.Context, remoteID string, provider string) error
+	DeleteFile(ctx context.Context, fileID string, deleteShards bool) error
 }
 
 type ShardMapClient interface {
@@ -33,6 +36,11 @@ type ShardMapClient interface {
 	RecordShards(ctx context.Context, req *types.RecordShardReq) (*types.RecordShardResp, error)
 	GetShardMap(ctx context.Context, fileID string) (*types.GetShardMapResp, error)
 	MarkShardStatus(ctx context.Context, shardID string, status string) error
+	// LogLifecycleEvent records a file operation lifecycle event in the shardmap service.
+	// Callers treat failures as non-fatal (fire-and-forget).
+	LogLifecycleEvent(ctx context.Context, event *types.LifecycleEvent) error
+	// GetFileHistory retrieves all lifecycle events for a file from the shardmap service.
+	GetFileHistory(ctx context.Context, fileID string) (*types.FileHistoryResp, error)
 }
 
 type ShardingClient interface {
@@ -53,6 +61,79 @@ func NewServiceWithSharding(adapter AdapterClient, shardMap ShardMapClient, shar
 		shardMap: shardMap,
 		sharding: sharding,
 	}
+}
+
+// logEvent sends a lifecycle event to the shardmap service.
+// Failures are logged but never propagate to the caller.
+func (s *Service) logEvent(event *types.LifecycleEvent) {
+	// Use a background context so a cancelled request context doesn't prevent logging.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := s.shardMap.LogLifecycleEvent(ctx, event); err != nil {
+		log.Printf("[lifecycle] failed to log %s event for file %s: %v", event.EventType, event.FileID, err)
+	}
+}
+
+// GetFileHistory returns the lifecycle event history for a file by proxying
+// the request through to the shardmap service.
+func (s *Service) GetFileHistory(ctx context.Context, fileID string) (*types.FileHistoryResp, error) {
+	return s.shardMap.GetFileHistory(ctx, fileID)
+}
+
+// DeleteFile deletes a file via the adapter service and logs a lifecycle event.
+func (s *Service) DeleteFile(ctx context.Context, fileID string, deleteShards bool) error {
+	startedAt := time.Now()
+
+	// Fetch metadata before deletion so we can record it in the lifecycle event.
+	var fileName string
+	var fileSize int64
+	var shardCount int
+	var providers []string
+	if shardMap, err := s.shardMap.GetShardMap(ctx, fileID); err == nil {
+		fileName = shardMap.OriginalName
+		shardCount = len(shardMap.Shards)
+		// Collect unique providers.
+		seen := map[string]struct{}{}
+		for _, shard := range shardMap.Shards {
+			p := strings.TrimSpace(shard.Provider)
+			if p != "" {
+				if _, ok := seen[p]; !ok {
+					seen[p] = struct{}{}
+					providers = append(providers, p)
+				}
+			}
+		}
+	}
+
+	// Perform the actual delete.
+	err := s.adapter.DeleteFile(ctx, fileID, deleteShards)
+
+	endedAt := time.Now()
+	durationMs := endedAt.Sub(startedAt).Milliseconds()
+
+	status := "success"
+	errMsg := ""
+	if err != nil {
+		status = "failed"
+		errMsg = err.Error()
+	}
+
+	event := &types.LifecycleEvent{
+		FileID:     fileID,
+		EventType:  "delete",
+		FileName:   fileName,
+		FileSize:   fileSize,
+		ShardCount: shardCount,
+		Providers:  providers,
+		StartedAt:  startedAt,
+		EndedAt:    endedAt,
+		DurationMs: durationMs,
+		Status:     status,
+		ErrorMsg:   errMsg,
+	}
+	s.logEvent(event)
+
+	return err
 }
 
 func (s *Service) UploadRawFile(ctx context.Context, fileName string, fileData []byte, k int, n int) (*types.UploadResp, error) {
@@ -82,6 +163,53 @@ func (s *Service) UploadRawFile(ctx context.Context, fileName string, fileData [
 }
 
 func (s *Service) UploadFile(ctx context.Context, fileName string, shards [][]byte, isDataShard []bool) (*types.UploadResp, error) {
+	startedAt := time.Now()
+
+	resp, err := s.uploadFileInternal(ctx, fileName, shards, isDataShard)
+
+	endedAt := time.Now()
+	durationMs := endedAt.Sub(startedAt).Milliseconds()
+
+	// Determine the file ID for logging (may be empty on early failure).
+	fileID := ""
+	if resp != nil {
+		fileID = resp.FileID
+	}
+
+	// Build and fire the lifecycle event (fire-and-forget).
+	if fileID != "" {
+		status := "success"
+		errMsg := ""
+		if err != nil {
+			status = "failed"
+			errMsg = err.Error()
+		} else if resp != nil && resp.Status == "failed" {
+			status = "failed"
+			errMsg = resp.Error
+		}
+
+		providers := uniqueProviders(shards, resp)
+		event := &types.LifecycleEvent{
+			FileID:     fileID,
+			EventType:  "upload",
+			FileName:   fileName,
+			FileSize:   totalShardSize(shards),
+			ShardCount: len(shards),
+			Providers:  providers,
+			StartedAt:  startedAt,
+			EndedAt:    endedAt,
+			DurationMs: durationMs,
+			Status:     status,
+			ErrorMsg:   errMsg,
+		}
+		s.logEvent(event)
+	}
+
+	return resp, err
+}
+
+// uploadFileInternal contains the original upload logic, separated so timing wraps it cleanly.
+func (s *Service) uploadFileInternal(ctx context.Context, fileName string, shards [][]byte, isDataShard []bool) (*types.UploadResp, error) {
 	if len(shards) != TotalShards {
 		return nil, fmt.Errorf("expected %d shards, got %d", TotalShards, len(shards))
 	}
@@ -263,6 +391,41 @@ func (s *Service) rollbackUpload(ctx context.Context, results []UploadResult) {
 }
 
 func (s *Service) DownloadFile(ctx context.Context, fileID string) (*types.DownloadResp, error) {
+	startedAt := time.Now()
+
+	resp, err := s.downloadFileInternal(ctx, fileID)
+
+	endedAt := time.Now()
+	durationMs := endedAt.Sub(startedAt).Milliseconds()
+
+	// Fire-and-forget lifecycle log.
+	status := "success"
+	errMsg := ""
+	if err != nil {
+		status = "failed"
+		errMsg = err.Error()
+	}
+	fileName := ""
+	if resp != nil {
+		fileName = resp.FileName
+	}
+	event := &types.LifecycleEvent{
+		FileID:     fileID,
+		EventType:  "download",
+		FileName:   fileName,
+		StartedAt:  startedAt,
+		EndedAt:    endedAt,
+		DurationMs: durationMs,
+		Status:     status,
+		ErrorMsg:   errMsg,
+	}
+	s.logEvent(event)
+
+	return resp, err
+}
+
+// downloadFileInternal contains the original download logic.
+func (s *Service) downloadFileInternal(ctx context.Context, fileID string) (*types.DownloadResp, error) {
 	shardMap, err := s.shardMap.GetShardMap(ctx, fileID)
 	if err != nil {
 		return nil, fmt.Errorf("file not found: %w", err)
@@ -357,4 +520,35 @@ func (s *Service) downloadShardsParallelEarlyExit(ctx context.Context, shardEntr
 	}
 
 	return results
+}
+
+// totalShardSize returns the sum of all shard lengths (used as an approximation of file size).
+func totalShardSize(shards [][]byte) int64 {
+	var total int64
+	for _, s := range shards {
+		total += int64(len(s))
+	}
+	return total
+}
+
+// uniqueProviders extracts the distinct provider IDs used in a committed upload response.
+func uniqueProviders(_ [][]byte, resp *types.UploadResp) []string {
+	if resp == nil {
+		return nil
+	}
+	seen := map[string]struct{}{}
+	var out []string
+	for _, si := range resp.Shards {
+		p := si.Provider
+		if p == "" {
+			continue
+		}
+		// Trim any stray whitespace
+		p = strings.TrimSpace(p)
+		if _, ok := seen[p]; !ok {
+			seen[p] = struct{}{}
+			out = append(out, p)
+		}
+	}
+	return out
 }
