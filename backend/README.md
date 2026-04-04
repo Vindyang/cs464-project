@@ -89,11 +89,15 @@ Common service URLs:
 
 Adapter OAuth/token storage:
 
-- `DATABASE_URL`
+- `Omnishard_DB_PATH`
 - `GDRIVE_OAUTH_CREDENTIALS_FILE`
 - `GDRIVE_OAUTH_REDIRECT_URI`
 - `GDRIVE_FOLDER_ID`
 - `FRONTEND_URL`
+
+Shardmap local persistence:
+
+- `Omnishard_SHARDMAP_DB_PATH`
 
 ## Run Locally
 
@@ -147,7 +151,7 @@ For backend-only mode:
 docker compose --profile backend down
 ```
 
-Stop and also remove Postgres data volume:
+Stop and also remove local service data volumes:
 
 ```powershell
 docker compose --profile full down -v

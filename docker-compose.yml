@@ -1,23 +1,4 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: Omnishard
-      POSTGRES_USER: Omnishard
-      POSTGRES_PASSWORD: Omnishard
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./backend/docker/init-local.sql:/docker-entrypoint-initdb.d/001-init-local.sql:ro
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U Omnishard -d Omnishard"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    profiles: ["backend", "full"]
-
   adapter:
     build:
       context: ./backend
@@ -29,9 +10,6 @@ services:
       PORT: "8080"
       SHARDMAP_URL: "http://shardmap:8081"
       Omnishard_DB_PATH: "/app/data/Omnishard.db"
-    depends_on:
-      postgres:
-        condition: service_healthy
     volumes:
       - adapter_data:/app/data
     ports:
@@ -48,9 +26,6 @@ services:
     environment:
       PORT: "8081"
       Omnishard_SHARDMAP_DB_PATH: "/app/data/Omnishard-shardmap.db"
-    depends_on:
-      postgres:
-        condition: service_healthy
     volumes:
       - shardmap_data:/app/data
     ports:
@@ -141,6 +116,5 @@ services:
     profiles: ["full"]
 
 volumes:
-  postgres_data:
   adapter_data:
   shardmap_data:

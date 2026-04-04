@@ -35,16 +35,16 @@ Downloading Files
 ### Shard Orchestrator
 
 1. Upload coordination  
-   When a user uploads a file, the client sends a batch of encrypted shards to the orchestrator. It is responsible for deciding which shard goes to which provider — balancing across providers based on remaining quota — and then dispatching all uploads in parallel using Promise.all. It also writes the resulting shard map (shard ID → provider → path) into PostgreSQL so the system can find them again later.  
+  When a user uploads a file, the client sends a batch of encrypted shards to the orchestrator. It is responsible for deciding which shard goes to which provider — balancing across providers based on remaining quota — and then dispatching all uploads in parallel using Promise.all. It also writes the resulting shard map (shard ID → provider → path) into the shard metadata store so the system can find them again later.  
      
 2. Download coordination  
-   On retrieval, the orchestrator queries PostgreSQL for the shard map, then fires parallel fetch requests to each provider. Critically, because Reed-Solomon only requires K-of-N shards to reconstruct a file, the orchestrator implements an early exit strategy — it resolves as soon as the minimum required shards arrive, discarding the slower providers entirely. This minimises download latency without downloading more data than necessary.  
+  On retrieval, the orchestrator queries the shard metadata store for the shard map, then fires parallel fetch requests to each provider. Critically, because Reed-Solomon only requires K-of-N shards to reconstruct a file, the orchestrator implements an early exit strategy — it resolves as soon as the minimum required shards arrive, discarding the slower providers entirely. This minimises download latency without downloading more data than necessary.  
      
 3. Health-aware decisions  
-   During both upload and download, the orchestrator checks the health status of each provider (sourced from PostgreSQL) before routing to it. A provider flagged as degraded or at capacity is skipped, and the orchestrator selects an alternative. This is what gives the system its fault-tolerance at the routing level, before the Reed-Solomon layer even needs to intervene.  
+  During both upload and download, the orchestrator checks the health status of each provider (sourced from the shard metadata store) before routing to it. A provider flagged as degraded or at capacity is skipped, and the orchestrator selects an alternative. This is what gives the system its fault-tolerance at the routing level, before the Reed-Solomon layer even needs to intervene.  
      
 4. Repair orchestration  
-   When the Background Worker detects a missing or corrupt shard, it does not fetch or reconstruct data itself — it delegates to the orchestrator. The orchestrator downloads enough healthy shards to reconstruct the missing one via Reed-Solomon, then uploads the repaired shard to a different healthy provider, and finally updates the shard map in PostgreSQL to reflect the new location.
+  When the Background Worker detects a missing or corrupt shard, it does not fetch or reconstruct data itself — it delegates to the orchestrator. The orchestrator downloads enough healthy shards to reconstruct the missing one via Reed-Solomon, then uploads the repaired shard to a different healthy provider, and finally updates the shard map in the shard metadata store to reflect the new location.
 
 ### Sharding/Reconstruction Service
 

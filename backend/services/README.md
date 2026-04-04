@@ -127,7 +127,7 @@ docker compose --profile backend build
 
 ### Start backend services
 
-Start full backend profile (includes postgres + all backend services):
+Start full backend profile (all backend services):
 
 ```powershell
 docker compose --profile backend up -d
@@ -163,7 +163,7 @@ Stop and remove all backend profile containers/networks:
 docker compose --profile backend down
 ```
 
-Stop and remove backend profile plus volumes (wipes postgres data):
+Stop and remove backend profile plus volumes (wipes local service data):
 
 ```powershell
 docker compose --profile backend down -v

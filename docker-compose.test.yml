@@ -10,10 +10,6 @@ services:
     restart: "no"
     environment:
       PORT: "8081"
-      DATABASE_URL: "postgresql://nebula:nebula@postgres-test:5432/nebula_test?sslmode=disable"
-    depends_on:
-      postgres-test:
-        condition: service_healthy
     ports:
       - "19081:8081"
     healthcheck:
@@ -65,20 +61,4 @@ services:
       interval: 3s
       timeout: 3s
       retries: 20
-    profiles: ["e2e"]
-
-  postgres-test:
-    image: postgres:16-alpine
-    restart: "no"
-    environment:
-      POSTGRES_DB: nebula_test
-      POSTGRES_USER: nebula
-      POSTGRES_PASSWORD: nebula
-    ports:
-      - "15432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U nebula -d nebula_test"]
-      interval: 3s
-      timeout: 3s
-      retries: 10
     profiles: ["e2e"]

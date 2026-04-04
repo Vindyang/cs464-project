@@ -3,7 +3,7 @@
 ## Cross-Cutting / Project Root
 
 - [ ] Update compose flow to be one-command local startup for full app stack.
-- [ ] Remove dependency on remote Supabase/PostgreSQL credentials in local mode.
+- [x] Remove dependency on remote Supabase/PostgreSQL credentials in local mode.
 - [ ] Ensure local persistent volumes are used for stateful data (tokens, shard map DB).
 - [ ] Add container health checks and service_healthy startup ordering.
 - [ ] Update root documentation to describe setup flow: docker compose -> setup screen -> connect Google Drive.
@@ -55,7 +55,7 @@
 
 ## Shardmap Service
 
-- [ ] Migrate database layer from PostgreSQL driver/config to local SQLite file.
+- [x] Migrate database layer from PostgreSQL driver/config to local SQLite file.
 - [ ] Convert repository SQL patterns for SQLite compatibility (placeholders, RETURNING, timestamps if needed).
 - [ ] Keep shard map API response contracts unchanged for orchestrator/frontend compatibility.
 - [ ] Remove strict user_id query requirement for local single-user mode (server-side default identity).
@@ -72,12 +72,12 @@
 
 - [x] Swap PostgreSQL dependencies for SQLite dependency where needed.
 - [ ] Introduce/maintain local schema definition compatible with SQLite constraints.
-- [ ] Decide whether to keep existing PostgreSQL schema as legacy reference or fully replace.
-- [ ] Update DB initialization path to avoid Postgres-only assumptions.
+- [x] Decide whether to keep existing PostgreSQL schema as legacy reference or fully replace.
+- [x] Update DB initialization path to avoid Postgres-only assumptions.
 
 ## Docker Compose / Infra
 
-- [ ] Remove postgres service and related init-local.sql mount for local-first mode.
+- [x] Remove postgres service and related init-local.sql mount for local-first mode.
 - [ ] Add persistent volumes for adapter local config/token data and shardmap SQLite DB.
 - [ ] Add/adjust env vars for local storage paths and runtime config.
 - [ ] Add health checks for adapter, shardmap, sharding, orchestrator, gateway, frontend.
