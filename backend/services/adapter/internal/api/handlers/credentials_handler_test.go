@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -165,6 +166,53 @@ func TestCredentialsCollectionAndStatus_MethodNotAllowed(t *testing.T) {
 		server.ServeHTTP(rr, req)
 		if rr.Code != http.StatusMethodNotAllowed {
 			t.Fatalf("status code: got %d want %d", rr.Code, http.StatusMethodNotAllowed)
+		}
+	})
+}
+
+func TestCredentialsUpsert_AWSS3RegionValidation(t *testing.T) {
+	store, server := newCredentialHandlerServer(t)
+
+	t.Run("PUT /api/credentials/awsS3 accepts valid region", func(t *testing.T) {
+		body := []byte(`{"client_id":"a-id","client_secret":"a-secret","redirect_uri":"ap-southeast-1"}`)
+		req := httptest.NewRequest(http.MethodPut, "/api/credentials/awsS3", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+		server.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Fatalf("status code: got %d want %d body=%s", rr.Code, http.StatusOK, rr.Body.String())
+		}
+
+		clientID, clientSecret, region, err := store.LoadCredentials("awsS3")
+		if err != nil {
+			t.Fatalf("load credentials: %v", err)
+		}
+		if clientID != "a-id" || clientSecret != "a-secret" || region != "ap-southeast-1" {
+			t.Fatalf("stored credentials mismatch: got %q %q %q", clientID, clientSecret, region)
+		}
+	})
+
+	t.Run("PUT /api/credentials/awsS3 rejects invalid region", func(t *testing.T) {
+		body := []byte(`{"client_id":"a-id","client_secret":"a-secret","redirect_uri":"Sydney"}`)
+		req := httptest.NewRequest(http.MethodPut, "/api/credentials/awsS3", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+		server.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusBadRequest {
+			t.Fatalf("status code: got %d want %d body=%s", rr.Code, http.StatusBadRequest, rr.Body.String())
+		}
+
+		var got map[string]string
+		if err := json.Unmarshal(rr.Body.Bytes(), &got); err != nil {
+			t.Fatalf("decode response: %v", err)
+		}
+		if got["error"] != "invalid AWS region" {
+			t.Fatalf("error message: got %q want %q", got["error"], "invalid AWS region")
+		}
+		if !strings.Contains(got["details"], "not a valid AWS region") {
+			t.Fatalf("details: got %q", got["details"])
 		}
 	})
 }

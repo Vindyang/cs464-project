@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"regexp"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -21,6 +23,8 @@ import (
 )
 
 const bucketConfigKey = "awsS3_bucket"
+
+var awsRegionPattern = regexp.MustCompile(`^[a-z]{2}(?:-gov)?-[a-z]+(?:-[a-z]+)*-[0-9]+$`)
 
 // S3Handler handles connect and disconnect for the AWS S3 provider.
 type S3Handler struct {
@@ -80,6 +84,9 @@ func (h *S3Handler) buildAdapter(ctx context.Context) (*s3adapter.S3Adapter, err
 	if err != nil {
 		return nil, fmt.Errorf("load credentials: %w", err)
 	}
+	if err := ValidateRegion(region); err != nil {
+		return nil, fmt.Errorf("invalid aws region: %w", err)
+	}
 
 	cfg, err := config.LoadDefaultConfig(ctx,
 		config.WithRegion(region),
@@ -102,7 +109,10 @@ func (h *S3Handler) buildAdapter(ctx context.Context) (*s3adapter.S3Adapter, err
 func (h *S3Handler) ensureBucket(ctx context.Context, cfg aws.Config, region string) (string, error) {
 	// Check cache first
 	if cached, err := h.store.GetConfig(bucketConfigKey); err == nil && cached != "" {
-		return cached, nil
+		if isValidBucketName(cached) {
+			return cached, nil
+		}
+		log.Printf("s3handler: ignoring invalid cached bucket name %q", cached)
 	}
 
 	// Derive bucket name from AWS account ID
@@ -111,7 +121,10 @@ func (h *S3Handler) ensureBucket(ctx context.Context, cfg aws.Config, region str
 	if err != nil {
 		return "", fmt.Errorf("get caller identity: %w", err)
 	}
-	bucket := "Omnishard-" + aws.ToString(identity.Account)
+	bucket, err := bucketNameForAccount(aws.ToString(identity.Account))
+	if err != nil {
+		return "", err
+	}
 
 	// Create bucket if it doesn't exist
 	s3Client := s3.NewFromConfig(cfg)
@@ -134,13 +147,7 @@ func createBucketIfNotExists(ctx context.Context, client *s3.Client, bucket, reg
 		return nil // bucket already exists and we have access
 	}
 
-	// Build CreateBucket input — us-east-1 must NOT include LocationConstraint
-	input := &s3.CreateBucketInput{Bucket: aws.String(bucket)}
-	if region != "us-east-1" {
-		input.CreateBucketConfiguration = &s3types.CreateBucketConfiguration{
-			LocationConstraint: s3types.BucketLocationConstraint(region),
-		}
-	}
+	input := createBucketInput(bucket, region)
 
 	_, createErr := client.CreateBucket(ctx, input)
 	if createErr != nil {
@@ -154,4 +161,53 @@ func createBucketIfNotExists(ctx context.Context, client *s3.Client, bucket, reg
 
 	log.Printf("s3handler: created bucket %q in %s", bucket, region)
 	return nil
+}
+
+// ValidateRegion checks whether the configured AWS region looks like a valid region identifier.
+func ValidateRegion(region string) error {
+	region = strings.TrimSpace(region)
+	if region == "" {
+		return errors.New("region is required")
+	}
+	if !awsRegionPattern.MatchString(region) {
+		return fmt.Errorf("%q is not a valid AWS region", region)
+	}
+	return nil
+}
+
+func bucketNameForAccount(accountID string) (string, error) {
+	bucket := strings.ToLower("omnishard-" + strings.TrimSpace(accountID))
+	if !isValidBucketName(bucket) {
+		return "", fmt.Errorf("generated invalid bucket name %q", bucket)
+	}
+	return bucket, nil
+}
+
+func isValidBucketName(bucket string) bool {
+	if len(bucket) < 3 || len(bucket) > 63 {
+		return false
+	}
+	for _, char := range bucket {
+		switch {
+		case char >= 'a' && char <= 'z':
+		case char >= '0' && char <= '9':
+		case char == '-':
+		default:
+			return false
+		}
+	}
+	if bucket[0] == '-' || bucket[len(bucket)-1] == '-' {
+		return false
+	}
+	return true
+}
+
+func createBucketInput(bucket, region string) *s3.CreateBucketInput {
+	input := &s3.CreateBucketInput{Bucket: aws.String(bucket)}
+	if region != "us-east-1" {
+		input.CreateBucketConfiguration = &s3types.CreateBucketConfiguration{
+			LocationConstraint: s3types.BucketLocationConstraint(region),
+		}
+	}
+	return input
 }
