@@ -69,7 +69,7 @@ Stop/remove all backend profile containers and network:
 docker compose --profile backend down
 ```
 
-Stop/remove backend profile and volumes (wipes postgres data):
+Stop/remove backend profile and volumes (wipes local service data):
 
 ```powershell
 docker compose --profile backend down -v
