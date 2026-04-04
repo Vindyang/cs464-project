@@ -25,6 +25,8 @@ type testStack struct {
 	shutdown        func()
 }
 
+// startTestStack binds an in-process adapter mock and brings up the Docker
+// Compose e2e profile (shardmap, sharding, orchestrator).
 func startTestStack(t *testing.T) *testStack {
 	t.Helper()
 

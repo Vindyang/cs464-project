@@ -3,8 +3,10 @@ package handlers
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/vindyang/cs464-project/backend/services/shared/db"
+	"github.com/vindyang/cs464-project/backend/services/shared/s3handler"
 	"github.com/vindyang/cs464-project/backend/services/shared/transport/httpx"
 )
 
@@ -136,9 +138,18 @@ func (h *CredentialsHandler) upsert(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid request body", err)
 		return
 	}
+	body.ClientID = strings.TrimSpace(body.ClientID)
+	body.ClientSecret = strings.TrimSpace(body.ClientSecret)
+	body.RedirectURI = strings.TrimSpace(body.RedirectURI)
 	if body.ClientID == "" || body.ClientSecret == "" || body.RedirectURI == "" {
 		httpx.WriteError(w, http.StatusBadRequest, "client_id, client_secret, and redirect_uri are required", nil)
 		return
+	}
+	if id == "awsS3" {
+		if err := s3handler.ValidateRegion(body.RedirectURI); err != nil {
+			httpx.WriteError(w, http.StatusBadRequest, "invalid AWS region", err)
+			return
+		}
 	}
 
 	if err := h.store.UpsertCredentials(id, body.ClientID, body.ClientSecret, body.RedirectURI); err != nil {
