@@ -82,7 +82,7 @@ func (a *S3Adapter) GetMetadata(ctx context.Context) (*adapter.ProviderMetadata,
 }
 
 func (a *S3Adapter) UploadShard(ctx context.Context, fileID string, index int, data io.Reader) (string, error) {
-	key := fmt.Sprintf("shards/%s_%03d", fileID, index)
+	key := fmt.Sprintf("shards/%s/%03d", fileID, index)
 	_, err := a.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(a.Bucket),
 		Key:    aws.String(key),

@@ -63,7 +63,7 @@ func (h *ShardIOHandler) UploadShard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	remoteID, err := provider.UploadShard(r.Context(), shardID, parseShardIndex(shardID), bytes.NewReader(payload))
+	remoteID, err := provider.UploadShard(r.Context(), parseFileID(shardID), parseShardIndex(shardID), bytes.NewReader(payload))
 	if err != nil {
 		httpx.WriteError(w, http.StatusInternalServerError, "Failed to upload shard", err)
 		return
@@ -143,6 +143,14 @@ func (h *ShardIOHandler) deleteShard(w http.ResponseWriter, r *http.Request, rem
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// parseFileID extracts the file UUID from a shard ID of the form "{fileID}-shard-{index}".
+func parseFileID(shardID string) string {
+	if idx := strings.LastIndex(shardID, "-shard-"); idx != -1 {
+		return shardID[:idx]
+	}
+	return shardID
 }
 
 func parseShardIndex(shardID string) int {
