@@ -10,6 +10,28 @@ import (
 	"github.com/vindyang/cs464-project/backend/services/shared/types"
 )
 
+// SQLite-compatible time formats for parsing stored timestamps.
+var timeFormats = []string{
+	time.RFC3339Nano,
+	time.RFC3339,
+	"2006-01-02T15:04:05Z07:00",
+	"2006-01-02 15:04:05.999999999-07:00",
+	"2006-01-02 15:04:05.999999999Z07:00",
+	"2006-01-02 15:04:05.999999999",
+	"2006-01-02 15:04:05",
+	"2006-01-02",
+}
+
+// parseSQLiteTime tries multiple formats to parse a timestamp string from SQLite.
+func parseSQLiteTime(s string) (time.Time, error) {
+	for _, f := range timeFormats {
+		if t, err := time.Parse(f, s); err == nil {
+			return t, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("unable to parse time %q", s)
+}
+
 // LifecycleRepository persists and queries file lifecycle events.
 type LifecycleRepository interface {
 	// EnsureSchema creates the lifecycle table and indexes if they don't already exist.
@@ -18,6 +40,8 @@ type LifecycleRepository interface {
 	Insert(event *types.LifecycleEvent) error
 	// GetByFileID returns all lifecycle events for a file, newest first.
 	GetByFileID(fileID string) ([]types.LifecycleEvent, error)
+	// GetAll returns all lifecycle events across all files, newest first (max 200).
+	GetAll() ([]types.LifecycleEvent, error)
 }
 
 type lifecycleRepository struct {
@@ -30,25 +54,23 @@ func NewLifecycleRepository(db *sqlx.DB) LifecycleRepository {
 }
 
 // EnsureSchema creates the lifecycle table and indexes idempotently.
-// Called once at service startup. Safe to call even if the table already exists.
-// NOTE: When shardmap migrates to SQLite, replace BIGINT→INTEGER, TIMESTAMP→DATETIME,
-// and switch SQL placeholders from $N to ?.
+// Called once at service startup. Uses SQLite-compatible types.
 func (r *lifecycleRepository) EnsureSchema() error {
 	statements := []string{
 		`CREATE TABLE IF NOT EXISTS file_lifecycle_log (
-			id          BIGSERIAL PRIMARY KEY,
+			id          INTEGER PRIMARY KEY AUTOINCREMENT,
 			file_id     TEXT NOT NULL,
 			event_type  TEXT NOT NULL,
 			file_name   TEXT,
-			file_size   BIGINT,
+			file_size   INTEGER,
 			shard_count INTEGER,
 			providers   TEXT,
-			started_at  TIMESTAMP WITH TIME ZONE NOT NULL,
-			ended_at    TIMESTAMP WITH TIME ZONE NOT NULL,
-			duration_ms BIGINT NOT NULL,
+			started_at  DATETIME NOT NULL,
+			ended_at    DATETIME NOT NULL,
+			duration_ms INTEGER NOT NULL,
 			status      TEXT NOT NULL,
 			error_msg   TEXT,
-			created_at  TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+			created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_lifecycle_file_id
 			ON file_lifecycle_log(file_id)`,
@@ -70,15 +92,15 @@ func (r *lifecycleRepository) Insert(event *types.LifecycleEvent) error {
 		INSERT INTO file_lifecycle_log
 			(file_id, event_type, file_name, file_size, shard_count, providers,
 			 started_at, ended_at, duration_ms, status, error_msg)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		event.FileID,
 		event.EventType,
 		nullableString(event.FileName),
 		nullableInt64(event.FileSize),
 		nullableInt(event.ShardCount),
 		nullableString(providers),
-		event.StartedAt.UTC(),
-		event.EndedAt.UTC(),
+		event.StartedAt.UTC().Format(time.RFC3339Nano),
+		event.EndedAt.UTC().Format(time.RFC3339Nano),
 		event.DurationMs,
 		event.Status,
 		nullableString(event.ErrorMsg),
@@ -95,7 +117,7 @@ func (r *lifecycleRepository) GetByFileID(fileID string) ([]types.LifecycleEvent
 		SELECT file_id, event_type, file_name, file_size, shard_count, providers,
 		       started_at, ended_at, duration_ms, status, error_msg
 		FROM file_lifecycle_log
-		WHERE file_id = $1
+		WHERE file_id = ?
 		ORDER BY created_at DESC`,
 		fileID,
 	)
@@ -111,6 +133,7 @@ func (r *lifecycleRepository) GetByFileID(fileID string) ([]types.LifecycleEvent
 		var fileName, errorMsg sql.NullString
 		var fileSize sql.NullInt64
 		var shardCount sql.NullInt64
+		var startedAtStr, endedAtStr string
 
 		if err := rows.Scan(
 			&e.FileID,
@@ -119,14 +142,26 @@ func (r *lifecycleRepository) GetByFileID(fileID string) ([]types.LifecycleEvent
 			&fileSize,
 			&shardCount,
 			&providers,
-			&e.StartedAt,
-			&e.EndedAt,
+			&startedAtStr,
+			&endedAtStr,
 			&e.DurationMs,
 			&e.Status,
 			&errorMsg,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan lifecycle row: %w", err)
 		}
+
+		startedAt, err := parseSQLiteTime(startedAtStr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse started_at: %w", err)
+		}
+		endedAt, err := parseSQLiteTime(endedAtStr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse ended_at: %w", err)
+		}
+		e.StartedAt = startedAt.UTC()
+		e.EndedAt = endedAt.UTC()
+
 		if fileName.Valid {
 			e.FileName = fileName.String
 		}
@@ -142,9 +177,6 @@ func (r *lifecycleRepository) GetByFileID(fileID string) ([]types.LifecycleEvent
 		if providers.Valid && providers.String != "" {
 			e.Providers = strings.Split(providers.String, ",")
 		}
-		// Normalise timestamps to UTC.
-		e.StartedAt = e.StartedAt.In(time.UTC)
-		e.EndedAt = e.EndedAt.In(time.UTC)
 		events = append(events, e)
 	}
 	if err := rows.Err(); err != nil {

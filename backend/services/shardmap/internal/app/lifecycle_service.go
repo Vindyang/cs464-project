@@ -27,8 +27,8 @@ func (s *lifecycleService) RecordEvent(event *types.LifecycleEvent) error {
 	if event.FileID == "" {
 		return fmt.Errorf("file_id is required")
 	}
-	if event.EventType != "upload" && event.EventType != "download" {
-		return fmt.Errorf("event_type must be 'upload' or 'download', got: %q", event.EventType)
+	if event.EventType != "upload" && event.EventType != "download" && event.EventType != "delete" {
+		return fmt.Errorf("event_type must be 'upload', 'download', or 'delete', got: %q", event.EventType)
 	}
 	if event.Status != "success" && event.Status != "failed" {
 		return fmt.Errorf("status must be 'success' or 'failed', got: %q", event.Status)
