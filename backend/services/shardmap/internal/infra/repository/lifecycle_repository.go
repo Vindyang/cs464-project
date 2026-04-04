@@ -185,6 +185,79 @@ func (r *lifecycleRepository) GetByFileID(fileID string) ([]types.LifecycleEvent
 	return events, nil
 }
 
+// GetAll returns lifecycle events across all files ordered newest first.
+// A hard limit is applied to keep response sizes bounded.
+func (r *lifecycleRepository) GetAll() ([]types.LifecycleEvent, error) {
+	rows, err := r.db.Query(`
+		SELECT file_id, event_type, file_name, file_size, shard_count, providers,
+		       started_at, ended_at, duration_ms, status, error_msg
+		FROM file_lifecycle_log
+		ORDER BY created_at DESC
+		LIMIT 200`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query lifecycle events: %w", err)
+	}
+	defer rows.Close()
+
+	var events []types.LifecycleEvent
+	for rows.Next() {
+		var e types.LifecycleEvent
+		var providers sql.NullString
+		var fileName, errorMsg sql.NullString
+		var fileSize sql.NullInt64
+		var shardCount sql.NullInt64
+		var startedAtStr, endedAtStr string
+
+		if err := rows.Scan(
+			&e.FileID,
+			&e.EventType,
+			&fileName,
+			&fileSize,
+			&shardCount,
+			&providers,
+			&startedAtStr,
+			&endedAtStr,
+			&e.DurationMs,
+			&e.Status,
+			&errorMsg,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan lifecycle row: %w", err)
+		}
+
+		startedAt, err := parseSQLiteTime(startedAtStr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse started_at: %w", err)
+		}
+		endedAt, err := parseSQLiteTime(endedAtStr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse ended_at: %w", err)
+		}
+		e.StartedAt = startedAt.UTC()
+		e.EndedAt = endedAt.UTC()
+
+		if fileName.Valid {
+			e.FileName = fileName.String
+		}
+		if fileSize.Valid {
+			e.FileSize = fileSize.Int64
+		}
+		if shardCount.Valid {
+			e.ShardCount = int(shardCount.Int64)
+		}
+		if errorMsg.Valid {
+			e.ErrorMsg = errorMsg.String
+		}
+		if providers.Valid && providers.String != "" {
+			e.Providers = strings.Split(providers.String, ",")
+		}
+		events = append(events, e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("lifecycle row iteration error: %w", err)
+	}
+	return events, nil
+}
+
 // nullableString returns nil for empty strings so they are stored as NULL.
 func nullableString(s string) interface{} {
 	if s == "" {
