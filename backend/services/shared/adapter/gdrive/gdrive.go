@@ -27,10 +27,12 @@ const OmnishardFolderConfigKey = "gdrive_Omnishard_folder_id"
 // GDriveAdapter implements StorageProvider using the Google Drive API v3.
 // Authenticates via OAuth2 user credentials (Web app flow).
 type GDriveAdapter struct {
-	folderID string    // in-memory cache of the resolved Omnishard folder ID
-	store    *db.Store // persists the Omnishard folder ID across restarts
-	service  *drive.Service
-	mu       sync.Mutex // guards folderID during lazy resolution
+	folderID    string            // in-memory cache of the resolved Omnishard folder ID
+	store       *db.Store         // persists the Omnishard folder ID across restarts
+	service     *drive.Service
+	mu          sync.Mutex        // guards folderID during lazy resolution
+	fileFolderMu sync.Mutex       // serializes per-file folder creation to prevent duplicates
+	fileFolders  map[string]string // cache of per-file folder IDs: fileID -> Drive folder ID
 }
 
 // NewGDriveAdapter constructs a GDriveAdapter from an OAuth2 config, token, and store.
@@ -45,8 +47,9 @@ func NewGDriveAdapter(config *oauth2.Config, token *oauth2.Token, store *db.Stor
 	}
 
 	return &GDriveAdapter{
-		store:   store,
-		service: svc,
+		store:       store,
+		service:     svc,
+		fileFolders: make(map[string]string),
 	}, nil
 }
 
@@ -136,16 +139,58 @@ func (g *GDriveAdapter) ensureOmnishardFolder(ctx context.Context) (string, erro
 	return folderID, nil
 }
 
-// UploadShard uploads binary shard data as a file inside the "Omnishard" folder.
-// The Omnishard folder is created automatically on the first upload if it doesn't exist.
-// Returns the Drive file ID as the remoteID for future retrieval or deletion.
-func (g *GDriveAdapter) UploadShard(ctx context.Context, fileID string, index int, data io.Reader) (string, error) {
-	folderID, err := g.ensureOmnishardFolder(ctx)
+// ensureFileFolder returns the Drive folder ID for a per-file subfolder inside
+// the Omnishard root, named by fileID. Creates it if it doesn't exist.
+// fileFolderMu serializes the check-and-create so parallel shard uploads
+// for the same file cannot each create their own duplicate folder.
+func (g *GDriveAdapter) ensureFileFolder(ctx context.Context, fileID string) (string, error) {
+	g.fileFolderMu.Lock()
+	defer g.fileFolderMu.Unlock()
+
+	if id, ok := g.fileFolders[fileID]; ok {
+		return id, nil
+	}
+
+	rootFolderID, err := g.ensureOmnishardFolder(ctx)
 	if err != nil {
 		return "", err
 	}
 
-	name := fmt.Sprintf("shard_%s_%03d", fileID, index)
+	query := fmt.Sprintf(
+		"name='%s' and mimeType='application/vnd.google-apps.folder' and '%s' in parents and trashed=false",
+		fileID, rootFolderID,
+	)
+	list, err := g.service.Files.List().Q(query).Fields("files(id)").Context(ctx).Do()
+	if err != nil {
+		return "", fmt.Errorf("gdrive: search file folder %s: %w", fileID, err)
+	}
+	if len(list.Files) > 0 {
+		g.fileFolders[fileID] = list.Files[0].Id
+		return list.Files[0].Id, nil
+	}
+
+	folder, err := g.service.Files.Create(&drive.File{
+		Name:     fileID,
+		MimeType: "application/vnd.google-apps.folder",
+		Parents:  []string{rootFolderID},
+	}).Fields("id").Context(ctx).Do()
+	if err != nil {
+		return "", fmt.Errorf("gdrive: create file folder %s: %w", fileID, err)
+	}
+	g.fileFolders[fileID] = folder.Id
+	return folder.Id, nil
+}
+
+// UploadShard uploads binary shard data into a per-file subfolder inside "Omnishard".
+// The subfolder is named by fileID and created automatically if it doesn't exist.
+// Returns the Drive file ID as the remoteID for future retrieval or deletion.
+func (g *GDriveAdapter) UploadShard(ctx context.Context, fileID string, index int, data io.Reader) (string, error) {
+	folderID, err := g.ensureFileFolder(ctx, fileID)
+	if err != nil {
+		return "", err
+	}
+
+	name := fmt.Sprintf("shard_%03d", index)
 
 	meta := &drive.File{
 		Name:    name,
@@ -177,18 +222,47 @@ func (g *GDriveAdapter) DownloadShard(ctx context.Context, remoteID string) (io.
 }
 
 // DeleteShard permanently deletes a shard by its Drive file ID (bypasses trash).
+// After deleting the shard, if its parent folder is now empty it is also deleted.
 // Treats 404 as success for idempotent rollback behavior.
 func (g *GDriveAdapter) DeleteShard(ctx context.Context, remoteID string) error {
-	err := g.service.Files.Delete(remoteID).
-		Context(ctx).
-		Do()
-	if err != nil {
+	// Fetch the parent folder ID before deleting the file.
+	file, err := g.service.Files.Get(remoteID).Fields("parents").Context(ctx).Do()
+	var parentID string
+	if err == nil && len(file.Parents) > 0 {
+		parentID = file.Parents[0]
+	}
+
+	if err := g.service.Files.Delete(remoteID).Context(ctx).Do(); err != nil {
 		var apiErr *googleapi.Error
 		if errors.As(err, &apiErr) && apiErr.Code == 404 {
 			return nil // already deleted; treat as success
 		}
 		return fmt.Errorf("gdrive: delete shard %q: %w", remoteID, err)
 	}
+
+	// If we know the parent folder, check whether it is now empty and delete it.
+	if parentID != "" {
+		g.fileFolderMu.Lock()
+		defer g.fileFolderMu.Unlock()
+
+		list, err := g.service.Files.List().
+			Q(fmt.Sprintf("'%s' in parents and trashed=false", parentID)).
+			Fields("files(id)").
+			PageSize(1).
+			Context(ctx).
+			Do()
+		if err == nil && len(list.Files) == 0 {
+			_ = g.service.Files.Delete(parentID).Context(ctx).Do()
+			// Evict from cache so future uploads recreate the folder cleanly.
+			for k, v := range g.fileFolders {
+				if v == parentID {
+					delete(g.fileFolders, k)
+					break
+				}
+			}
+		}
+	}
+
 	return nil
 }
 

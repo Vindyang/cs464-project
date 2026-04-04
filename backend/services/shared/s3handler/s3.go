@@ -111,7 +111,7 @@ func (h *S3Handler) ensureBucket(ctx context.Context, cfg aws.Config, region str
 	if err != nil {
 		return "", fmt.Errorf("get caller identity: %w", err)
 	}
-	bucket := "Omnishard-" + aws.ToString(identity.Account)
+	bucket := "omnishard-" + aws.ToString(identity.Account)
 
 	// Create bucket if it doesn't exist
 	s3Client := s3.NewFromConfig(cfg)
