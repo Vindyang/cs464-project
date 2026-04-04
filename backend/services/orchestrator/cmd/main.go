@@ -180,16 +180,14 @@ func main() {
 		httpx.WriteJSON(w, http.StatusCreated, resp)
 	})
 
-	// GET /api/orchestrator/files/{fileId}/download
-	// GET /api/orchestrator/files/{fileId}/history
+	// GET  /api/orchestrator/files/{fileId}/download
+	// GET  /api/orchestrator/files/{fileId}/history
+	// DELETE /api/orchestrator/files/{fileId}
 	mux.HandleFunc("/api/orchestrator/files/", func(w http.ResponseWriter, r *http.Request) {
-		if !httpx.RequireMethod(w, r, http.MethodGet) {
-			return
-		}
-
 		path := strings.TrimPrefix(r.URL.Path, "/api/orchestrator/files/")
 		parts := strings.Split(path, "/")
-		if len(parts) != 2 || parts[0] == "" {
+
+		if len(parts) == 0 || parts[0] == "" {
 			httpx.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "Not found"})
 			return
 		}
@@ -197,6 +195,27 @@ func main() {
 		fileID := parts[0]
 		if len(fileID) < 5 {
 			httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid file ID"})
+			return
+		}
+
+		// DELETE /api/orchestrator/files/{fileId}
+		if r.Method == http.MethodDelete {
+			deleteShards := r.URL.Query().Get("delete_shards") == "true"
+			if err := service.DeleteFile(r.Context(), fileID, deleteShards); err != nil {
+				httpx.WriteError(w, http.StatusInternalServerError, "Failed to delete file", err)
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		if r.Method != http.MethodGet {
+			httpx.WriteJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
+			return
+		}
+
+		if len(parts) != 2 || parts[1] == "" {
+			httpx.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "Not found"})
 			return
 		}
 

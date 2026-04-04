@@ -28,6 +28,7 @@ type AdapterClient interface {
 	UploadShard(ctx context.Context, shardID string, provider string, data []byte) (*types.UploadShardResp, error)
 	DownloadShard(ctx context.Context, remoteID string, provider string) ([]byte, error)
 	DeleteShard(ctx context.Context, remoteID string, provider string) error
+	DeleteFile(ctx context.Context, fileID string, deleteShards bool) error
 }
 
 type ShardMapClient interface {
@@ -77,6 +78,62 @@ func (s *Service) logEvent(event *types.LifecycleEvent) {
 // the request through to the shardmap service.
 func (s *Service) GetFileHistory(ctx context.Context, fileID string) (*types.FileHistoryResp, error) {
 	return s.shardMap.GetFileHistory(ctx, fileID)
+}
+
+// DeleteFile deletes a file via the adapter service and logs a lifecycle event.
+func (s *Service) DeleteFile(ctx context.Context, fileID string, deleteShards bool) error {
+	startedAt := time.Now()
+
+	// Fetch metadata before deletion so we can record it in the lifecycle event.
+	var fileName string
+	var fileSize int64
+	var shardCount int
+	var providers []string
+	if shardMap, err := s.shardMap.GetShardMap(ctx, fileID); err == nil {
+		fileName = shardMap.OriginalName
+		shardCount = len(shardMap.Shards)
+		// Collect unique providers.
+		seen := map[string]struct{}{}
+		for _, shard := range shardMap.Shards {
+			p := strings.TrimSpace(shard.Provider)
+			if p != "" {
+				if _, ok := seen[p]; !ok {
+					seen[p] = struct{}{}
+					providers = append(providers, p)
+				}
+			}
+		}
+	}
+
+	// Perform the actual delete.
+	err := s.adapter.DeleteFile(ctx, fileID, deleteShards)
+
+	endedAt := time.Now()
+	durationMs := endedAt.Sub(startedAt).Milliseconds()
+
+	status := "success"
+	errMsg := ""
+	if err != nil {
+		status = "failed"
+		errMsg = err.Error()
+	}
+
+	event := &types.LifecycleEvent{
+		FileID:     fileID,
+		EventType:  "delete",
+		FileName:   fileName,
+		FileSize:   fileSize,
+		ShardCount: shardCount,
+		Providers:  providers,
+		StartedAt:  startedAt,
+		EndedAt:    endedAt,
+		DurationMs: durationMs,
+		Status:     status,
+		ErrorMsg:   errMsg,
+	}
+	s.logEvent(event)
+
+	return err
 }
 
 func (s *Service) UploadRawFile(ctx context.Context, fileName string, fileData []byte, k int, n int) (*types.UploadResp, error) {
