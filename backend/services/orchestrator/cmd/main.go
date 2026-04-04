@@ -17,6 +17,8 @@ import (
 	"github.com/vindyang/cs464-project/backend/services/shared/transport/httpx"
 )
 
+// CI testing
+
 func main() {
 	// Load service URLs from env
 	adapterURL := os.Getenv("ADAPTER_URL")
