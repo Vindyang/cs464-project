@@ -51,7 +51,7 @@ export function Sidebar({
               <div className="h-1.5 w-1.5 bg-black" />
             </div>
             <span className="font-mono text-xs font-bold tracking-widest uppercase">
-              Nebula Drive
+              Omnishard
             </span>
           </div>
         </div>
@@ -90,7 +90,10 @@ export function Sidebar({
                 {formatBytes(totalStorageUsedBytes)}
               </span>
               <span className="ml-auto font-mono text-[10px] text-neutral-500">
-                / {totalStorageTotalBytes > 0 ? formatBytes(totalStorageTotalBytes) : "—"}
+                /{" "}
+                {totalStorageTotalBytes > 0
+                  ? formatBytes(totalStorageTotalBytes)
+                  : "—"}
               </span>
             </div>
             <div className="mb-1.5 h-1 w-full bg-neutral-200">
@@ -99,7 +102,9 @@ export function Sidebar({
                 style={{ width: `${usedPct}%` }}
               />
             </div>
-            <p className="font-mono text-[9px] text-neutral-500">{usedPct}% utilized</p>
+            <p className="font-mono text-[9px] text-neutral-500">
+              {usedPct}% utilized
+            </p>
           </div>
 
           {/* Provider Status */}
@@ -109,7 +114,11 @@ export function Sidebar({
                 Providers
               </p>
               {providers.map((p) => (
-                <ProviderRow key={p.providerId} name={p.displayName} status={p.status} />
+                <ProviderRow
+                  key={p.providerId}
+                  name={p.displayName}
+                  status={p.status}
+                />
               ))}
             </div>
           )}
@@ -119,7 +128,13 @@ export function Sidebar({
   );
 }
 
-function NavItem({ href, children }: { href: string; children: React.ReactNode }) {
+function NavItem({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
   const isActive =
     href === "/dashboard"
@@ -133,7 +148,7 @@ function NavItem({ href, children }: { href: string; children: React.ReactNode }
         "block px-3 py-2 font-mono text-[11px] uppercase tracking-wider transition-colors",
         isActive
           ? "bg-black text-white"
-          : "text-neutral-500 hover:bg-neutral-100 hover:text-black"
+          : "text-neutral-500 hover:bg-neutral-100 hover:text-black",
       )}
     >
       {children}
@@ -149,11 +164,16 @@ function ProviderRow({ name, status }: { name: string; status: string }) {
         {name}
       </span>
       <div className="flex items-center gap-1">
-        <div className={cn("h-1.5 w-1.5", isOnline ? "bg-black" : "bg-neutral-300")} />
+        <div
+          className={cn(
+            "h-1.5 w-1.5",
+            isOnline ? "bg-black" : "bg-neutral-300",
+          )}
+        />
         <span
           className={cn(
             "font-mono text-[8px] uppercase tracking-wider",
-            isOnline ? "text-black" : "text-neutral-400"
+            isOnline ? "text-black" : "text-neutral-400",
           )}
         >
           {isOnline ? "OK" : "OFF"}

@@ -1,4 +1,4 @@
-import { SettingsClient } from "./SettingsClient";
+import { SettingsClient } from "./componentsAction/SettingsClient";
 import { getSettings } from "@/lib/api/settings";
 
 export default async function SettingsPage() {

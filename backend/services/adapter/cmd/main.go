@@ -31,9 +31,9 @@ func main() {
 	}
 
 	// Open local SQLite store (token + credential + config persistence).
-	dbPath := os.Getenv("NEBULA_DB_PATH")
+	dbPath := os.Getenv("Omnishard_DB_PATH")
 	if dbPath == "" {
-		dbPath = "nebula.db"
+		dbPath = "Omnishard.db"
 	}
 	store, err := db.NewStore(dbPath)
 	if err != nil {

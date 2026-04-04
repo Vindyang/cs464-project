@@ -211,7 +211,7 @@ func (s *Store) ListCredentials() ([]CredentialRecord, error) {
 
 // ── Key-Value Config ──────────────────────────────────────────────────────────
 
-// SetConfig stores an arbitrary key-value pair (e.g. "gdrive_nebula_folder_id").
+// SetConfig stores an arbitrary key-value pair (e.g. "gdrive_Omnishard_folder_id").
 func (s *Store) SetConfig(key, value string) error {
 	_, err := s.db.Exec(`
 		INSERT INTO provider_config (key, value, updated_at)

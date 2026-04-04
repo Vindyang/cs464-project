@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ProviderMetadata, getProviders, disconnectGDrive, getGDriveAuthorizeURL, connectS3, disconnectS3 } from "@/lib/api/providers";
 import { FileMetadata, getFiles, uploadFile } from "@/lib/api/files";
@@ -36,19 +36,21 @@ function formatBytes(value: number) {
   return `${scaled.toFixed(digits)} ${units[idx]}`;
 }
 
+const uploadHistoryDateFormatter = new Intl.DateTimeFormat(undefined, {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
 function toHistoryItem(file: FileMetadata): UploadHistoryItem {
   return {
     id: file.file_id,
     filename: file.original_name,
     sizeLabel: formatBytes(file.original_size ?? 0),
     provider: "Distributed",
-    date: new Date(file.created_at).toLocaleString("en-US", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    }),
+    date: uploadHistoryDateFormatter.format(new Date(file.created_at)),
     status: file.status === "FAILED" ? "Failed" : "Success",
   };
 }
@@ -62,6 +64,7 @@ export function ProvidersClient({ initialProviders }: ProvidersClientProps) {
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [connecting, setConnecting] = useState<string | null>(null);
   const [uploadHistory, setUploadHistory] = useState<UploadHistoryItem[]>([]);
+  const providerSearchInputId = useId();
 
   const refreshUploadHistory = async () => {
     const files = await getFiles().catch(() => [] as FileMetadata[]);
@@ -80,12 +83,16 @@ export function ProvidersClient({ initialProviders }: ProvidersClientProps) {
   useEffect(() => {
     const connected = searchParams.get("connected");
     const error = searchParams.get("error");
+    const upload = searchParams.get("upload");
     if (connected === "googleDrive") {
       toast.success("Google Drive connected successfully");
       router.replace("/providers");
       refresh();
     } else if (error) {
       toast.error("Failed to connect provider. Please try again.");
+      router.replace("/providers");
+    } else if (upload === "1") {
+      setUploadModalOpen(true);
       router.replace("/providers");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -145,28 +152,32 @@ export function ProvidersClient({ initialProviders }: ProvidersClientProps) {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* Toolbar */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3.5">
+        <label htmlFor={providerSearchInputId} className="sr-only">
+          Search providers
+        </label>
         <input
+          id={providerSearchInputId}
           type="text"
           placeholder="Search providers..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="font-mono text-xs border bg-white px-3 py-2 w-64 outline-none focus:ring-1 focus:ring-black placeholder:text-neutral-400"
+          className="w-72 border bg-white px-3.5 py-2.5 font-mono text-sm outline-none placeholder:text-neutral-400 focus:ring-1 focus:ring-black"
         />
-        <span className="font-mono text-[10px] text-neutral-400">
+        <span className="font-mono text-[12px] font-medium text-neutral-500">
           {filtered.length} {filtered.length === 1 ? "provider" : "providers"}
         </span>
         <button
           onClick={() => setUploadModalOpen(true)}
-          className="ml-auto font-mono text-[10px] uppercase tracking-wider border px-3 py-2 transition-colors hover:bg-black hover:text-white"
+          className="ml-auto border px-4 py-2.5 font-mono text-[12px] uppercase tracking-wider transition-colors hover:bg-black hover:text-white"
         >
           Upload File
         </button>
         <button
           onClick={() => setConnectModalOpen(true)}
-          className="font-mono text-[10px] uppercase tracking-wider border px-3 py-2 hover:bg-black hover:text-white transition-colors"
+          className="border px-4 py-2.5 font-mono text-[12px] uppercase tracking-wider transition-colors hover:bg-black hover:text-white"
         >
           + Connect
         </button>
@@ -177,7 +188,7 @@ export function ProvidersClient({ initialProviders }: ProvidersClientProps) {
         <EmptyState onConnect={() => setConnectModalOpen(true)} />
       ) : filtered.length === 0 ? (
         <div className="border px-4 py-10 text-center">
-          <p className="font-mono text-xs text-neutral-400">No providers match &ldquo;{search}&rdquo;</p>
+          <p className="font-mono text-sm font-medium text-neutral-500">No providers match &ldquo;{search}&rdquo;</p>
         </div>
       ) : (
         <div className="border relative">
@@ -185,56 +196,61 @@ export function ProvidersClient({ initialProviders }: ProvidersClientProps) {
           <span className="absolute -top-px -right-px w-1.5 h-1.5 border-t border-r border-neutral-400 opacity-40 pointer-events-none" />
           <span className="absolute -bottom-px -left-px w-1.5 h-1.5 border-b border-l border-neutral-400 opacity-40 pointer-events-none" />
           <span className="absolute -bottom-px -right-px w-1.5 h-1.5 border-b border-r border-neutral-400 opacity-40 pointer-events-none" />
-          <div className="grid grid-cols-[1fr_80px_180px_80px_60px] gap-4 px-4 py-2 border-b bg-neutral-50">
-            {["Name", "Status", "Storage", "Latency", ""].map((h) => (
-              <span key={h} className="font-mono text-[9px] uppercase tracking-widest text-neutral-400">
-                {h}
-              </span>
-            ))}
-          </div>
-          <div className="divide-y">
-            {filtered.map((p) => {
-              const isOnline = p.status === "connected" || p.status === "online";
-              const usedPct = p.quotaTotalBytes > 0
-                ? Math.round((p.quotaUsedBytes / p.quotaTotalBytes) * 100)
-                : 0;
-              return (
-                <div
-                  key={p.providerId}
-                  className="grid grid-cols-[1fr_80px_180px_80px_60px] gap-4 px-4 py-3 hover:bg-neutral-50 transition-colors"
-                >
-                  <span className="font-mono text-xs truncate">{p.displayName}</span>
-                  <span
-                    className={cn(
-                      "font-mono text-[9px] uppercase tracking-wider px-2 py-0.5 border self-center text-center",
-                      isOnline
-                        ? "border-black text-black"
-                        : "border-neutral-300 text-neutral-400"
-                    )}
-                  >
-                    {isOnline ? "Online" : p.status}
+          <div className="overflow-x-auto">
+            <div className="min-w-[740px]">
+              <div className="grid grid-cols-[1fr_96px_220px_96px_72px] gap-4 border-b bg-neutral-50 px-4 py-2.5">
+                {["Name", "Status", "Storage", "Latency", ""].map((h) => (
+                  <span key={h} className="font-mono text-[11px] font-medium uppercase tracking-widest text-neutral-500">
+                    {h}
                   </span>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-0.5 bg-neutral-200">
-                      <div className="h-full bg-black" style={{ width: `${usedPct}%` }} />
+                ))}
+              </div>
+              <div className="divide-y">
+                {filtered.map((p) => {
+                  const isOnline = p.status === "connected" || p.status === "online";
+                  const usedPct = p.quotaTotalBytes > 0
+                    ? Math.round((p.quotaUsedBytes / p.quotaTotalBytes) * 100)
+                    : 0;
+                  return (
+                    <div
+                      key={p.providerId}
+                      className="grid grid-cols-[1fr_96px_220px_96px_72px] gap-4 px-4 py-3.5 transition-colors hover:bg-neutral-50"
+                    >
+                      <span className="truncate font-mono text-sm font-medium">{p.displayName}</span>
+                      <span
+                        className={cn(
+                          "self-center border px-2 py-0.5 text-center font-mono text-[11px] font-medium uppercase tracking-wider",
+                          isOnline
+                            ? "border-black text-black"
+                            : "border-neutral-300 text-neutral-500"
+                        )}
+                      >
+                        {isOnline ? "Online" : p.status}
+                      </span>
+                      <div className="flex items-center gap-2.5">
+                        <div className="h-0.5 flex-1 bg-neutral-200">
+                          <div className="h-full bg-black" style={{ width: `${usedPct}%` }} />
+                        </div>
+                        <span className="w-9 shrink-0 text-right font-mono text-[11px] font-medium text-neutral-500">
+                          {usedPct}%
+                        </span>
+                      </div>
+                      <span className="self-center font-mono text-[12px] text-neutral-500">
+                        {p.latencyMs != null ? `${p.latencyMs}ms` : "—"}
+                      </span>
+                      <button
+                        onClick={() => handleDisconnect(p.providerId)}
+                        className="self-center text-right font-mono text-[12px] text-neutral-300 transition-colors hover:text-black"
+                        title="Disconnect"
+                        aria-label={`Disconnect ${p.displayName}`}
+                      >
+                        ×
+                      </button>
                     </div>
-                    <span className="font-mono text-[9px] text-neutral-400 w-8 text-right shrink-0">
-                      {usedPct}%
-                    </span>
-                  </div>
-                  <span className="font-mono text-[11px] text-neutral-500 self-center">
-                    {p.latencyMs}ms
-                  </span>
-                  <button
-                    onClick={() => handleDisconnect(p.providerId)}
-                    className="font-mono text-[10px] text-neutral-300 hover:text-black transition-colors self-center text-right"
-                    title="Disconnect"
-                  >
-                    ×
-                  </button>
-                </div>
-              );
-            })}
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -253,6 +269,7 @@ export function ProvidersClient({ initialProviders }: ProvidersClientProps) {
       {/* Connect Modal */}
       {connectModalOpen && (
         <ConnectModal
+          connectedProviderIds={new Set(providers.map((p) => p.providerId))}
           connecting={connecting}
           onConnect={handleConnect}
           onClose={() => setConnectModalOpen(false)}
@@ -265,10 +282,10 @@ export function ProvidersClient({ initialProviders }: ProvidersClientProps) {
 function EmptyState({ onConnect }: { onConnect: () => void }) {
   return (
     <div className="border px-4 py-16 text-center">
-      <p className="font-mono text-xs text-neutral-400 mb-1">No providers connected.</p>
+      <p className="mb-1 font-mono text-sm font-medium text-neutral-500">No providers connected.</p>
       <button
         onClick={onConnect}
-        className="mt-2 font-mono text-[10px] uppercase tracking-wider underline text-neutral-500 hover:text-black transition-colors"
+        className="mt-2 font-mono text-[12px] uppercase tracking-wider text-neutral-500 underline transition-colors hover:text-black"
       >
         Connect a provider
       </button>
@@ -288,7 +305,10 @@ function UploadFilesModal({
   onUploadSuccess: (filename: string) => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const uploadDialogTitleId = useId();
+  const uploadDialogDescriptionId = useId();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -299,6 +319,15 @@ function UploadFilesModal({
       if (progressTimer.current) clearInterval(progressTimer.current);
     };
   }, []);
+
+  useEffect(() => {
+    closeButtonRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
 
   const activeTransfer = selectedFile
     ? {
@@ -368,29 +397,34 @@ function UploadFilesModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-4" onClick={onClose}>
       <div
-        className="w-full max-w-5xl border bg-white"
+        className="w-full max-w-6xl border bg-white"
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={uploadDialogTitleId}
+        aria-describedby={uploadDialogDescriptionId}
       >
-        <div className="flex items-center justify-between border-b px-5 py-4">
-          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-neutral-500">
+        <div className="flex items-center justify-between border-b px-6 py-4">
+          <h2 id={uploadDialogTitleId} className="font-mono text-[12px] font-medium uppercase tracking-[0.12em] text-neutral-600">
             Providers / Upload Files
-          </span>
+          </h2>
           <button
             onClick={onClose}
             className="text-neutral-400 transition-colors hover:text-black"
             aria-label="Close upload modal"
+            ref={closeButtonRef}
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="grid gap-4 p-5 lg:grid-cols-[1.6fr_1fr]">
-          <div className="space-y-4">
-            <div className="border p-4">
-              <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.12em] text-neutral-400">
+        <div className="grid gap-5 p-6 lg:grid-cols-[1.6fr_1fr]">
+          <div className="space-y-5">
+            <div className="border p-5">
+              <p className="mb-3 font-mono text-[12px] font-medium uppercase tracking-[0.12em] text-neutral-500">
                 Upload Configuration
               </p>
-              <p className="font-mono text-[11px] text-neutral-500">
+              <p id={uploadDialogDescriptionId} className="font-mono text-[12px] font-medium leading-relaxed text-neutral-600">
                 Files are automatically sharded and distributed across currently connected providers.
               </p>
 
@@ -415,7 +449,7 @@ function UploadFilesModal({
                   setDragActive(false);
                 }}
                 className={cn(
-                  "mt-4 grid min-h-[270px] place-items-center border border-dashed px-4 py-10 text-center transition-colors",
+                  "mt-4 grid min-h-[280px] place-items-center border border-dashed px-4 py-10 text-center transition-colors",
                   dragActive ? "border-black bg-neutral-50" : "border-neutral-300"
                 )}
               >
@@ -424,10 +458,10 @@ function UploadFilesModal({
                     <Upload className="h-5 w-5" />
                   </div>
                   <div>
-                    <p className="font-mono text-xs text-neutral-700">
+                    <p className="font-mono text-sm text-neutral-700">
                       {selectedFile ? selectedFile.name : "Click or drag files to upload"}
                     </p>
-                    <p className="mt-1 font-mono text-[10px] text-neutral-400">
+                    <p className="mt-1 font-mono text-[12px] font-medium text-neutral-500">
                       {selectedFile ? formatBytes(selectedFile.size) : "Max file size: 500GB"}
                     </p>
                   </div>
@@ -435,60 +469,64 @@ function UploadFilesModal({
               </div>
             </div>
 
-            <div className="border p-4">
-              <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.12em] text-neutral-400">
+            <div className="border p-5">
+              <p className="mb-3 font-mono text-[12px] font-medium uppercase tracking-[0.12em] text-neutral-500">
                 Recent Upload History
               </p>
-              <div className="grid grid-cols-[1.6fr_0.9fr_0.9fr_1fr_0.8fr] gap-3 border-b pb-2 font-mono text-[9px] uppercase tracking-[0.08em] text-neutral-400">
-                <span>Filename</span>
-                <span>Size</span>
-                <span>Provider</span>
-                <span>Date</span>
-                <span>Status</span>
-              </div>
-              <div className="space-y-1 pt-2">
-                {history.length === 0 ? (
-                  <p className="py-6 text-center font-mono text-xs text-neutral-400">
-                    No uploads found yet.
-                  </p>
-                ) : (
-                  history.slice(0, 3).map((item) => (
-                    <div
-                      key={item.id}
-                      className="grid grid-cols-[1.6fr_0.9fr_0.9fr_1fr_0.8fr] gap-3 py-1.5 font-mono text-xs"
-                    >
-                      <span className="truncate">{item.filename}</span>
-                      <span className="text-neutral-600">{item.sizeLabel}</span>
-                      <span className="text-neutral-600">{item.provider}</span>
-                      <span className="text-neutral-500">{item.date}</span>
-                      <span
-                        className={cn(
-                          item.status === "Success" ? "text-emerald-600" : "text-red-600"
-                        )}
-                      >
-                        {item.status}
-                      </span>
-                    </div>
-                  ))
-                )}
+              <div className="overflow-x-auto">
+                <div className="min-w-[680px]">
+                  <div className="grid grid-cols-[1.7fr_1fr_1fr_1.1fr_0.9fr] gap-3 border-b pb-2.5 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-neutral-500">
+                    <span>Filename</span>
+                    <span>Size</span>
+                    <span>Provider</span>
+                    <span>Date</span>
+                    <span>Status</span>
+                  </div>
+                  <div className="space-y-1 pt-2.5">
+                    {history.length === 0 ? (
+                      <p className="py-6 text-center font-mono text-sm text-neutral-400">
+                        No uploads found yet.
+                      </p>
+                    ) : (
+                      history.slice(0, 3).map((item) => (
+                        <div
+                          key={item.id}
+                          className="grid grid-cols-[1.7fr_1fr_1fr_1.1fr_0.9fr] gap-3 py-2 font-mono text-sm"
+                        >
+                          <span className="truncate">{item.filename}</span>
+                          <span className="text-neutral-600">{item.sizeLabel}</span>
+                          <span className="text-neutral-600">{item.provider}</span>
+                          <span className="text-neutral-500">{item.date}</span>
+                          <span
+                            className={cn(
+                              item.status === "Success" ? "text-emerald-600" : "text-red-600"
+                            )}
+                          >
+                            {item.status}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="space-y-4 border p-4">
-            <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-neutral-400">
+          <div className="space-y-5 border p-5">
+            <p className="font-mono text-[12px] font-medium uppercase tracking-[0.12em] text-neutral-500">
               Active Transfers
             </p>
             {activeTransfer ? (
               <div className="space-y-4">
                 <div>
-                  <div className="mb-1 flex items-end justify-between gap-2">
-                    <span className="truncate font-mono text-xs text-neutral-700">{activeTransfer.filename}</span>
-                    <span className="font-mono text-[10px] text-blue-600">
+                  <div className="mb-1.5 flex items-end justify-between gap-2">
+                    <span className="truncate font-mono text-sm text-neutral-700">{activeTransfer.filename}</span>
+                    <span className="font-mono text-[12px] text-blue-600">
                       {isUploading ? "Uploading" : "Queued"}
                     </span>
                   </div>
-                  <div className="mb-1 flex items-center justify-between font-mono text-[10px] text-neutral-400">
+                  <div className="mb-1.5 flex items-center justify-between font-mono text-[12px] font-medium text-neutral-500">
                     <span>
                       {formatBytes(activeTransfer.uploaded)} / {formatBytes(activeTransfer.total)}
                     </span>
@@ -500,7 +538,7 @@ function UploadFilesModal({
                 </div>
               </div>
             ) : (
-              <p className="py-10 text-center font-mono text-xs text-neutral-400">
+              <p className="py-10 text-center font-mono text-sm text-neutral-400">
                 No active transfers
               </p>
             )}
@@ -509,7 +547,7 @@ function UploadFilesModal({
               onClick={startUpload}
               disabled={!selectedFile || isUploading}
               className={cn(
-                "mt-auto w-full border px-3 py-2 font-mono text-[11px] transition-colors",
+                "mt-auto w-full border px-4 py-2.5 font-mono text-[12px] transition-colors",
                 !selectedFile || isUploading
                   ? "cursor-not-allowed border-neutral-200 text-neutral-300"
                   : "bg-blue-600 text-white hover:bg-blue-700 border-blue-600"
@@ -525,28 +563,49 @@ function UploadFilesModal({
 }
 
 function ConnectModal({
+  connectedProviderIds,
   connecting,
   onConnect,
   onClose,
 }: {
+  connectedProviderIds: Set<string>;
   connecting: string | null;
   onConnect: (id: string) => void;
   onClose: () => void;
 }) {
+  const connectDialogTitleId = useId();
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    closeButtonRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/20"
       onClick={onClose}
     >
       <div
-        className="bg-white border w-full max-w-sm mx-4"
+        className="mx-4 w-full max-w-sm border bg-white"
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={connectDialogTitleId}
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b">
-          <span className="font-mono text-[10px] uppercase tracking-widest">Connect a Provider</span>
+        <div className="flex items-center justify-between border-b px-5 py-4">
+          <h2 id={connectDialogTitleId} className="font-mono text-[12px] font-medium uppercase tracking-widest">
+            Connect a Provider
+          </h2>
           <button
             onClick={onClose}
             className="font-mono text-neutral-400 hover:text-black transition-colors text-sm"
+            aria-label="Close connect provider modal"
+            ref={closeButtonRef}
           >
             ×
           </button>
@@ -554,24 +613,40 @@ function ConnectModal({
         <div className="divide-y">
           {CONNECT_OPTIONS.map((p) => (
             <div key={p.id} className="flex items-center justify-between px-5 py-4">
-              <div>
-                <p className={cn("font-mono text-xs", !p.available && "text-neutral-400")}>
-                  {p.name}
-                </p>
-                <p className="font-mono text-[10px] text-neutral-400 mt-0.5">{p.description}</p>
-              </div>
-              <button
-                disabled={!p.available || connecting === p.id}
-                onClick={() => onConnect(p.id)}
-                className={cn(
-                  "font-mono text-[10px] uppercase tracking-wider border px-3 py-1.5 transition-colors ml-4 shrink-0",
-                  p.available && connecting !== p.id
-                    ? "hover:bg-black hover:text-white"
-                    : "text-neutral-300 border-neutral-200 cursor-not-allowed"
-                )}
-              >
-                {connecting === p.id ? "Connecting..." : "Connect"}
-              </button>
+              {/** Connected providers should be shown as connected and non-clickable. */}
+              {(() => {
+                const isConnected = connectedProviderIds.has(p.id);
+                const isDisabled = !p.available || connecting === p.id || isConnected;
+                const label = isConnected
+                  ? "Connected"
+                  : connecting === p.id
+                    ? "Connecting..."
+                    : "Connect";
+                return (
+                  <>
+                    <div>
+                      <p className={cn("font-mono text-sm font-medium", !p.available && "text-neutral-500")}>
+                        {p.name}
+                      </p>
+                      <p className="mt-1 font-mono text-[12px] font-medium text-neutral-500">{p.description}</p>
+                    </div>
+                    <button
+                      disabled={isDisabled}
+                      onClick={() => onConnect(p.id)}
+                      className={cn(
+                        "ml-4 shrink-0 border px-3.5 py-2 font-mono text-[12px] uppercase tracking-wider transition-colors",
+                        isConnected
+                          ? "border-neutral-300 bg-neutral-100 text-neutral-500"
+                          : p.available && connecting !== p.id
+                            ? "hover:bg-black hover:text-white"
+                            : "cursor-not-allowed border-neutral-200 text-neutral-300"
+                      )}
+                    >
+                      {label}
+                    </button>
+                  </>
+                );
+              })()}
             </div>
           ))}
         </div>

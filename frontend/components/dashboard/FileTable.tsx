@@ -43,9 +43,14 @@ export function FileTable({ files, onDownload, onDelete, onDetails }: FileTableP
                       <div className="w-8 h-8 flex items-center justify-center bg-bg-subtle rounded-[2px] text-text-secondary border border-border-color">
                          <FileText className="w-4 h-4" />
                       </div>
-                      <span className="font-medium text-text-main group-hover:text-accent-primary transition-colors cursor-pointer" onClick={() => onDetails(file.id)}>
+                      <button
+                        type="button"
+                        className="font-medium text-left text-text-main group-hover:text-accent-primary transition-colors cursor-pointer hover:underline focus-visible:outline-none focus-visible:underline"
+                        onClick={() => onDetails(file.id)}
+                        aria-label={`View details for ${file.name}`}
+                      >
                          {file.name}
-                      </span>
+                      </button>
                    </div>
                 </td>
                 <td className="p-4 align-middle font-mono text-xs text-text-secondary">
@@ -61,14 +66,32 @@ export function FileTable({ files, onDownload, onDelete, onDetails }: FileTableP
                    {file.date}
                 </td>
                 <td className="p-4 align-middle text-right">
-                   <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-bg-subtle hover:text-accent-primary" onClick={() => onDownload(file.id)}>
+                   <div className="flex justify-end gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 hover:bg-bg-subtle hover:text-accent-primary"
+                        onClick={() => onDownload(file.id)}
+                        aria-label={`Download ${file.name}`}
+                      >
                          <Download className="w-4 h-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-bg-subtle hover:text-destructive" onClick={() => onDelete(file.id)}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 hover:bg-bg-subtle hover:text-destructive"
+                        onClick={() => onDelete(file.id)}
+                        aria-label={`Delete ${file.name}`}
+                      >
                          <Trash2 className="w-4 h-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-bg-subtle" onClick={() => onDetails(file.id)}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 hover:bg-bg-subtle"
+                        onClick={() => onDetails(file.id)}
+                        aria-label={`More actions for ${file.name}`}
+                      >
                          <MoreHorizontal className="w-4 h-4" />
                       </Button>
                    </div>

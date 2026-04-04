@@ -21,9 +21,9 @@ func main() {
 	}
 
 	// Connect to local SQLite database for shard map/file metadata.
-	dbPath := os.Getenv("NEBULA_SHARDMAP_DB_PATH")
+	dbPath := os.Getenv("Omnishard_SHARDMAP_DB_PATH")
 	if dbPath == "" {
-		dbPath = "nebula-shardmap.db"
+		dbPath = "Omnishard-shardmap.db"
 	}
 	db, err := persistence.ConnectSQLite(dbPath)
 	if err != nil {

@@ -1,4 +1,4 @@
--- Seed data for Nebula Drive demo
+-- Seed data for Omnishard demo
 -- User ID: 30o2NG7odPPj7M9a7kScKMDsKaiBpnm2
 -- Run AFTER the schema/init-local.sql has been applied.
 -- Safe to re-run: all inserts use ON CONFLICT DO NOTHING.
