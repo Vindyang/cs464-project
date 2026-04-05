@@ -182,8 +182,8 @@ export function ProvidersUploadFilesModal({
           </button>
         </div>
 
-        <div className="grid gap-5 p-6 lg:grid-cols-[1.6fr_1fr]">
-          <div className="space-y-5">
+        <div className="grid gap-5 p-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+          <div className="min-w-0 space-y-5">
             <div className="border p-5">
               <p className="mb-3 font-mono text-[12px] font-medium uppercase tracking-[0.12em] text-neutral-500">
                 Upload Configuration
@@ -222,7 +222,7 @@ export function ProvidersUploadFilesModal({
                     <Upload className="h-5 w-5" />
                   </div>
                   <div>
-                    <p className="font-mono text-sm text-neutral-700">
+                    <p className="max-w-full truncate font-mono text-sm text-neutral-700">
                       {selectedFile ? selectedFile.name : "Click or drag files to upload"}
                     </p>
                     <p className="mt-1 font-mono text-[12px] font-medium text-neutral-500">
@@ -257,7 +257,7 @@ export function ProvidersUploadFilesModal({
                           key={item.id}
                           className="grid grid-cols-[1.7fr_1fr_1fr_1.1fr_0.9fr] gap-3 py-2 font-mono text-sm"
                         >
-                          <span className="truncate">{item.filename}</span>
+                          <span className="block min-w-0 truncate">{item.filename}</span>
                           <span className="text-neutral-600">{item.sizeLabel}</span>
                           <span className="text-neutral-600">{item.provider}</span>
                           <span className="text-neutral-500">{item.date}</span>
@@ -277,7 +277,7 @@ export function ProvidersUploadFilesModal({
             </div>
           </div>
 
-          <div className="space-y-5 border p-5">
+          <div className="min-w-0 space-y-5 border p-5">
             <p className="font-mono text-[12px] font-medium uppercase tracking-[0.12em] text-neutral-500">
               Active Transfers
             </p>
@@ -285,8 +285,12 @@ export function ProvidersUploadFilesModal({
               <div className="space-y-4">
                 <div>
                   <div className="mb-1.5 flex items-end justify-between gap-2">
-                    <span className="truncate font-mono text-sm text-neutral-700">{activeTransfer.filename}</span>
-                    <span className="font-mono text-[12px] text-blue-600">
+                    <div className="min-w-0 flex-1">
+                      <span className="block truncate font-mono text-sm text-neutral-700">
+                        {activeTransfer.filename}
+                      </span>
+                    </div>
+                    <span className="shrink-0 font-mono text-[12px] text-blue-600">
                       {isUploading ? "Uploading" : "Queued"}
                     </span>
                   </div>

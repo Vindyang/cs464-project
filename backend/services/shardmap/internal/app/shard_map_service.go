@@ -389,5 +389,27 @@ func (s *shardMapService) MarkShardStatus(shardID uuid.UUID, req *dto.MarkShardS
 		return fmt.Errorf("failed to update shard status: %w", err)
 	}
 
+	shard, err := s.shardRepo.GetByID(shardID)
+	if err != nil {
+		return fmt.Errorf("failed to load shard after status update: %w", err)
+	}
+
+	fileShards, err := s.shardRepo.GetByFileID(shard.FileID)
+	if err != nil {
+		return fmt.Errorf("failed to load file shards for status recompute: %w", err)
+	}
+
+	fileStatus := models.FileStatusUploaded
+	for _, sh := range fileShards {
+		if sh.Status != models.ShardStatusHealthy {
+			fileStatus = models.FileStatusDegraded
+			break
+		}
+	}
+
+	if err := s.fileRepo.UpdateStatus(shard.FileID, fileStatus); err != nil {
+		return fmt.Errorf("failed to update file status after shard status change: %w", err)
+	}
+
 	return nil
 }

@@ -50,6 +50,35 @@ type GetShardMapResp struct {
 	Shards           []ShardMapEntry `json:"shards"`
 }
 
+// FileMetadata is returned by shardmap list/files endpoints.
+type FileMetadata struct {
+	FileID           string  `json:"file_id"`
+	OriginalName     string  `json:"original_name"`
+	OriginalSize     int64   `json:"original_size"`
+	TotalChunks      int     `json:"total_chunks"`
+	TotalShards      int     `json:"total_shards"`
+	N                int     `json:"n"`
+	K                int     `json:"k"`
+	ChunkSize        int64   `json:"chunk_size"`
+	ShardSize        int64   `json:"shard_size"`
+	Status           string  `json:"status"`
+	CreatedAt        string  `json:"created_at"`
+	UpdatedAt        string  `json:"updated_at"`
+	FirstCreatedAt   *string `json:"first_created_at,omitempty"`
+	LastDownloadedAt *string `json:"last_downloaded_at,omitempty"`
+}
+
+// HealthRefreshSummary aggregates refresh results.
+type HealthRefreshSummary struct {
+	FilesScanned  int      `json:"files_scanned"`
+	ShardsChecked int      `json:"shards_checked"`
+	MarkedHealthy int      `json:"marked_healthy"`
+	MarkedMissing int      `json:"marked_missing"`
+	SkippedErrors int      `json:"skipped_errors"`
+	FailedFiles   int      `json:"failed_files"`
+	ErrorMessages []string `json:"error_messages,omitempty"`
+}
+
 type ShardMapEntry struct {
 	ShardID    string `json:"shard_id"`
 	ShardIndex int    `json:"shard_index"`

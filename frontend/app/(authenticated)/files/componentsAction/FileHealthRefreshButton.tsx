@@ -1,0 +1,51 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { RefreshCw } from "lucide-react";
+import { toast } from "sonner";
+
+interface FileHealthRefreshButtonProps {
+  fileId: string;
+  fileName: string;
+}
+
+export function FileHealthRefreshButton({ fileId, fileName }: FileHealthRefreshButtonProps) {
+  const router = useRouter();
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function refreshHealth() {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      const res = await fetch(`/api/files/${fileId}/health/refresh`, {
+        method: "POST",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.details || data?.message || data?.error || "Failed to refresh health");
+      }
+      const missing = data?.marked_missing ?? 0;
+      const skipped = data?.skipped_errors ?? 0;
+      toast.success(`Health refreshed for ${fileName} (${missing} missing, ${skipped} skipped)`);
+      router.refresh();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to refresh health";
+      toast.error(message);
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={refreshing}
+      onClick={refreshHealth}
+      className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider border px-3 py-2 hover:bg-black hover:text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+      {refreshing ? "Refreshing..." : "Refresh Health"}
+    </button>
+  );
+}

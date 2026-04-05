@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"sync"
 	"time"
 
@@ -27,11 +28,11 @@ const OmnishardFolderConfigKey = "gdrive_Omnishard_folder_id"
 // GDriveAdapter implements StorageProvider using the Google Drive API v3.
 // Authenticates via OAuth2 user credentials (Web app flow).
 type GDriveAdapter struct {
-	folderID    string            // in-memory cache of the resolved Omnishard folder ID
-	store       *db.Store         // persists the Omnishard folder ID across restarts
-	service     *drive.Service
-	mu          sync.Mutex        // guards folderID during lazy resolution
-	fileFolderMu sync.Mutex       // serializes per-file folder creation to prevent duplicates
+	folderID     string    // in-memory cache of the resolved Omnishard folder ID
+	store        *db.Store // persists the Omnishard folder ID across restarts
+	service      *drive.Service
+	mu           sync.Mutex        // guards folderID during lazy resolution
+	fileFolderMu sync.Mutex        // serializes per-file folder creation to prevent duplicates
 	fileFolders  map[string]string // cache of per-file folder IDs: fileID -> Drive folder ID
 }
 
@@ -212,10 +213,62 @@ func (g *GDriveAdapter) UploadShard(ctx context.Context, fileID string, index in
 // DownloadShard downloads a shard by its Drive file ID.
 // The returned ReadCloser must be closed by the caller.
 func (g *GDriveAdapter) DownloadShard(ctx context.Context, remoteID string) (io.ReadCloser, error) {
+	// Drive UI deletes often move files to trash first. Treat trashed shards as missing.
+	meta, err := g.service.Files.Get(remoteID).
+		Fields("id,trashed").
+		SupportsAllDrives(true).
+		Context(ctx).
+		Do()
+	if err != nil {
+		var apiErr *googleapi.Error
+		if errors.As(err, &apiErr) {
+			if apiErr.Code == 404 {
+				return nil, fmt.Errorf("%w: gdrive shard %q", adapter.ErrShardNotFound, remoteID)
+			}
+			if apiErr.Code == 403 {
+				for _, e := range apiErr.Errors {
+					reason := strings.ToLower(e.Reason)
+					message := strings.ToLower(e.Message)
+					if reason == "notfound" || strings.Contains(message, "not found") {
+						return nil, fmt.Errorf("%w: gdrive shard %q", adapter.ErrShardNotFound, remoteID)
+					}
+				}
+				msg := strings.ToLower(apiErr.Message)
+				if strings.Contains(msg, "not found") {
+					return nil, fmt.Errorf("%w: gdrive shard %q", adapter.ErrShardNotFound, remoteID)
+				}
+			}
+		}
+		return nil, fmt.Errorf("gdrive: download shard %q: %w", remoteID, err)
+	}
+	if meta != nil && meta.Trashed {
+		return nil, fmt.Errorf("%w: gdrive shard %q is trashed", adapter.ErrShardNotFound, remoteID)
+	}
+
 	resp, err := g.service.Files.Get(remoteID).
+		SupportsAllDrives(true).
 		Context(ctx).
 		Download()
 	if err != nil {
+		var apiErr *googleapi.Error
+		if errors.As(err, &apiErr) {
+			if apiErr.Code == 404 {
+				return nil, fmt.Errorf("%w: gdrive shard %q", adapter.ErrShardNotFound, remoteID)
+			}
+			if apiErr.Code == 403 {
+				for _, e := range apiErr.Errors {
+					reason := strings.ToLower(e.Reason)
+					message := strings.ToLower(e.Message)
+					if reason == "notfound" || strings.Contains(message, "not found") {
+						return nil, fmt.Errorf("%w: gdrive shard %q", adapter.ErrShardNotFound, remoteID)
+					}
+				}
+				msg := strings.ToLower(apiErr.Message)
+				if strings.Contains(msg, "not found") {
+					return nil, fmt.Errorf("%w: gdrive shard %q", adapter.ErrShardNotFound, remoteID)
+				}
+			}
+		}
 		return nil, fmt.Errorf("gdrive: download shard %q: %w", remoteID, err)
 	}
 	return resp.Body, nil

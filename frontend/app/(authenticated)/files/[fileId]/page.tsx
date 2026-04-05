@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getFileById, getFileShards } from "@/lib/api/files";
 import { formatBytes } from "@/lib/utils";
+import { FileHealthRefreshButton } from "../componentsAction/FileHealthRefreshButton";
 
 export default async function FileDetailPage({
   params,
@@ -25,6 +26,7 @@ export default async function FileDetailPage({
           <h1 className="text-2xl font-semibold tracking-tight">{file.original_name}</h1>
         </div>
         <div className="flex gap-2">
+          <FileHealthRefreshButton fileId={file.file_id} fileName={file.original_name} />
           <Link
             href="/files"
             className="font-mono text-[11px] uppercase tracking-wider border px-3 py-2 hover:bg-black hover:text-white transition-colors"
