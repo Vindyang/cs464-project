@@ -247,3 +247,33 @@ Internal service endpoints:
 
 - Gateway intentionally does not add authentication yet.
 - OAuth endpoints remain owned by `adapter`.
+
+## Docker Hub CD for Individual Services
+
+This backend is configured for per-service image publishing through GitHub Actions.
+
+Workflow:
+
+- `.github/workflows/cd-dockerhub-services.yml`
+
+Per-service repositories:
+
+- `${DOCKERHUB_NAMESPACE}/omnishard-adapter`
+- `${DOCKERHUB_NAMESPACE}/omnishard-shardmap`
+- `${DOCKERHUB_NAMESPACE}/omnishard-sharding`
+- `${DOCKERHUB_NAMESPACE}/omnishard-orchestrator`
+- `${DOCKERHUB_NAMESPACE}/omnishard-gateway`
+
+GitHub repository setup required:
+
+- Variable: `DOCKERHUB_NAMESPACE`
+- Secret: `DOCKERHUB_USERNAME`
+- Secret: `DOCKERHUB_TOKEN`
+
+How it behaves:
+
+- Publishes on push to `main` and `microservices` when service files change.
+- Supports manual publish via `workflow_dispatch`.
+- If `backend/services/shared` changes, adapter/orchestrator/shardmap/sharding are republished.
+- Gateway is republished when `backend/services/gateway` changes.
+- Tags pushed: `latest` (default branch only), branch tag, and commit SHA.

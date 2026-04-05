@@ -111,3 +111,36 @@ docker compose logs -f adapter
 docker compose logs -f gateway
 docker compose logs -f frontend
 ```
+
+## Docker Hub Continuous Deployment
+
+Each service is published to its own Docker Hub repository using the GitHub Actions workflow:
+
+- `.github/workflows/cd-dockerhub-services.yml`
+
+Published image repositories:
+
+- `${DOCKERHUB_NAMESPACE}/omnishard-adapter`
+- `${DOCKERHUB_NAMESPACE}/omnishard-shardmap`
+- `${DOCKERHUB_NAMESPACE}/omnishard-sharding`
+- `${DOCKERHUB_NAMESPACE}/omnishard-orchestrator`
+- `${DOCKERHUB_NAMESPACE}/omnishard-gateway`
+
+### Required GitHub configuration
+
+Set the following repository configuration in GitHub:
+
+- Repository variable: `DOCKERHUB_NAMESPACE` (example: `myorg`)
+- Repository secret: `DOCKERHUB_USERNAME`
+- Repository secret: `DOCKERHUB_TOKEN` (Docker Hub access token, not password)
+
+### Publish behavior
+
+- Trigger on pushes to `main` and `microservices` when service files change.
+- Trigger manually with `workflow_dispatch`.
+- Only services touched by the commit are rebuilt and pushed.
+- If `backend/services/shared` changes, adapter/orchestrator/shardmap/sharding are all republished.
+- Image tags include:
+	- `latest` (default branch only)
+	- branch name tag
+	- commit SHA tag
