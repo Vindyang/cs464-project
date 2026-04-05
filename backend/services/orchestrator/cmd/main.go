@@ -254,7 +254,10 @@ func main() {
 		case "download":
 			resp, err := service.DownloadFile(r.Context(), fileID)
 			if err != nil {
-				if strings.Contains(err.Error(), "404") {
+				var recoverabilityErr *app.RecoverabilityError
+				if errors.As(err, &recoverabilityErr) {
+					httpx.WriteError(w, http.StatusConflict, "File cannot be reconstructed", err)
+				} else if strings.Contains(err.Error(), "404") {
 					httpx.WriteError(w, http.StatusNotFound, "File not found", err)
 				} else {
 					httpx.WriteError(w, http.StatusInternalServerError, "Failed to download file", err)

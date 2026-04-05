@@ -16,7 +16,10 @@ export async function GET(
   if (!upstream.ok || !upstream.body) {
     const data = await upstream.json().catch(() => ({}));
     return Response.json(
-      { error: data?.error || "Failed to download file" },
+      {
+        error: data?.error || "Failed to download file",
+        details: data?.details,
+      },
       { status: upstream.status || 500 }
     );
   }

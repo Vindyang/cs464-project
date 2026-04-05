@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Download, Eye, Loader2, Trash2 } from "lucide-react";
+import { Eye, Loader2, Trash2 } from "lucide-react";
 import { deleteFile, FileMetadata } from "@/lib/api/files";
 import { formatBytes } from "@/lib/utils";
 import { toast } from "sonner";
+
+import { DownloadFileButton } from "./DownloadFileButton";
 
 interface FilesTableClientProps {
   initialFiles: FileMetadata[];
@@ -83,14 +85,12 @@ export function FilesTableClient({ initialFiles }: FilesTableClientProps) {
                   >
                     <Eye className="h-4 w-4" />
                   </Link>
-                  <a
-                    href={`/api/download/${file.file_id}`}
-                    className="inline-flex h-8 w-8 items-center justify-center border border-transparent text-neutral-500 transition-colors hover:border-neutral-200 hover:text-black"
-                    aria-label={`Download ${file.original_name}`}
-                    title="Download"
-                  >
-                    <Download className="h-4 w-4" />
-                  </a>
+                  <DownloadFileButton
+                    fileId={file.file_id}
+                    fileName={file.original_name}
+                    requiredShards={file.k}
+                    healthStatus={file.health_status}
+                  />
                   <button
                     type="button"
                     disabled={deletingId === file.file_id}

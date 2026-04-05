@@ -23,6 +23,22 @@ type Service struct {
 	sharding ShardingClient
 }
 
+// RecoverabilityError indicates the file cannot currently be reconstructed
+// because too few healthy or downloadable shards are available.
+type RecoverabilityError struct {
+	FileID    string
+	Available int
+	Required  int
+	Cause     string
+}
+
+func (e *RecoverabilityError) Error() string {
+	if e.Cause == "" {
+		return fmt.Sprintf("file %s cannot be reconstructed: only %d shards available, need %d", e.FileID, e.Available, e.Required)
+	}
+	return fmt.Sprintf("file %s cannot be reconstructed: %s (available %d, required %d)", e.FileID, e.Cause, e.Available, e.Required)
+}
+
 type AdapterClient interface {
 	GetProviders(ctx context.Context) ([]types.ProviderInfo, error)
 	UploadShard(ctx context.Context, shardID string, provider string, data []byte) (*types.UploadShardResp, error)
@@ -521,14 +537,34 @@ func (s *Service) downloadFileInternal(ctx context.Context, fileID string) (*typ
 		return nil, fmt.Errorf("file not found: %w", err)
 	}
 
+	healthyShards := countHealthyShards(shardMap.Shards)
+	if healthyShards < shardMap.K {
+		return nil, &RecoverabilityError{
+			FileID:    fileID,
+			Available: healthyShards,
+			Required:  shardMap.K,
+			Cause:     "local shard health state shows too few healthy shards",
+		}
+	}
+
 	if len(shardMap.Shards) < shardMap.K {
-		return nil, fmt.Errorf("insufficient shards available: have %d, need %d", len(shardMap.Shards), shardMap.K)
+		return nil, &RecoverabilityError{
+			FileID:    fileID,
+			Available: len(shardMap.Shards),
+			Required:  shardMap.K,
+			Cause:     "shard map contains fewer shard records than required",
+		}
 	}
 
 	shards := s.downloadShardsParallelEarlyExit(ctx, shardMap.Shards, shardMap.K)
 
 	if len(shards) < shardMap.K {
-		return nil, fmt.Errorf("failed to download sufficient shards: got %d, need %d", len(shards), shardMap.K)
+		return nil, &RecoverabilityError{
+			FileID:    fileID,
+			Available: len(shards),
+			Required:  shardMap.K,
+			Cause:     "not enough shards could be downloaded from currently reachable providers",
+		}
 	}
 
 	reconstructedData := []byte{}
@@ -652,4 +688,14 @@ func isAdapterNotFoundError(err error) bool {
 		strings.Contains(msg, "not found") ||
 		strings.Contains(msg, "no such key") ||
 		strings.Contains(msg, "nosuchkey")
+}
+
+func countHealthyShards(entries []types.ShardMapEntry) int {
+	healthy := 0
+	for _, entry := range entries {
+		if strings.EqualFold(entry.Status, "HEALTHY") {
+			healthy++
+		}
+	}
+	return healthy
 }

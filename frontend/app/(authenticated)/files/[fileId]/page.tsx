@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getFileById, getFileShards } from "@/lib/api/files";
 import { formatBytes } from "@/lib/utils";
 import { FileHealthRefreshButton } from "../componentsAction/FileHealthRefreshButton";
+import { DownloadFileButton } from "../componentsAction/DownloadFileButton";
 
 export default async function FileDetailPage({
   params,
@@ -33,12 +34,13 @@ export default async function FileDetailPage({
           >
             Back
           </Link>
-          <a
-            href={`/api/download/${file.file_id}`}
-            className="font-mono text-[11px] uppercase tracking-wider border border-black bg-black px-3 py-2 text-white hover:bg-neutral-800 transition-colors"
-          >
-            Download
-          </a>
+          <DownloadFileButton
+            fileId={file.file_id}
+            fileName={file.original_name}
+            requiredShards={file.k}
+            healthStatus={file.health_status}
+            variant="primary"
+          />
         </div>
       </div>
 

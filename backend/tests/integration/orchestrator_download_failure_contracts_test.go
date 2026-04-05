@@ -186,7 +186,7 @@ func TestOrchestratorDownloadFailsWhenShardingReconstructPayloadIsMalformed(t *t
 }
 
 // TestOrchestratorDownloadFailsWhenAvailableShardsAreBelowK verifies that
-// orchestrator returns a stable 500 error when shard-map returns fewer than K shards.
+// orchestrator returns a stable 409 error when local shard state already shows the file is unrecoverable.
 func TestOrchestratorDownloadFailsWhenAvailableShardsAreBelowK(t *testing.T) {
 	t.Parallel()
 
@@ -224,18 +224,82 @@ func TestOrchestratorDownloadFailsWhenAvailableShardsAreBelowK(t *testing.T) {
 	defer res.Body.Close()
 	body, _ := io.ReadAll(res.Body)
 
-	if res.StatusCode != http.StatusInternalServerError {
-		t.Fatalf("expected status %d, got %d body=%s", http.StatusInternalServerError, res.StatusCode, string(body))
+	if res.StatusCode != http.StatusConflict {
+		t.Fatalf("expected status %d, got %d body=%s", http.StatusConflict, res.StatusCode, string(body))
 	}
 
 	payload := map[string]string{}
 	if err := json.Unmarshal(body, &payload); err != nil {
 		t.Fatalf("failed to parse error response: %v body=%s", err, string(body))
 	}
-	if payload["error"] != "Failed to download file" {
+	if payload["error"] != "File cannot be reconstructed" {
 		t.Fatalf("unexpected error message: %q", payload["error"])
 	}
-	if !strings.Contains(payload["details"], "insufficient shards available") {
-		t.Fatalf("expected details to contain insufficient shards failure, got: %q", payload["details"])
+	if !strings.Contains(payload["details"], "too few healthy shards") {
+		t.Fatalf("expected details to contain recoverability failure, got: %q", payload["details"])
+	}
+}
+
+// TestOrchestratorDownloadFailsWhenDownloadedShardsDropBelowK verifies that
+// orchestrator returns a stable 409 error when live provider access yields too few shards.
+func TestOrchestratorDownloadFailsWhenDownloadedShardsDropBelowK(t *testing.T) {
+	t.Parallel()
+
+	adapterServer := helpers.NewAdapterMock(t, helpers.AdapterMockConfig{
+		OnDownloadShard: func(w http.ResponseWriter, r *http.Request) {
+			if strings.HasSuffix(r.URL.Path, "remote-0") || strings.HasSuffix(r.URL.Path, "remote-1") {
+				_, _ = w.Write([]byte("ok-shard-bytes"))
+				return
+			}
+			http.Error(w, "provider unreachable", http.StatusServiceUnavailable)
+		},
+	})
+	defer adapterServer.Close()
+
+	shardMapServer := helpers.NewShardMapMock(t, helpers.ShardMapMockConfig{
+		OnGetShardMap: func(w http.ResponseWriter, r *http.Request) {
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"file_id":       "file-12345",
+				"original_name": "contract.txt",
+				"n":             6,
+				"k":             4,
+				"status":        "UPLOADED",
+				"shards": []map[string]any{
+					{"shard_id": "s-0", "shard_index": 0, "remote_id": "remote-0", "provider": "provider-a", "status": "HEALTHY"},
+					{"shard_id": "s-1", "shard_index": 1, "remote_id": "remote-1", "provider": "provider-b", "status": "HEALTHY"},
+					{"shard_id": "s-2", "shard_index": 2, "remote_id": "remote-2", "provider": "provider-c", "status": "HEALTHY"},
+					{"shard_id": "s-3", "shard_index": 3, "remote_id": "remote-3", "provider": "provider-d", "status": "HEALTHY"},
+				},
+			})
+		},
+	})
+	defer shardMapServer.Close()
+
+	shardingServer := helpers.NewShardingMock(t, helpers.ShardingMockConfig{})
+	defer shardingServer.Close()
+
+	orchestratorURL, shutdown := helpers.StartOrchestrator(t, adapterServer.URL, shardMapServer.URL, shardingServer.URL)
+	defer shutdown()
+
+	res, err := http.Get(orchestratorURL + "/api/orchestrator/files/file-12345/download")
+	if err != nil {
+		t.Fatalf("download request failed: %v", err)
+	}
+	defer res.Body.Close()
+	body, _ := io.ReadAll(res.Body)
+
+	if res.StatusCode != http.StatusConflict {
+		t.Fatalf("expected status %d, got %d body=%s", http.StatusConflict, res.StatusCode, string(body))
+	}
+
+	payload := map[string]string{}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		t.Fatalf("failed to parse error response: %v body=%s", err, string(body))
+	}
+	if payload["error"] != "File cannot be reconstructed" {
+		t.Fatalf("unexpected error message: %q", payload["error"])
+	}
+	if !strings.Contains(payload["details"], "not enough shards could be downloaded") {
+		t.Fatalf("expected details to contain live download failure, got: %q", payload["details"])
 	}
 }
