@@ -1,5 +1,5 @@
 package adapter
-// test CD
+
 import (
 	"context"
 	"errors"
