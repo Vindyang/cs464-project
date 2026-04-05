@@ -19,6 +19,7 @@ import (
 	"github.com/vindyang/cs464-project/backend/services/shared/s3handler"
 )
 
+// meow
 type App struct {
 	Registry *adapter.Registry
 }
