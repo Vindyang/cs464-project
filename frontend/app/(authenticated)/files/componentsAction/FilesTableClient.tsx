@@ -12,6 +12,10 @@ interface FilesTableClientProps {
   initialFiles: FileMetadata[];
 }
 
+function renderFileStatus(status: string) {
+  return status === "DEGRADED" ? "UNHEALTHY" : status;
+}
+
 export function FilesTableClient({ initialFiles }: FilesTableClientProps) {
   const router = useRouter();
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -65,7 +69,7 @@ export function FilesTableClient({ initialFiles }: FilesTableClientProps) {
                   {formatBytes(file.original_size ?? 0)}
                 </span>
                 <span className="font-mono text-[11px] uppercase tracking-wider text-neutral-500">
-                  {file.status}
+                  {renderFileStatus(file.status)}
                 </span>
                 <span className="font-mono text-[11px] text-neutral-500">
                   {new Date(file.created_at).toLocaleDateString("en-US")}

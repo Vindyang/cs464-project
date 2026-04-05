@@ -195,11 +195,39 @@ func main() {
 		httpx.WriteJSON(w, http.StatusOK, history)
 	})
 
+	// POST /api/orchestrator/files/health/refresh
+	mux.HandleFunc("/api/orchestrator/files/health/refresh", func(w http.ResponseWriter, r *http.Request) {
+		if !httpx.RequireMethod(w, r, http.MethodPost) {
+			return
+		}
+
+		summary, err := service.RefreshAllFileHealth(r.Context())
+		if err != nil {
+			httpx.WriteError(w, http.StatusInternalServerError, "Failed to refresh file health", err)
+			return
+		}
+
+		httpx.WriteJSON(w, http.StatusOK, summary)
+	})
+
 	// GET  /api/orchestrator/files/{fileId}/download
 	// GET  /api/orchestrator/files/{fileId}/history
 	// DELETE /api/orchestrator/files/{fileId}
 	mux.HandleFunc("/api/orchestrator/files/", func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, "/api/orchestrator/files/")
+
+		// Compatibility: handle refresh route here too, in case a proxy or trailing-slash
+		// variant bypasses the exact /api/orchestrator/files/health/refresh handler.
+		if (path == "health/refresh" || path == "health/refresh/") && r.Method == http.MethodPost {
+			summary, err := service.RefreshAllFileHealth(r.Context())
+			if err != nil {
+				httpx.WriteError(w, http.StatusInternalServerError, "Failed to refresh file health", err)
+				return
+			}
+			httpx.WriteJSON(w, http.StatusOK, summary)
+			return
+		}
+
 		parts := strings.Split(path, "/")
 
 		if len(parts) == 0 || parts[0] == "" {
@@ -221,6 +249,16 @@ func main() {
 				return
 			}
 			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		if r.Method == http.MethodPost && len(parts) == 3 && parts[1] == "health" && parts[2] == "refresh" {
+			summary, err := service.RefreshFileHealth(r.Context(), fileID)
+			if err != nil {
+				httpx.WriteError(w, http.StatusInternalServerError, "Failed to refresh file health", err)
+				return
+			}
+			httpx.WriteJSON(w, http.StatusOK, summary)
 			return
 		}
 

@@ -387,3 +387,93 @@ func TestShardMapService_ListFilesIncludesLifecycleSummary(t *testing.T) {
 		t.Fatalf("expected lifecycle summary fields in list response, got %+v", resp[0])
 	}
 }
+
+func TestShardMapService_MarkShardStatusRecomputesFileStatusDegraded(t *testing.T) {
+	fileID := uuid.New()
+	shardID := uuid.New()
+
+	var updatedFileStatus models.FileStatus
+	fileRepo := &mockFileRepo{
+		updateStatusFn: func(id uuid.UUID, status models.FileStatus) error {
+			if id != fileID {
+				t.Fatalf("unexpected file id %s", id)
+			}
+			updatedFileStatus = status
+			return nil
+		},
+	}
+	shardRepo := &mockShardRepo{
+		updateStatusFn: func(id uuid.UUID, status models.ShardStatus) error {
+			if id != shardID {
+				t.Fatalf("unexpected shard id %s", id)
+			}
+			if status != models.ShardStatusMissing {
+				t.Fatalf("unexpected shard status %s", status)
+			}
+			return nil
+		},
+		getByIDFn: func(id uuid.UUID) (*models.Shard, error) {
+			return &models.Shard{ID: shardID, FileID: fileID}, nil
+		},
+		getByFileIDFn: func(id uuid.UUID) ([]*models.Shard, error) {
+			return []*models.Shard{
+				{ID: shardID, FileID: fileID, Status: models.ShardStatusMissing},
+				{ID: uuid.New(), FileID: fileID, Status: models.ShardStatusHealthy},
+			}, nil
+		},
+	}
+
+	svc := app.NewShardMapService(fileRepo, shardRepo, &mockLifecycleRepo{})
+	if err := svc.MarkShardStatus(shardID, &dto.MarkShardStatusRequest{Status: "MISSING"}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if updatedFileStatus != models.FileStatusDegraded {
+		t.Fatalf("expected file status DEGRADED, got %s", updatedFileStatus)
+	}
+}
+
+func TestShardMapService_MarkShardStatusRecomputesFileStatusUploaded(t *testing.T) {
+	fileID := uuid.New()
+	shardID := uuid.New()
+
+	var updatedFileStatus models.FileStatus
+	fileRepo := &mockFileRepo{
+		updateStatusFn: func(id uuid.UUID, status models.FileStatus) error {
+			if id != fileID {
+				t.Fatalf("unexpected file id %s", id)
+			}
+			updatedFileStatus = status
+			return nil
+		},
+	}
+	shardRepo := &mockShardRepo{
+		updateStatusFn: func(id uuid.UUID, status models.ShardStatus) error {
+			if id != shardID {
+				t.Fatalf("unexpected shard id %s", id)
+			}
+			if status != models.ShardStatusHealthy {
+				t.Fatalf("unexpected shard status %s", status)
+			}
+			return nil
+		},
+		getByIDFn: func(id uuid.UUID) (*models.Shard, error) {
+			return &models.Shard{ID: shardID, FileID: fileID}, nil
+		},
+		getByFileIDFn: func(id uuid.UUID) ([]*models.Shard, error) {
+			return []*models.Shard{
+				{ID: shardID, FileID: fileID, Status: models.ShardStatusHealthy},
+				{ID: uuid.New(), FileID: fileID, Status: models.ShardStatusHealthy},
+			}, nil
+		},
+	}
+
+	svc := app.NewShardMapService(fileRepo, shardRepo, &mockLifecycleRepo{})
+	if err := svc.MarkShardStatus(shardID, &dto.MarkShardStatusRequest{Status: "HEALTHY"}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if updatedFileStatus != models.FileStatusUploaded {
+		t.Fatalf("expected file status UPLOADED, got %s", updatedFileStatus)
+	}
+}

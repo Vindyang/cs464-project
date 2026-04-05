@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/aws/smithy-go"
 	"github.com/vindyang/cs464-project/backend/services/shared/adapter"
 )
 
@@ -100,6 +101,10 @@ func (a *S3Adapter) DownloadShard(ctx context.Context, remoteID string) (io.Read
 		Key:    aws.String(remoteID),
 	})
 	if err != nil {
+		var apiErr smithy.APIError
+		if errors.As(err, &apiErr) && (apiErr.ErrorCode() == "NoSuchKey" || apiErr.ErrorCode() == "NotFound") {
+			return nil, fmt.Errorf("%w: s3 shard %q", adapter.ErrShardNotFound, remoteID)
+		}
 		return nil, fmt.Errorf("s3: download shard: %w", err)
 	}
 	return result.Body, nil

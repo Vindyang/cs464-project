@@ -125,6 +125,30 @@ func (c *Client) GetShardMap(ctx context.Context, fileID string) (*types.GetShar
 	return &out, nil
 }
 
+func (c *Client) ListFiles(ctx context.Context) ([]types.FileMetadata, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/v1/files", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list files: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("shard map returned %d: %s", resp.StatusCode, respBody)
+	}
+
+	var out []types.FileMetadata
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+	return out, nil
+}
+
 func (c *Client) MarkShardStatus(ctx context.Context, shardID string, status string) error {
 	payload := map[string]string{"status": status}
 	body, err := json.Marshal(payload)

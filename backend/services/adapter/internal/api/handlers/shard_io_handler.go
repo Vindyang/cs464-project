@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"io"
 	"net/http"
 	"strconv"
@@ -108,6 +109,14 @@ func (h *ShardIOHandler) downloadShard(w http.ResponseWriter, r *http.Request, r
 
 	reader, err := provider.DownloadShard(r.Context(), remoteID)
 	if err != nil {
+		lowerErr := strings.ToLower(err.Error())
+		if errors.Is(err, adapter.ErrShardNotFound) ||
+			strings.Contains(lowerErr, "not found") ||
+			strings.Contains(lowerErr, "no such key") ||
+			strings.Contains(lowerErr, "404") {
+			httpx.WriteError(w, http.StatusNotFound, "Shard not found", err)
+			return
+		}
 		httpx.WriteError(w, http.StatusInternalServerError, "Failed to download shard", err)
 		return
 	}

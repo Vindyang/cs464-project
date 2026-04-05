@@ -34,6 +34,7 @@ type AdapterClient interface {
 type ShardMapClient interface {
 	RegisterFile(ctx context.Context, req *types.RegisterFileReq) (*types.RegisterFileResp, error)
 	RecordShards(ctx context.Context, req *types.RecordShardReq) (*types.RecordShardResp, error)
+	ListFiles(ctx context.Context) ([]types.FileMetadata, error)
 	GetShardMap(ctx context.Context, fileID string) (*types.GetShardMapResp, error)
 	MarkShardStatus(ctx context.Context, shardID string, status string) error
 	// LogLifecycleEvent records a file operation lifecycle event in the shardmap service.
@@ -86,6 +87,87 @@ func (s *Service) GetFileHistory(ctx context.Context, fileID string) (*types.Fil
 // the request through to the shardmap service.
 func (s *Service) GetAllHistory(ctx context.Context) (*types.GlobalHistoryResp, error) {
 	return s.shardMap.GetAllHistory(ctx)
+}
+
+// RefreshAllFileHealth probes all known shards and updates shard health markers.
+// Missing is only marked for explicit not-found (404) errors to avoid false negatives.
+func (s *Service) RefreshAllFileHealth(ctx context.Context) (*types.HealthRefreshSummary, error) {
+	files, err := s.shardMap.ListFiles(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list files: %w", err)
+	}
+
+	summary := &types.HealthRefreshSummary{
+		FilesScanned:  len(files),
+		ErrorMessages: []string{},
+	}
+
+	for _, file := range files {
+		fileSummary, err := s.RefreshFileHealth(ctx, file.FileID)
+		if err != nil {
+			summary.FailedFiles++
+			summary.ErrorMessages = append(summary.ErrorMessages, fmt.Sprintf("file %s: %v", file.FileID, err))
+			continue
+		}
+		summary.ShardsChecked += fileSummary.ShardsChecked
+		summary.MarkedHealthy += fileSummary.MarkedHealthy
+		summary.MarkedMissing += fileSummary.MarkedMissing
+		summary.SkippedErrors += fileSummary.SkippedErrors
+		summary.ErrorMessages = append(summary.ErrorMessages, fileSummary.ErrorMessages...)
+	}
+
+	if len(summary.ErrorMessages) == 0 {
+		summary.ErrorMessages = nil
+	}
+
+	return summary, nil
+}
+
+// RefreshFileHealth probes all shards for one file and updates shard health markers.
+func (s *Service) RefreshFileHealth(ctx context.Context, fileID string) (*types.HealthRefreshSummary, error) {
+	shardMap, err := s.shardMap.GetShardMap(ctx, fileID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load shard map: %w", err)
+	}
+
+	summary := &types.HealthRefreshSummary{
+		FilesScanned:  1,
+		ErrorMessages: []string{},
+	}
+
+	for _, shard := range shardMap.Shards {
+		summary.ShardsChecked++
+
+		_, err := s.adapter.DownloadShard(ctx, shard.RemoteID, shard.Provider)
+		if err == nil {
+			if markErr := s.shardMap.MarkShardStatus(ctx, shard.ShardID, "HEALTHY"); markErr != nil {
+				summary.SkippedErrors++
+				summary.ErrorMessages = append(summary.ErrorMessages, fmt.Sprintf("shard %s: failed marking healthy: %v", shard.ShardID, markErr))
+				continue
+			}
+			summary.MarkedHealthy++
+			continue
+		}
+
+		if isAdapterNotFoundError(err) {
+			if markErr := s.shardMap.MarkShardStatus(ctx, shard.ShardID, "MISSING"); markErr != nil {
+				summary.SkippedErrors++
+				summary.ErrorMessages = append(summary.ErrorMessages, fmt.Sprintf("shard %s: failed marking missing: %v", shard.ShardID, markErr))
+				continue
+			}
+			summary.MarkedMissing++
+			continue
+		}
+
+		summary.SkippedErrors++
+		summary.ErrorMessages = append(summary.ErrorMessages, fmt.Sprintf("shard %s: probe error skipped: %v", shard.ShardID, err))
+	}
+
+	if len(summary.ErrorMessages) == 0 {
+		summary.ErrorMessages = nil
+	}
+
+	return summary, nil
 }
 
 // DeleteFile deletes a file via the adapter service and logs a lifecycle event.
@@ -559,4 +641,15 @@ func uniqueProviders(_ [][]byte, resp *types.UploadResp) []string {
 		}
 	}
 	return out
+}
+
+func isAdapterNotFoundError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "adapter returned 404") ||
+		strings.Contains(msg, "not found") ||
+		strings.Contains(msg, "no such key") ||
+		strings.Contains(msg, "nosuchkey")
 }
