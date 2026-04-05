@@ -26,9 +26,8 @@ export function FilesPageClient({ initialFiles }: FilesPageClientProps) {
         throw new Error(data?.details || data?.message || data?.error || "Failed to refresh health");
       }
       const filesScanned = data?.files_scanned ?? 0;
-      const missing = data?.marked_missing ?? 0;
       const skipped = data?.skipped_errors ?? 0;
-      toast.success(`All files refreshed (${filesScanned} files, ${missing} missing, ${skipped} skipped)`);
+      toast.success(`All files refreshed (${filesScanned} files, ${skipped} skipped)`);
       router.refresh();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to refresh health";

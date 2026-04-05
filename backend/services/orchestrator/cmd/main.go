@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -143,37 +145,13 @@ func main() {
 			return
 		}
 
-		if err := r.ParseMultipartForm(100 << 20); err != nil {
-			httpx.WriteError(w, http.StatusBadRequest, "Failed to parse multipart form", err)
-			return
-		}
-
-		file, fileHeader, err := r.FormFile("file")
+		fileName, fileData, k, n, err := parseUploadMultipart(r)
 		if err != nil {
-			httpx.WriteError(w, http.StatusBadRequest, "Missing file field", err)
-			return
-		}
-		defer file.Close()
-
-		fileData, err := io.ReadAll(file)
-		if err != nil {
-			httpx.WriteError(w, http.StatusInternalServerError, "Failed to read uploaded file", err)
+			httpx.WriteError(w, http.StatusBadRequest, "Invalid upload payload", err)
 			return
 		}
 
-		k, err := strconv.Atoi(r.FormValue("k"))
-		if err != nil {
-			httpx.WriteError(w, http.StatusBadRequest, "Invalid k value", err)
-			return
-		}
-
-		n, err := strconv.Atoi(r.FormValue("n"))
-		if err != nil {
-			httpx.WriteError(w, http.StatusBadRequest, "Invalid n value", err)
-			return
-		}
-
-		resp, err := service.UploadRawFile(r.Context(), fileHeader.Filename, fileData, k, n)
+		resp, err := service.UploadRawFile(r.Context(), fileName, fileData, k, n)
 		if err != nil {
 			httpx.WriteError(w, http.StatusInternalServerError, "Failed to upload file", err)
 			return
@@ -310,4 +288,61 @@ func main() {
 	if err := http.ListenAndServe(":"+port, mux); err != nil {
 		log.Fatalf("failed to start server: %v\n", err)
 	}
+}
+
+func parseUploadMultipart(r *http.Request) (fileName string, fileData []byte, k int, n int, err error) {
+	reader, err := r.MultipartReader()
+	if err != nil {
+		return "", nil, 0, 0, fmt.Errorf("failed to open multipart reader: %w", err)
+	}
+
+	var kRaw, nRaw string
+	for {
+		part, partErr := reader.NextPart()
+		if errors.Is(partErr, io.EOF) {
+			break
+		}
+		if partErr != nil {
+			return "", nil, 0, 0, fmt.Errorf("failed to read multipart part: %w", partErr)
+		}
+
+		name := part.FormName()
+		switch name {
+		case "file":
+			fileName = part.FileName()
+			fileData, err = io.ReadAll(part)
+			if err != nil {
+				return "", nil, 0, 0, fmt.Errorf("failed to read uploaded file: %w", err)
+			}
+		case "k":
+			b, readErr := io.ReadAll(part)
+			if readErr != nil {
+				return "", nil, 0, 0, fmt.Errorf("failed to read k value: %w", readErr)
+			}
+			kRaw = strings.TrimSpace(string(b))
+		case "n":
+			b, readErr := io.ReadAll(part)
+			if readErr != nil {
+				return "", nil, 0, 0, fmt.Errorf("failed to read n value: %w", readErr)
+			}
+			nRaw = strings.TrimSpace(string(b))
+		default:
+			_, _ = io.Copy(io.Discard, part)
+		}
+		_ = part.Close()
+	}
+
+	if fileName == "" || len(fileData) == 0 {
+		return "", nil, 0, 0, fmt.Errorf("missing file field")
+	}
+	parsedK, err := strconv.Atoi(kRaw)
+	if err != nil {
+		return "", nil, 0, 0, fmt.Errorf("invalid k value: %w", err)
+	}
+	parsedN, err := strconv.Atoi(nRaw)
+	if err != nil {
+		return "", nil, 0, 0, fmt.Errorf("invalid n value: %w", err)
+	}
+
+	return fileName, fileData, parsedK, parsedN, nil
 }
