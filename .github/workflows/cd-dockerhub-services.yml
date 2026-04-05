@@ -2,7 +2,7 @@ name: CD - Publish Service Images
 
 on:
   push:
-    branches: [main, microservices]
+    branches: [main, microservices, "docker-hub/**", "feature/**"]
     paths:
       - 'backend/services/**'
       - 'backend/go.mod'
