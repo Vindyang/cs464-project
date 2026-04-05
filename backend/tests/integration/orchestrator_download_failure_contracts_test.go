@@ -1,12 +1,13 @@
 package integration_test
 
 import (
-	"github.com/vindyang/cs464-project/backend/tests/helpers"
 	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/vindyang/cs464-project/backend/tests/helpers"
 )
 
 // TestOrchestratorDownloadFailsWhenShardMapLookupErrors verifies that orchestrator
