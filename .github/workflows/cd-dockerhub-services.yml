@@ -31,6 +31,8 @@ jobs:
       - uses: dorny/paths-filter@v3
         id: changes
         with:
+          base: ${{ github.event.before }}
+          ref: ${{ github.sha }}
           filters: |
             adapter:
               - 'backend/services/adapter/**'
