@@ -65,3 +65,9 @@ skills-lock.json
 *.db
 *.db-wal
 *.db-shm
+
+# Go binaries
+backend/bin/
+*.exe
+*.out
+*.all
