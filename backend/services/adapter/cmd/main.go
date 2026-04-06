@@ -10,7 +10,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/joho/godotenv"
 	"github.com/vindyang/cs464-project/backend/services/adapter/internal/api/handlers"
 	mockprovider "github.com/vindyang/cs464-project/backend/services/adapter/internal/mock"
 	"github.com/vindyang/cs464-project/backend/services/shared/adapter"
@@ -19,14 +18,11 @@ import (
 	"github.com/vindyang/cs464-project/backend/services/shared/s3handler"
 )
 
-//test CD again
 type App struct {
 	Registry *adapter.Registry
 }
 
 func main() {
-	_ = godotenv.Load()
-
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"

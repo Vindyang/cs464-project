@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/joho/godotenv"
 	"github.com/vindyang/cs464-project/backend/services/shardmap/internal/api/handlers"
 	"github.com/vindyang/cs464-project/backend/services/shardmap/internal/app"
 	"github.com/vindyang/cs464-project/backend/services/shardmap/internal/infra/persistence"
@@ -15,11 +14,6 @@ import (
 )
 
 func main() {
-	// Load environment variables
-	if err := godotenv.Load(); err != nil {
-		log.Printf("Warning: .env file not found: %v", err)
-	}
-
 	// Connect to local SQLite database for shard map/file metadata.
 	dbPath := os.Getenv("Omnishard_SHARDMAP_DB_PATH")
 	if dbPath == "" {

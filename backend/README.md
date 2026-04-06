@@ -87,17 +87,19 @@ Common service URLs:
 - `SHARDING_URL` default `http://localhost:8083`
 - `ORCHESTRATOR_URL` default `http://localhost:8082`
 
-Adapter OAuth/token storage:
+Adapter local persistence:
 
 - `Omnishard_DB_PATH`
-- `GDRIVE_OAUTH_CREDENTIALS_FILE`
-- `GDRIVE_OAUTH_REDIRECT_URI`
-- `GDRIVE_FOLDER_ID`
-- `FRONTEND_URL`
 
 Shardmap local persistence:
 
 - `Omnishard_SHARDMAP_DB_PATH`
+
+Testing-only environment file:
+
+- `backend/.env.example` exists only for manual integration tests.
+- Backend service code should not depend on `.env` for credentials.
+- Google Drive and S3 credentials are expected to be configured through the application and stored in the local SQLite store.
 
 ## Run Locally
 

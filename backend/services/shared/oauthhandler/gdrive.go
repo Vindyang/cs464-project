@@ -5,11 +5,9 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"sync"
 	"time"
 
@@ -22,6 +20,7 @@ import (
 )
 
 const driveScope = "https://www.googleapis.com/auth/drive.file"
+const frontendURL = "http://localhost:3000"
 
 // stateEntry holds a pending OAuth state token with an expiry.
 type stateEntry struct {
@@ -42,10 +41,6 @@ type GDriveHandler struct {
 // and token persistence. No credentials are required at construction time —
 // they are loaded lazily when the authorize endpoint is called.
 func New(store *db.Store, registry *adapter.Registry) *GDriveHandler {
-	frontendURL := os.Getenv("FRONTEND_URL")
-	if frontendURL == "" {
-		frontendURL = "http://localhost:3000"
-	}
 	return &GDriveHandler{
 		store:       store,
 		registry:    registry,
@@ -149,8 +144,7 @@ func (h *GDriveHandler) Disconnect(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// loadOAuthConfig builds an oauth2.Config from stored credentials, falling back
-// to environment variables if no runtime credentials have been configured.
+// loadOAuthConfig builds an oauth2.Config from credentials stored in SQLite.
 func (h *GDriveHandler) loadOAuthConfig() (*oauth2.Config, error) {
 	clientID, clientSecret, redirectURI, err := h.loadCredentials()
 	if err != nil {
@@ -166,45 +160,12 @@ func (h *GDriveHandler) loadOAuthConfig() (*oauth2.Config, error) {
 }
 
 // loadCredentials returns clientID, clientSecret, and redirectURI.
-// Priority: SQLite store → GDRIVE_OAUTH_CREDENTIALS_JSON env
 func (h *GDriveHandler) loadCredentials() (clientID, clientSecret, redirectURI string, err error) {
-	// 1. SQLite store (runtime-configured via PUT /api/credentials/googleDrive)
-	clientID, clientSecret, redirectURI, storeErr := h.store.LoadCredentials("googleDrive")
-	if storeErr == nil {
-		return clientID, clientSecret, redirectURI, nil
+	clientID, clientSecret, redirectURI, err = h.store.LoadCredentials("googleDrive")
+	if err != nil {
+		return "", "", "", fmt.Errorf("load credentials from store: %w", err)
 	}
-	if !errors.Is(storeErr, db.ErrNotFound) {
-		return "", "", "", fmt.Errorf("load credentials from store: %w", storeErr)
-	}
-
-	// 2. Env fallback: parse raw credentials JSON
-	if envJSON := os.Getenv("GDRIVE_OAUTH_CREDENTIALS_JSON"); envJSON != "" {
-		clientID, clientSecret, err = parseCredentialsJSON([]byte(envJSON))
-		if err != nil {
-			return "", "", "", err
-		}
-		return clientID, clientSecret, os.Getenv("GDRIVE_OAUTH_REDIRECT_URI"), nil
-	}
-
-	return "", "", "", fmt.Errorf("no Google OAuth credentials configured — use PUT /api/credentials/googleDrive or set env vars")
-}
-
-// parseCredentialsJSON extracts client_id and client_secret from a GCP OAuth2 JSON file.
-func parseCredentialsJSON(data []byte) (clientID, clientSecret string, err error) {
-	var f struct {
-		Web       *struct{ ClientID string `json:"client_id"`; ClientSecret string `json:"client_secret"` } `json:"web"`
-		Installed *struct{ ClientID string `json:"client_id"`; ClientSecret string `json:"client_secret"` } `json:"installed"`
-	}
-	if err := json.Unmarshal(data, &f); err != nil {
-		return "", "", fmt.Errorf("parse credentials JSON: %w", err)
-	}
-	if f.Web != nil {
-		return f.Web.ClientID, f.Web.ClientSecret, nil
-	}
-	if f.Installed != nil {
-		return f.Installed.ClientID, f.Installed.ClientSecret, nil
-	}
-	return "", "", fmt.Errorf("credentials JSON must have a 'web' or 'installed' key")
+	return clientID, clientSecret, redirectURI, nil
 }
 
 // consumeState validates and removes a state token (one-time use).
