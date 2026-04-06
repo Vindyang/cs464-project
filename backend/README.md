@@ -192,16 +192,26 @@ Two release-focused Docker Compose manifests now sit alongside the source-build 
   - Pulls one published `omnishard-all-in-one` image.
   - Runs adapter, shardmap, sharding, orchestrator, gateway, and frontend as separate internal processes in one container.
 
-Set the image namespace before using either release manifest:
+For end users, the official deployment entrypoint is the GitHub Releases page rather than the repo checkout. Download the latest release asset you want and save it locally as `docker-compose.yml`:
 
 ```powershell
-$env:DOCKERHUB_NAMESPACE = "your-dockerhub-namespace"
+wget -O docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.full-microservices.yml
+wget -O docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.single-image-microservices.yml
 ```
 
-Optional tag override:
+Then run:
 
 ```powershell
-$env:OMNISHARD_TAG = "latest"
+docker compose up -d
+```
+
+The official release assets are generated during the formal GitHub Release flow, hardcode Docker Hub namespace `nebula67`, and pin a semver image tag.
+
+If you are testing from the repository checkout instead, use the repo-local manifests and set:
+
+```powershell
+$env:DOCKERHUB_NAMESPACE = "nebula67"
+$env:OMNISHARD_TAG = "<release-tag-or-commit-sha>"
 ```
 
 Run release flavor 1:
@@ -294,36 +304,35 @@ Internal service endpoints:
 
 ## Docker Hub CD for Individual Services
 
-This backend is configured for per-service image publishing through GitHub Actions.
+This backend is published through GitHub Actions in two distinct modes.
 
-Workflow:
+Continuous publishing from `main`:
 
-- `.github/workflows/cd-dockerhub-services.yml`
+- `.github/workflows/ci-main.yml`
 
-Additional release-image workflows:
+Official GitHub Release publication:
 
-- `.github/workflows/cd-dockerhub-frontend.yml`
-- `.github/workflows/cd-dockerhub-all-in-one.yml`
+- `.github/workflows/release-github-oss.yml`
+
+Manual image-only republish:
+
 - `.github/workflows/cd-dockerhub-force-deploy.yml`
 
 Per-service repositories:
 
-- `${DOCKERHUB_NAMESPACE}/omnishard-adapter`
-- `${DOCKERHUB_NAMESPACE}/omnishard-shardmap`
-- `${DOCKERHUB_NAMESPACE}/omnishard-sharding`
-- `${DOCKERHUB_NAMESPACE}/omnishard-orchestrator`
-- `${DOCKERHUB_NAMESPACE}/omnishard-gateway`
+- `nebula67/omnishard-adapter`
+- `nebula67/omnishard-shardmap`
+- `nebula67/omnishard-sharding`
+- `nebula67/omnishard-orchestrator`
+- `nebula67/omnishard-gateway`
 
 GitHub repository setup required:
 
-- Variable: `DOCKERHUB_NAMESPACE`
 - Secret: `DOCKERHUB_USERNAME`
 - Secret: `DOCKERHUB_TOKEN`
 
 How it behaves:
 
-- Publishes on push to `main` and `microservices` when service files change.
-- Supports manual publish via `workflow_dispatch`.
-- If `backend/services/shared` changes, adapter/orchestrator/shardmap/sharding are republished.
-- Gateway is republished when `backend/services/gateway` changes.
-- Tags pushed: `latest` (default branch only), branch tag, and commit SHA.
+- `ci-main.yml` publishes changed images on push to `main` using `latest` plus full commit SHA tags.
+- `microservices` runs CI only and does not publish images.
+- `release-github-oss.yml` takes an exact commit SHA plus a semver tag, pushes release-tagged images to `nebula67`, creates the GitHub Release, and uploads `docker-compose.full-microservices.yml` plus `docker-compose.single-image-microservices.yml` as official release assets.

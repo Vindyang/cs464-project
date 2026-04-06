@@ -1,0 +1,136 @@
+name: Release - GitHub OSS
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: Exact commit SHA to package into the release.
+        required: true
+        type: string
+      release_tag:
+        description: Semver release tag to publish, for example v1.2.3.
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  validate-release:
+    name: Validate release inputs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate semver tag and commit
+        env:
+          COMMIT_SHA: ${{ inputs.commit_sha }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          if ! printf '%s' "$RELEASE_TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$'; then
+            echo "release_tag must be a semver tag like v1.2.3 or v1.2.3-rc.1"
+            exit 1
+          fi
+
+          if ! git cat-file -e "$COMMIT_SHA^{commit}" 2>/dev/null; then
+            echo "commit_sha does not resolve to a commit in this repository"
+            exit 1
+          fi
+
+          if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "release tag already exists on origin: $RELEASE_TAG"
+            exit 1
+          fi
+
+  publish-release-images:
+    name: Publish release images
+    needs: validate-release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image_name: nebula67/omnishard-adapter
+            context: ./backend
+            dockerfile: ./backend/services/adapter/Dockerfile
+            build_args: ''
+          - image_name: nebula67/omnishard-shardmap
+            context: ./backend
+            dockerfile: ./backend/services/shardmap/Dockerfile
+            build_args: ''
+          - image_name: nebula67/omnishard-sharding
+            context: ./backend
+            dockerfile: ./backend/services/sharding/Dockerfile
+            build_args: ''
+          - image_name: nebula67/omnishard-orchestrator
+            context: ./backend
+            dockerfile: ./backend/services/orchestrator/Dockerfile
+            build_args: ''
+          - image_name: nebula67/omnishard-gateway
+            context: ./backend
+            dockerfile: ./backend/services/gateway/Dockerfile
+            build_args: ''
+          - image_name: nebula67/omnishard-frontend
+            context: ./frontend
+            dockerfile: ./frontend/Dockerfile
+            build_args: |
+              NEXT_PUBLIC_API_URL=http://localhost:8080
+          - image_name: nebula67/omnishard-all-in-one
+            context: .
+            dockerfile: ./deploy/images/all-in-one/Dockerfile
+            build_args: |
+              NEXT_PUBLIC_API_URL=http://localhost:8080
+    uses: ./.github/workflows/reusable-docker-build-push.yml
+    secrets: inherit
+    with:
+      image_name: ${{ matrix.image_name }}
+      context: ${{ matrix.context }}
+      dockerfile: ${{ matrix.dockerfile }}
+      image_tag: ${{ inputs.release_tag }}
+      checkout_ref: ${{ inputs.commit_sha }}
+      build_args: ${{ matrix.build_args }}
+      push_image: true
+      include_latest_tag: false
+      timeout_minutes: 45
+
+  prepare-release-assets:
+    name: Render release compose assets
+    needs: validate-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit_sha }}
+
+      - name: Render official release assets
+        run: |
+          chmod +x ./deploy/release-assets/scripts/render-release-assets.sh
+          ./deploy/release-assets/scripts/render-release-assets.sh "${{ inputs.release_tag }}" ./deploy/release-assets/dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-compose-assets
+          path: |
+            ./deploy/release-assets/dist/docker-compose.full-microservices.yml
+            ./deploy/release-assets/dist/docker-compose.single-image-microservices.yml
+
+  create-github-release:
+    name: Create GitHub release
+    needs: [publish-release-images, prepare-release-assets]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-compose-assets
+          path: ./release-assets
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          target_commitish: ${{ inputs.commit_sha }}
+          generate_release_notes: true
+          prerelease: ${{ contains(inputs.release_tag, '-') }}
+          files: |
+            ./release-assets/docker-compose.full-microservices.yml
+            ./release-assets/docker-compose.single-image-microservices.yml
