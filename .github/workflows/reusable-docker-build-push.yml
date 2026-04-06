@@ -34,6 +34,11 @@ on:
         required: false
         default: false
         type: boolean
+      include_latest_tag:
+        description: Whether to also publish the latest tag.
+        required: false
+        default: true
+        type: boolean
       timeout_minutes:
         description: Job timeout in minutes.
         required: false
@@ -57,7 +62,14 @@ jobs:
       - name: Resolve image tags
         id: tags
         run: |
-          printf 'tags<<EOF\n%s:latest\n%s:%s\nEOF\n' "${{ inputs.image_name }}" "${{ inputs.image_name }}" "${{ inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+          {
+            echo 'tags<<EOF'
+            if [ "${{ inputs.include_latest_tag }}" = "true" ]; then
+              echo "${{ inputs.image_name }}:latest"
+            fi
+            echo "${{ inputs.image_name }}:${{ inputs.image_tag }}"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
 
       - uses: docker/login-action@v3
         if: inputs.push_image

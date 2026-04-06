@@ -10,24 +10,47 @@ Run all Docker Compose commands from the project root:
 The repository now supports three distinct Docker Compose use cases:
 
 - Source-build developer workflow: `docker-compose.yml`
-- Release flavor 1 (full microservices, pulled images): `deploy/compose/full-microservices.yml`
-- Release flavor 2 (single-image microservices, pulled image): `deploy/compose/single-image-microservices.yml`
+- Repo-local release flavor 1 reference: `deploy/compose/full-microservices.yml`
+- Repo-local release flavor 2 reference: `deploy/compose/single-image-microservices.yml`
 
 The root `docker-compose.yml` remains the contributor/developer compose and builds images from local source.
-The release compose files are for pull-only local deployments backed by Docker Hub images.
+The repo-local release compose files are useful for maintainers and local release testing, but end users should prefer the official GitHub Release assets.
 
-### Release setup
+### Official OSS deployment
 
-Set the Docker Hub namespace once before using the release manifests:
+Download the latest official full-microservices release asset:
 
 ```powershell
-$env:DOCKERHUB_NAMESPACE = "your-dockerhub-namespace"
+wget -O docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.full-microservices.yml
 ```
 
-Optional: set a non-default image tag.
+Download the latest official single-image release asset:
 
 ```powershell
-$env:OMNISHARD_TAG = "latest"
+wget -O docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.single-image-microservices.yml
+```
+
+Then start the selected release:
+
+```powershell
+docker compose up -d
+```
+
+Stop it with:
+
+```powershell
+docker compose down
+```
+
+Official GitHub Release assets already point at the `nebula67` Docker Hub namespace and pin the release's semver image tag.
+
+### Repo-local release testing
+
+If you are maintaining the project and want to test release manifests from the repository checkout, keep using the repo-local files under `deploy/compose/`.
+
+```powershell
+$env:DOCKERHUB_NAMESPACE = "nebula67"
+$env:OMNISHARD_TAG = "<release-tag-or-commit-sha>"
 ```
 
 ### Release flavor 1: full microservices
@@ -172,45 +195,51 @@ docker compose logs -f frontend
 
 ## Docker Hub Continuous Deployment
 
-Per-service backend images are published using the GitHub Actions workflow:
+Continuous image publishing from `main` is handled by:
 
-- `.github/workflows/cd-dockerhub-services.yml`
+- `.github/workflows/ci-main.yml`
 
-Additional published release images:
+Formal GitHub Releases are created manually by:
 
-- `.github/workflows/cd-dockerhub-frontend.yml`
-- `.github/workflows/cd-dockerhub-all-in-one.yml`
+- `.github/workflows/release-github-oss.yml`
+
+Manual image-only republishing remains available through:
+
 - `.github/workflows/cd-dockerhub-force-deploy.yml`
 
 Published image repositories:
 
-- `${DOCKERHUB_NAMESPACE}/omnishard-adapter`
-- `${DOCKERHUB_NAMESPACE}/omnishard-shardmap`
-- `${DOCKERHUB_NAMESPACE}/omnishard-sharding`
-- `${DOCKERHUB_NAMESPACE}/omnishard-orchestrator`
-- `${DOCKERHUB_NAMESPACE}/omnishard-gateway`
-- `${DOCKERHUB_NAMESPACE}/omnishard-frontend`
-- `${DOCKERHUB_NAMESPACE}/omnishard-all-in-one`
+- `nebula67/omnishard-adapter`
+- `nebula67/omnishard-shardmap`
+- `nebula67/omnishard-sharding`
+- `nebula67/omnishard-orchestrator`
+- `nebula67/omnishard-gateway`
+- `nebula67/omnishard-frontend`
+- `nebula67/omnishard-all-in-one`
 
 ### Required GitHub configuration
 
 Set the following repository configuration in GitHub:
 
-- Repository variable: `DOCKERHUB_NAMESPACE` (example: `myorg`)
 - Repository secret: `DOCKERHUB_USERNAME`
 - Repository secret: `DOCKERHUB_TOKEN` (Docker Hub access token, not password)
 
 ### Publish behavior
 
-- Trigger on pushes to `main` and `microservices` when service files change.
-- Trigger manually with `workflow_dispatch`.
-- Only services touched by the commit are rebuilt and pushed.
-- If `backend/services/shared` changes, adapter/orchestrator/shardmap/sharding are all republished.
-- Image tags include:
-	- `latest`
-	- full commit SHA tag
+- `ci-main.yml` publishes changed images on pushes to `main` using `latest` plus full commit SHA tags.
+- `microservices` runs CI only and does not publish images.
+- `release-github-oss.yml` is the official release path. It takes an exact commit SHA plus a semver tag, pushes release-tagged images, creates the GitHub Release, and uploads:
+	- `docker-compose.full-microservices.yml`
+	- `docker-compose.single-image-microservices.yml`
 
 ## Testing release builds
+
+### Create an official release
+
+1. Open GitHub Actions and run `.github/workflows/release-github-oss.yml`.
+2. Enter the exact `commit_sha` you want to package.
+3. Enter the semver `release_tag` you want to publish, such as `v1.2.3`.
+4. Wait for the workflow to push the tagged images to Docker Hub and publish the GitHub Release assets.
 
 ### Force-publish test images
 
@@ -224,13 +253,13 @@ Use the manual workflow when you want to build and push images without waiting f
 
 ### Test flavor 1 locally
 
-1. Set the namespace for your Docker Hub org or user:
+1. Set the namespace to the official Docker Hub publisher:
 
 ```powershell
-$env:DOCKERHUB_NAMESPACE = "your-dockerhub-namespace"
+$env:DOCKERHUB_NAMESPACE = "nebula67"
 ```
 
-2. Set the exact image tag you want to test. Use either `latest` or the full commit SHA pushed by the workflow:
+2. Set the exact image tag you want to test. Use either a release tag like `v1.2.3` or the full commit SHA pushed by the `main` publish path:
 
 ```powershell
 $env:OMNISHARD_TAG = "<full-commit-sha>"
@@ -271,7 +300,7 @@ docker compose -f deploy/compose/full-microservices.yml down
 
 ### Test flavor 2 locally
 
-1. Reuse the same `DOCKERHUB_NAMESPACE` and set `OMNISHARD_TAG` to `latest` or the target full commit SHA.
+1. Reuse the same `DOCKERHUB_NAMESPACE` and set `OMNISHARD_TAG` to a release tag like `v1.2.3` or the target full commit SHA.
 
 2. Pull and start the all-in-one release:
 
