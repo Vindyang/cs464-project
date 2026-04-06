@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/vindyang/cs464-project/backend/services/shardmap/internal/app"
@@ -32,15 +33,17 @@ func (h *ShardMapHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/files/", h.handleFileRoutes)
 }
 
-// handleFileRoutes dispatches GET/DELETE /api/v1/files/:fileId
+// handleFileRoutes dispatches GET/DELETE/POST /api/v1/files/:fileId[/health-refresh]
 func (h *ShardMapHandler) handleFileRoutes(w http.ResponseWriter, r *http.Request) {
-	fileIDStr := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/api/v1/files/"), "/")
-	if fileIDStr == "" {
+	path := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/api/v1/files/"), "/")
+	if path == "" {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "Not found"})
 		return
 	}
+	parts := strings.Split(path, "/")
+	fileIDStr := parts[0]
 
-	if r.Method != http.MethodGet && r.Method != http.MethodDelete {
+	if r.Method != http.MethodGet && r.Method != http.MethodDelete && r.Method != http.MethodPost {
 		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
 		return
 	}
@@ -48,6 +51,31 @@ func (h *ShardMapHandler) handleFileRoutes(w http.ResponseWriter, r *http.Reques
 	fileID, err := uuid.Parse(fileIDStr)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid file ID format"})
+		return
+	}
+
+	if len(parts) == 2 && parts[1] == "health-refresh" {
+		if r.Method != http.MethodPost {
+			writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "Method not allowed"})
+			return
+		}
+		refreshedAt := time.Now().UTC()
+		if err := h.service.UpdateFileHealthRefresh(fileID, refreshedAt); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{
+				"error":   "Failed to update health refresh time",
+				"details": err.Error(),
+			})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]string{
+			"file_id":      fileIDStr,
+			"refreshed_at": refreshedAt.Format(time.RFC3339),
+		})
+		return
+	}
+
+	if len(parts) > 1 {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "Not found"})
 		return
 	}
 

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Eye, Loader2, Trash2 } from "lucide-react";
 import { deleteFile, FileMetadata } from "@/lib/api/files";
-import { formatBytes } from "@/lib/utils";
+import { cn, formatBytes, formatDateTime, formatRelativeTime } from "@/lib/utils";
 import { toast } from "sonner";
 
 import { DownloadFileButton } from "./DownloadFileButton";
@@ -16,6 +16,15 @@ interface FilesTableClientProps {
 
 function renderFileStatus(status: string) {
   return status === "DEGRADED" ? "UNHEALTHY" : status;
+}
+
+function getHealthTone(file: FileMetadata) {
+  const missingShards = file.health_status?.missing_shards ?? 0;
+  const corruptedShards = file.health_status?.corrupted_shards ?? 0;
+  if (missingShards > 0 || corruptedShards > 0 || file.status === "DEGRADED") {
+    return "risk";
+  }
+  return "healthy";
 }
 
 export function FilesTableClient({ initialFiles }: FilesTableClientProps) {
@@ -41,9 +50,9 @@ export function FilesTableClient({ initialFiles }: FilesTableClientProps) {
 
   return (
     <>
-      <section className="border bg-white">
-        <div className="grid grid-cols-[1.8fr_0.8fr_0.8fr_0.9fr_0.9fr] gap-4 px-5 py-3 border-b bg-neutral-50">
-          {["File", "Size", "Status", "Created", "Actions"].map((h) => (
+      <section className="border bg-white dark:bg-neutral-950">
+        <div className="grid grid-cols-[1.8fr_0.8fr_0.9fr_1.1fr_1fr_0.9fr] gap-4 border-b bg-neutral-50 px-5 py-3 dark:border-neutral-800 dark:bg-neutral-900/60">
+          {["File", "Size", "Health", "Last Checked", "Created", "Actions"].map((h) => (
             <span key={h} className="font-mono text-[11px] uppercase tracking-[0.08em] text-neutral-400">
               {h}
             </span>
@@ -57,29 +66,55 @@ export function FilesTableClient({ initialFiles }: FilesTableClientProps) {
         ) : (
           <div className="divide-y">
             {initialFiles.map((file) => (
+              (() => {
+                const tone = getHealthTone(file);
+                const healthPercent = Math.round(file.health_status?.health_percent ?? 100);
+                return (
               <div
                 key={file.file_id}
-                className="grid grid-cols-[1.8fr_0.8fr_0.8fr_0.9fr_0.9fr] items-center gap-4 px-5 py-3"
+                className={cn(
+                  "grid grid-cols-[1.8fr_0.8fr_0.9fr_1.1fr_1fr_0.9fr] items-center gap-4 px-5 py-3",
+                  tone === "risk" && "bg-amber-50/70 dark:bg-amber-950/20",
+                )}
               >
                 <Link
                   href={`/files/${file.file_id}`}
-                  className="truncate font-mono text-sm text-neutral-800 hover:underline"
+                  className="truncate font-mono text-sm text-neutral-800 hover:underline dark:text-neutral-100"
                 >
                   {file.original_name}
                 </Link>
                 <span className="font-mono text-sm text-neutral-500">
                   {formatBytes(file.original_size ?? 0)}
                 </span>
-                <span className="font-mono text-[11px] uppercase tracking-wider text-neutral-500">
-                  {renderFileStatus(file.status)}
-                </span>
-                <span className="font-mono text-[11px] text-neutral-500">
+                <div className="space-y-1">
+                  <span
+                    className={cn(
+                      "inline-flex border px-2 py-1 font-mono text-[11px] uppercase tracking-wider",
+                      tone === "healthy"
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
+                        : "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300",
+                    )}
+                  >
+                    {renderFileStatus(file.status)}
+                  </span>
+                  <div className="font-mono text-[11px] text-neutral-500 dark:text-neutral-400">
+                    {healthPercent}% healthy
+                    {(file.health_status?.missing_shards ?? 0) > 0 && ` · ${file.health_status?.missing_shards} missing`}
+                  </div>
+                </div>
+                <div className="font-mono text-[11px] text-neutral-500 dark:text-neutral-400">
+                  <div>{formatRelativeTime(file.last_health_refresh_at)}</div>
+                  <div className="mt-1 text-[10px] text-neutral-400 dark:text-neutral-500">
+                    {formatDateTime(file.last_health_refresh_at)}
+                  </div>
+                </div>
+                <span className="font-mono text-[11px] text-neutral-500 dark:text-neutral-400">
                   {new Date(file.created_at).toLocaleDateString("en-US")}
                 </span>
                 <div className="flex items-center gap-1">
                   <Link
                     href={`/files/${file.file_id}`}
-                    className="inline-flex h-8 w-8 items-center justify-center border border-transparent text-neutral-500 transition-colors hover:border-neutral-200 hover:text-black"
+                    className="inline-flex h-8 w-8 items-center justify-center border border-transparent text-neutral-500 transition-colors hover:border-neutral-200 hover:text-black dark:hover:border-neutral-700 dark:hover:text-white"
                     aria-label={`View details for ${file.original_name}`}
                     title="Details"
                   >
@@ -107,6 +142,8 @@ export function FilesTableClient({ initialFiles }: FilesTableClientProps) {
                   </button>
                 </div>
               </div>
+                );
+              })()
             ))}
           </div>
         )}
@@ -118,7 +155,7 @@ export function FilesTableClient({ initialFiles }: FilesTableClientProps) {
           onClick={() => (deletingId ? null : setFileToDelete(null))}
         >
           <div
-            className="w-full max-w-md border bg-white p-5"
+            className="w-full max-w-md border bg-white p-5 dark:border-neutral-800 dark:bg-neutral-950"
             onClick={(e) => e.stopPropagation()}
           >
             <p className="font-mono text-[11px] uppercase tracking-widest text-neutral-400">

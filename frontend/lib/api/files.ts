@@ -9,6 +9,25 @@ export interface FileHealthStatus {
   recoverable: boolean;
 }
 
+export interface LifecycleEvent {
+  file_id: string;
+  event_type: string;
+  file_name?: string;
+  file_size?: number;
+  shard_count?: number;
+  providers?: string[];
+  started_at: string;
+  ended_at: string;
+  duration_ms: number;
+  status: string;
+  error_msg?: string;
+}
+
+export interface FileHistoryResponse {
+  file_id: string;
+  events: LifecycleEvent[];
+}
+
 export interface FileMetadata {
   file_id: string;
   original_name: string;
@@ -22,6 +41,7 @@ export interface FileMetadata {
   status: string;
   created_at: string;
   updated_at: string;
+  last_health_refresh_at?: string | null;
   first_created_at?: string | null;
   last_downloaded_at?: string | null;
   health_status?: FileHealthStatus;
@@ -85,6 +105,24 @@ export async function getFileShards(fileId: string): Promise<ShardMap | null> {
   });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error("Failed to fetch shards");
+  return res.json();
+}
+
+export async function getFileHistory(fileId: string): Promise<FileHistoryResponse | null> {
+  const historyBaseUrl =
+    typeof window === "undefined"
+      ? process.env.GATEWAY_URL || "http://localhost:8084"
+      : "";
+  const historyUrl =
+    typeof window === "undefined"
+      ? `${historyBaseUrl}/api/v1/history/${fileId}`
+      : `/api/history/${fileId}`;
+
+  const res = await fetch(historyUrl, {
+    cache: "no-store",
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error("Failed to fetch file history");
   return res.json();
 }
 

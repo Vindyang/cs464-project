@@ -36,16 +36,17 @@ const (
 
 // File represents metadata for an uploaded file
 type File struct {
-	ID           uuid.UUID  `json:"id" db:"id"`
-	OriginalName *string    `json:"originalName,omitempty" db:"original_name"`
-	OriginalSize int64      `json:"originalSize" db:"original_size"`
-	TotalChunks  int        `json:"totalChunks" db:"total_chunks"`
-	N            int        `json:"n" db:"n"` // Total shards per chunk
-	K            int        `json:"k" db:"k"` // Data shards per chunk
-	ShardSize    int64      `json:"shardSize" db:"shard_size"`
-	Status       FileStatus `json:"status" db:"status"`
-	CreatedAt    time.Time  `json:"createdAt" db:"created_at"`
-	UpdatedAt    time.Time  `json:"updatedAt" db:"updated_at"`
+	ID                  uuid.UUID  `json:"id" db:"id"`
+	OriginalName        *string    `json:"originalName,omitempty" db:"original_name"`
+	OriginalSize        int64      `json:"originalSize" db:"original_size"`
+	TotalChunks         int        `json:"totalChunks" db:"total_chunks"`
+	N                   int        `json:"n" db:"n"` // Total shards per chunk
+	K                   int        `json:"k" db:"k"` // Data shards per chunk
+	ShardSize           int64      `json:"shardSize" db:"shard_size"`
+	Status              FileStatus `json:"status" db:"status"`
+	CreatedAt           time.Time  `json:"createdAt" db:"created_at"`
+	UpdatedAt           time.Time  `json:"updatedAt" db:"updated_at"`
+	LastHealthRefreshAt *time.Time `json:"lastHealthRefreshAt,omitempty" db:"last_health_refresh_at"`
 }
 
 // Shard represents an individual shard stored on a cloud provider

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { type FileMetadata } from "@/lib/api/files";
-import { ProvidersUploadFilesModal } from "@/components/dashboard/ProvidersUploadFilesModal";
+import { formatDateTime, formatRelativeTime } from "@/lib/utils";
 import { FilesTableClient } from "./FilesTableClient";
 import { toast } from "sonner";
 
@@ -13,8 +13,26 @@ interface FilesPageClientProps {
 
 export function FilesPageClient({ initialFiles }: FilesPageClientProps) {
   const router = useRouter();
-  const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [refreshingAll, setRefreshingAll] = useState(false);
+
+  const latestHealthRefreshAt = useMemo(() => {
+    const timestamps = initialFiles
+      .map((file) => file.last_health_refresh_at)
+      .filter((value): value is string => Boolean(value))
+      .sort((left, right) => new Date(right).getTime() - new Date(left).getTime());
+    return timestamps[0] ?? null;
+  }, [initialFiles]);
+
+  const atRiskFiles = useMemo(
+    () =>
+      initialFiles.filter(
+        (file) =>
+          file.status === "DEGRADED" ||
+          (file.health_status?.missing_shards ?? 0) > 0 ||
+          (file.health_status?.corrupted_shards ?? 0) > 0,
+      ),
+    [initialFiles],
+  );
 
   async function refreshAllHealth() {
     if (refreshingAll) return;
@@ -45,33 +63,44 @@ export function FilesPageClient({ initialFiles }: FilesPageClientProps) {
             Storage
           </p>
           <h1 className="text-2xl font-semibold tracking-tight">Files</h1>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
+            <span className="border border-sky-200 bg-sky-50 px-2 py-1 font-mono uppercase tracking-[0.08em] text-sky-700 dark:border-sky-900 dark:bg-sky-950/60 dark:text-sky-300">
+              Last Health Sync {formatRelativeTime(latestHealthRefreshAt)}
+            </span>
+            <span className="font-mono text-neutral-500 dark:text-neutral-400">
+              {formatDateTime(latestHealthRefreshAt)}
+            </span>
+            {atRiskFiles.length > 0 && (
+              <span className="border border-amber-200 bg-amber-50 px-2 py-1 font-mono uppercase tracking-[0.08em] text-amber-800 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-300">
+                {atRiskFiles.length} file{atRiskFiles.length === 1 ? "" : "s"} need attention
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={refreshAllHealth}
             disabled={refreshingAll}
-            className="font-mono text-[11px] uppercase tracking-wider border px-4 py-2 transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+            className="font-mono text-[11px] uppercase tracking-wider border border-sky-600 bg-sky-600 px-4 py-2 text-white transition-colors hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {refreshingAll ? "Refreshing..." : "Refresh All Health"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setUploadModalOpen(true)}
-            className="font-mono text-[11px] uppercase tracking-wider border px-4 py-2 transition-colors hover:bg-black hover:text-white"
-          >
-            Upload More
           </button>
         </div>
       </div>
 
-      <FilesTableClient initialFiles={initialFiles} />
+      {atRiskFiles.length > 0 && (
+        <section className="border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+          <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-amber-700 dark:text-amber-300">
+            Health Attention
+          </p>
+          <p className="mt-1">
+            Missing or corrupted shards were detected. Refresh health after provider recovery and inspect the affected files below.
+          </p>
+        </section>
+      )}
 
-      <ProvidersUploadFilesModal
-        open={uploadModalOpen}
-        onOpenChange={setUploadModalOpen}
-        onUploadSuccess={() => router.refresh()}
-      />
+      <FilesTableClient initialFiles={initialFiles} />
     </div>
   );
 }

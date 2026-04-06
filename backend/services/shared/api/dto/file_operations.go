@@ -70,21 +70,22 @@ type ShardUploadInfo struct {
 
 // FileMetadataResponse - GET /api/v1/files/:fileId
 type FileMetadataResponse struct {
-	FileID           string            `json:"file_id"`
-	OriginalName     string            `json:"original_name"`
-	OriginalSize     int64             `json:"original_size"`
-	TotalChunks      int               `json:"total_chunks"`
-	TotalShards      int               `json:"total_shards"`
-	N                int               `json:"n"`
-	K                int               `json:"k"`
-	ChunkSize        int64             `json:"chunk_size"`
-	ShardSize        int64             `json:"shard_size"`
-	Status           string            `json:"status"`
-	CreatedAt        string            `json:"created_at"`
-	UpdatedAt        string            `json:"updated_at"`
-	FirstCreatedAt   *string           `json:"first_created_at,omitempty"`
-	LastDownloadedAt *string           `json:"last_downloaded_at,omitempty"`
-	HealthStatus     *FileHealthStatus `json:"health_status,omitempty"`
+	FileID              string            `json:"file_id"`
+	OriginalName        string            `json:"original_name"`
+	OriginalSize        int64             `json:"original_size"`
+	TotalChunks         int               `json:"total_chunks"`
+	TotalShards         int               `json:"total_shards"`
+	N                   int               `json:"n"`
+	K                   int               `json:"k"`
+	ChunkSize           int64             `json:"chunk_size"`
+	ShardSize           int64             `json:"shard_size"`
+	Status              string            `json:"status"`
+	CreatedAt           string            `json:"created_at"`
+	UpdatedAt           string            `json:"updated_at"`
+	LastHealthRefreshAt *string           `json:"last_health_refresh_at,omitempty"`
+	FirstCreatedAt      *string           `json:"first_created_at,omitempty"`
+	LastDownloadedAt    *string           `json:"last_downloaded_at,omitempty"`
+	HealthStatus        *FileHealthStatus `json:"health_status,omitempty"`
 }
 
 // FileHealthStatus represents the health status of a file's shards

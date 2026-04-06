@@ -2,6 +2,7 @@ package persistence
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/jmoiron/sqlx"
 	_ "modernc.org/sqlite"
@@ -47,7 +48,8 @@ CREATE TABLE IF NOT EXISTS files (
 	shard_size INTEGER NOT NULL,
 	status TEXT NOT NULL,
 	created_at DATETIME NOT NULL,
-	updated_at DATETIME NOT NULL
+	updated_at DATETIME NOT NULL,
+	last_health_refresh_at DATETIME
 );
 
 CREATE TABLE IF NOT EXISTS shards (
@@ -71,6 +73,11 @@ CREATE INDEX IF NOT EXISTS idx_shards_file_chunk ON shards(file_id, chunk_index)
 
 	if _, err := db.Exec(schema); err != nil {
 		return fmt.Errorf("migrate sqlite schema: %w", err)
+	}
+	if _, err := db.Exec(`ALTER TABLE files ADD COLUMN last_health_refresh_at DATETIME`); err != nil {
+		if !strings.Contains(strings.ToLower(err.Error()), "duplicate column name") {
+			return fmt.Errorf("migrate sqlite schema add last_health_refresh_at: %w", err)
+		}
 	}
 	return nil
 }

@@ -2,17 +2,19 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Database,
   FolderOpen,
   History,
   KeyRound,
   LayoutDashboard,
-  Network,
   Settings,
+  Upload,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ProvidersUploadFilesModal } from "@/components/dashboard/ProvidersUploadFilesModal";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   Sidebar,
   SidebarContent,
@@ -30,7 +32,6 @@ const navItems = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { title: "Files", href: "/files", icon: FolderOpen },
   { title: "History", href: "/history", icon: History },
-  { title: "Nodes", href: "/nodes", icon: Network },
   { title: "Providers", href: "/providers", icon: Database },
   { title: "Credentials", href: "/credentials", icon: KeyRound },
   { title: "Settings", href: "/settings", icon: Settings },
@@ -55,6 +56,8 @@ export function AppSidebar({
   ...props
 }: AppSidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [uploadModalOpen, setUploadModalOpen] = React.useState(false);
   const usedPct =
     totalStorageTotalBytes > 0
       ? Math.round((totalStorageUsedBytes / totalStorageTotalBytes) * 100)
@@ -78,6 +81,18 @@ export function AppSidebar({
       <SidebarContent className="px-2 py-4">
         <SidebarGroup>
           <SidebarGroupContent>
+            <button
+              type="button"
+              onClick={() => setUploadModalOpen(true)}
+              className="flex h-10 w-full items-center justify-between border border-sky-600 bg-sky-600 px-3 font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-white transition-colors hover:bg-sky-700"
+            >
+              <span>Upload Files</span>
+              <Upload className="h-3.5 w-3.5" />
+            </button>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarGroup>
+          <SidebarGroupContent>
             <SidebarMenu>
               {navItems.map((item) => {
                 const isActive =
@@ -92,8 +107,8 @@ export function AppSidebar({
                       isActive={isActive}
                       className={cn(
                         "h-9 font-mono text-[12px] font-medium uppercase tracking-[0.08em] rounded-none",
-                        "text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100",
-                        "data-[active=true]:bg-neutral-900 data-[active=true]:text-white data-[active=true]:hover:bg-neutral-800",
+                        "text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-900 dark:hover:text-white",
+                        "data-[active=true]:bg-neutral-900 data-[active=true]:text-white data-[active=true]:hover:bg-neutral-800 dark:data-[active=true]:bg-sky-600 dark:data-[active=true]:hover:bg-sky-500",
                       )}
                     >
                       <Link href={item.href}>
@@ -127,7 +142,7 @@ export function AppSidebar({
           </div>
           <div className="h-1 w-full bg-neutral-100">
             <div
-              className="h-full bg-neutral-900 transition-all"
+              className="h-full bg-sky-600 transition-all"
               style={{ width: `${usedPct}%` }}
             />
           </div>
@@ -135,9 +150,16 @@ export function AppSidebar({
             {usedPct}% utilized
           </p>
         </div>
+        <ThemeToggle />
       </SidebarFooter>
 
       <SidebarRail />
+
+      <ProvidersUploadFilesModal
+        open={uploadModalOpen}
+        onOpenChange={setUploadModalOpen}
+        onUploadSuccess={() => router.refresh()}
+      />
     </Sidebar>
   );
 }

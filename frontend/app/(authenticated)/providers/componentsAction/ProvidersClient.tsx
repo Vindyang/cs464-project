@@ -16,6 +16,7 @@ const CONNECT_OPTIONS = [
 
 interface ProvidersClientProps {
   initialProviders: ProviderMetadata[];
+  initialConfiguredCredentialProviders: string[];
 }
 
 interface UploadHistoryItem {
@@ -55,10 +56,27 @@ function toHistoryItem(file: FileMetadata): UploadHistoryItem {
   };
 }
 
-export function ProvidersClient({ initialProviders }: ProvidersClientProps) {
+const PROVIDER_LABELS: Record<string, string> = {
+  googleDrive: "Google Drive",
+  awsS3: "Amazon S3",
+  oneDrive: "OneDrive",
+};
+
+const PROVIDER_CONNECT_ERRORS: Record<string, string> = {
+  credentials_missing: "The selected provider is missing local credentials. Add them on the Credentials page before connecting.",
+  oauth_failed: "The provider rejected the sign-in request. Try again and confirm the OAuth app settings are correct.",
+  save_failed: "The provider connected, but the local token could not be saved. Check backend storage and try again.",
+  adapter_failed: "The provider authorization completed, but the backend could not finish the connection. Check the provider and adapter logs.",
+};
+
+export function ProvidersClient({
+  initialProviders,
+  initialConfiguredCredentialProviders,
+}: ProvidersClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [providers, setProviders] = useState(initialProviders);
+  const [configuredCredentialProviders] = useState(initialConfiguredCredentialProviders);
   const [search, setSearch] = useState("");
   const [connectModalOpen, setConnectModalOpen] = useState(false);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
@@ -93,7 +111,7 @@ export function ProvidersClient({ initialProviders }: ProvidersClientProps) {
       router.replace("/providers");
       refresh();
     } else if (error) {
-      toast.error("Failed to connect provider. Please try again.");
+      toast.error(PROVIDER_CONNECT_ERRORS[error] ?? "Failed to connect provider. Please try again.");
       router.replace("/providers");
     } else if (upload === "1") {
       setUploadModalOpen(true);
@@ -112,6 +130,13 @@ export function ProvidersClient({ initialProviders }: ProvidersClientProps) {
   );
 
   const handleConnect = async (providerId: string) => {
+    if (!configuredCredentialProviders.includes(providerId)) {
+      toast.error(
+        `Missing stored credentials for ${PROVIDER_LABELS[providerId] ?? providerId}. Add them on the Credentials page before connecting.`,
+      );
+      return;
+    }
+
     setConnecting(providerId);
     if (providerId === "googleDrive") {
       try {

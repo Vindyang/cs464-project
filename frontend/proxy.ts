@@ -22,7 +22,7 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Only protect app pages that should require configured credentials.
-  const protectedRoutes = ["/dashboard", "/files", "/history", "/providers", "/nodes", "/settings"];
+  const protectedRoutes = ["/dashboard", "/files", "/history", "/providers", "/settings"];
   const isProtected = protectedRoutes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
@@ -42,5 +42,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/files/:path*", "/history/:path*", "/providers/:path*", "/nodes/:path*", "/settings/:path*"],
+  matcher: ["/dashboard/:path*", "/files/:path*", "/history/:path*", "/providers/:path*", "/settings/:path*"],
 };

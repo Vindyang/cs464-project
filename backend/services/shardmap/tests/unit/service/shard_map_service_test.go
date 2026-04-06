@@ -14,12 +14,13 @@ import (
 )
 
 type mockFileRepo struct {
-	createFn           func(*models.File) error
-	getByIDFn          func(uuid.UUID) (*models.File, error)
-	getAllFn           func() ([]*models.File, error)
-	getAllWithHealthFn func() ([]*models.FileWithHealth, error)
-	updateStatusFn     func(uuid.UUID, models.FileStatus) error
-	deleteFn           func(uuid.UUID) error
+	createFn                  func(*models.File) error
+	getByIDFn                 func(uuid.UUID) (*models.File, error)
+	getAllFn                  func() ([]*models.File, error)
+	getAllWithHealthFn        func() ([]*models.FileWithHealth, error)
+	updateStatusFn            func(uuid.UUID, models.FileStatus) error
+	updateLastHealthRefreshFn func(uuid.UUID, time.Time) error
+	deleteFn                  func(uuid.UUID) error
 }
 
 func (m *mockFileRepo) Create(file *models.File) error {
@@ -49,6 +50,12 @@ func (m *mockFileRepo) GetAllWithHealth() ([]*models.FileWithHealth, error) {
 func (m *mockFileRepo) UpdateStatus(id uuid.UUID, status models.FileStatus) error {
 	if m.updateStatusFn != nil {
 		return m.updateStatusFn(id, status)
+	}
+	return nil
+}
+func (m *mockFileRepo) UpdateLastHealthRefresh(id uuid.UUID, refreshedAt time.Time) error {
+	if m.updateLastHealthRefreshFn != nil {
+		return m.updateLastHealthRefreshFn(id, refreshedAt)
 	}
 	return nil
 }

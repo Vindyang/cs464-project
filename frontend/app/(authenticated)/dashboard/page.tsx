@@ -1,5 +1,5 @@
 import { getDashboardData } from "./componentsAction/actions";
-import { cn, formatBytes } from "@/lib/utils";
+import { cn, formatBytes, formatDateTime, formatRelativeTime } from "@/lib/utils";
 import Link from "next/link";
 import { ReactNode } from "react";
 
@@ -17,6 +17,10 @@ export default async function DashboardPage() {
     (p) => p.status === "active" || p.status === "connected"
   );
   const degradedFiles = files.filter((f) => f.status === "DEGRADED");
+  const latestHealthRefreshAt = [...files]
+    .map((file) => file.last_health_refresh_at)
+    .filter((value): value is string => Boolean(value))
+    .sort((left, right) => new Date(right).getTime() - new Date(left).getTime())[0] ?? null;
 
   const totalHealthyShards = files.reduce(
     (s, f) => s + (f.health_status?.healthy_shards ?? 0),
@@ -41,14 +45,33 @@ export default async function DashboardPage() {
             System
           </p>
           <h1 className="text-3xl font-semibold tracking-tight">Overview</h1>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
+            <span className="border border-sky-200 bg-sky-50 px-2 py-1 font-mono uppercase tracking-[0.08em] text-sky-700 dark:border-sky-900 dark:bg-sky-950/60 dark:text-sky-300">
+              Last Health Sync {formatRelativeTime(latestHealthRefreshAt)}
+            </span>
+            <span className="font-mono text-neutral-500 dark:text-neutral-400">
+              {formatDateTime(latestHealthRefreshAt)}
+            </span>
+          </div>
         </div>
         <Link
           href="/files"
-          className="bg-black px-5 py-2.5 font-mono text-[12px] uppercase tracking-wider text-white transition-colors hover:bg-neutral-800"
+          className="bg-sky-600 px-5 py-2.5 font-mono text-[12px] uppercase tracking-wider text-white transition-colors hover:bg-sky-700"
         >
           My Files
         </Link>
       </div>
+
+      {degradedFiles.length > 0 && (
+        <section className="border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+          <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-amber-700 dark:text-amber-300">
+            Action Needed
+          </p>
+          <p className="mt-1">
+            {degradedFiles.length} file{degradedFiles.length === 1 ? " is" : "s are"} degraded. Review missing shards and refresh health from the files view after provider recovery.
+          </p>
+        </section>
+      )}
 
       {/* ── 4 Stat Cards ── */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
@@ -76,6 +99,7 @@ export default async function DashboardPage() {
           value={`${healthPct}%`}
           sub={`${totalShards} shards tracked`}
           warn={healthPct < 100}
+          tone={healthPct < 100 ? "warning" : "healthy"}
         />
       </div>
 
@@ -218,7 +242,7 @@ export default async function DashboardPage() {
                         <div
                           className={cn(
                             "mt-0.5 font-mono text-[11px] font-medium uppercase tracking-wider",
-                            isDegraded ? "text-amber-700" : "text-neutral-500"
+                            isDegraded ? "text-amber-700" : "text-emerald-700 dark:text-emerald-300"
                           )}
                         >
                           {f.status === "UPLOADED" ? "OK" : f.status === "DEGRADED" ? "RISK" : f.status}
@@ -264,7 +288,7 @@ export default async function DashboardPage() {
                   <div
                     className={cn(
                       "mt-2.5 font-mono text-[11px] font-medium uppercase tracking-wider",
-                      recoverable ? "text-neutral-500" : "text-neutral-900 font-semibold"
+                      recoverable ? "text-amber-700 dark:text-amber-300" : "text-red-700 font-semibold dark:text-red-300"
                     )}
                   >
                     {recoverable ? "Recoverable" : "Critical"}
@@ -286,21 +310,29 @@ function StatCard({
   value,
   sub,
   warn = false,
+  tone = "neutral",
 }: {
   label: string;
   value: string;
   sub: string;
   warn?: boolean;
+  tone?: "neutral" | "healthy" | "warning";
 }) {
   return (
-    <section className="border bg-white p-6">
+    <section
+      className={cn(
+        "border bg-white p-6 dark:bg-neutral-950",
+        tone === "healthy" && "border-emerald-200 dark:border-emerald-900",
+        tone === "warning" && "border-amber-200 bg-amber-50/60 dark:border-amber-900 dark:bg-amber-950/20",
+      )}
+    >
       <p className="mb-3.5 font-mono text-[12px] font-medium uppercase tracking-[0.08em] text-neutral-500">
         {label}
       </p>
       <p
         className={cn(
           "text-3xl font-semibold tracking-tight leading-none tabular-nums",
-          warn && "text-neutral-500"
+          warn && "text-amber-700 dark:text-amber-300"
         )}
       >
         {value}

@@ -42,7 +42,7 @@ export function FileHealthRefreshButton({ fileId, fileName }: FileHealthRefreshB
       type="button"
       disabled={refreshing}
       onClick={refreshHealth}
-      className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider border px-3 py-2 hover:bg-black hover:text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+      className="inline-flex items-center gap-1.5 border border-sky-600 bg-sky-600 px-3 py-2 font-mono text-[11px] uppercase tracking-wider text-white transition-colors hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
     >
       <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
       {refreshing ? "Refreshing..." : "Refresh Health"}

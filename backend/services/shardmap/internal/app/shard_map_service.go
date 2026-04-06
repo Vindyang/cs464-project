@@ -17,6 +17,7 @@ type ShardMapService interface {
 	GetFileMetadata(fileID uuid.UUID) (*dto.FileMetadataResponse, error)
 	GetShardByID(shardID uuid.UUID) (*dto.ShardInfo, error)
 	MarkShardStatus(shardID uuid.UUID, req *dto.MarkShardStatusRequest) error
+	UpdateFileHealthRefresh(fileID uuid.UUID, refreshedAt time.Time) error
 	ListFiles() ([]dto.FileMetadataResponse, error)
 	DeleteFile(fileID uuid.UUID) error
 }
@@ -192,7 +193,6 @@ func (s *shardMapService) GetShardMap(fileID uuid.UUID) (*dto.GetShardMapRespons
 		v := summary.LastDownloadedAt.Format(time.RFC3339)
 		lastDownloadedAt = &v
 	}
-
 	name := ""
 	if file.OriginalName != nil {
 		name = *file.OriginalName
@@ -247,6 +247,7 @@ func (s *shardMapService) GetFileMetadata(fileID uuid.UUID) (*dto.FileMetadataRe
 
 	var firstCreatedAt *string
 	var lastDownloadedAt *string
+	var lastHealthRefreshAt *string
 	if summary != nil && summary.FirstCreatedAt != nil {
 		v := summary.FirstCreatedAt.Format(time.RFC3339)
 		firstCreatedAt = &v
@@ -255,6 +256,10 @@ func (s *shardMapService) GetFileMetadata(fileID uuid.UUID) (*dto.FileMetadataRe
 		v := summary.LastDownloadedAt.Format(time.RFC3339)
 		lastDownloadedAt = &v
 	}
+	if file.LastHealthRefreshAt != nil {
+		v := file.LastHealthRefreshAt.Format(time.RFC3339)
+		lastHealthRefreshAt = &v
+	}
 
 	name := ""
 	if file.OriginalName != nil {
@@ -262,19 +267,20 @@ func (s *shardMapService) GetFileMetadata(fileID uuid.UUID) (*dto.FileMetadataRe
 	}
 
 	return &dto.FileMetadataResponse{
-		FileID:           file.ID.String(),
-		OriginalName:     name,
-		OriginalSize:     file.OriginalSize,
-		TotalChunks:      file.TotalChunks,
-		TotalShards:      totalShards,
-		N:                file.N,
-		K:                file.K,
-		ShardSize:        file.ShardSize,
-		Status:           string(file.Status),
-		CreatedAt:        file.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:        file.UpdatedAt.Format(time.RFC3339),
-		FirstCreatedAt:   firstCreatedAt,
-		LastDownloadedAt: lastDownloadedAt,
+		FileID:              file.ID.String(),
+		OriginalName:        name,
+		OriginalSize:        file.OriginalSize,
+		TotalChunks:         file.TotalChunks,
+		TotalShards:         totalShards,
+		N:                   file.N,
+		K:                   file.K,
+		ShardSize:           file.ShardSize,
+		Status:              string(file.Status),
+		CreatedAt:           file.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:           file.UpdatedAt.Format(time.RFC3339),
+		LastHealthRefreshAt: lastHealthRefreshAt,
+		FirstCreatedAt:      firstCreatedAt,
+		LastDownloadedAt:    lastDownloadedAt,
 		HealthStatus: &dto.FileHealthStatus{
 			HealthyShards:   healthyShards,
 			CorruptedShards: corruptedShards,
@@ -352,6 +358,10 @@ func (s *shardMapService) ListFiles() ([]dto.FileMetadataResponse, error) {
 				Recoverable:     recoverable,
 			},
 		}
+		if f.LastHealthRefreshAt != nil {
+			v := f.LastHealthRefreshAt.Format(time.RFC3339)
+			responses[i].LastHealthRefreshAt = &v
+		}
 
 		summary, err := s.lifecycleRepo.GetLifecycleSummary(f.ID.String())
 		if err != nil {
@@ -411,5 +421,12 @@ func (s *shardMapService) MarkShardStatus(shardID uuid.UUID, req *dto.MarkShardS
 		return fmt.Errorf("failed to update file status after shard status change: %w", err)
 	}
 
+	return nil
+}
+
+func (s *shardMapService) UpdateFileHealthRefresh(fileID uuid.UUID, refreshedAt time.Time) error {
+	if err := s.fileRepo.UpdateLastHealthRefresh(fileID, refreshedAt.UTC()); err != nil {
+		return fmt.Errorf("failed to update health refresh time: %w", err)
+	}
 	return nil
 }

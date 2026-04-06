@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/vindyang/cs464-project/backend/services/shared/types"
 )
@@ -166,6 +167,33 @@ func (c *Client) MarkShardStatus(ctx context.Context, shardID string, status str
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to mark shard status: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("shard map returned %d: %s", resp.StatusCode, respBody)
+	}
+	return nil
+}
+
+func (c *Client) UpdateFileHealthRefresh(ctx context.Context, fileID string, refreshedAt time.Time) error {
+	payload := map[string]string{"refreshed_at": refreshedAt.UTC().Format(time.RFC3339)}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal refresh timestamp: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/api/v1/files/%s/health-refresh", c.baseURL, fileID)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("failed to create health refresh request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to update file health refresh time: %w", err)
 	}
 	defer resp.Body.Close()
 

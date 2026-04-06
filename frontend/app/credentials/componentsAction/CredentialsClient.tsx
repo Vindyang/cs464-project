@@ -57,6 +57,7 @@ interface CredentialsClientProps {
 export function CredentialsClient({ initialCredentials }: CredentialsClientProps) {
   const router = useRouter();
   const [credentials, setCredentials] = useState(initialCredentials);
+  const [revealedCredentialIds, setRevealedCredentialIds] = useState<string[]>([]);
   const [providerId, setProviderId] = useState("googleDrive");
   const [clientId, setClientId] = useState("");
   const [clientSecret, setClientSecret] = useState("");
@@ -122,6 +123,24 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
     } catch {
       toast.error("Unable to verify credentials status");
     }
+  }
+
+  function toggleReveal(provider: string) {
+    setRevealedCredentialIds((current) =>
+      current.includes(provider)
+        ? current.filter((value) => value !== provider)
+        : [...current, provider],
+    );
+  }
+
+  function maskValue(value: string, provider: string) {
+    if (revealedCredentialIds.includes(provider)) {
+      return value;
+    }
+    if (value.length <= 8) {
+      return "•".repeat(Math.max(value.length, 4));
+    }
+    return `${value.slice(0, 4)}••••${value.slice(-4)}`;
   }
 
   return (
@@ -227,20 +246,49 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
           ) : (
             <ul className="space-y-2">
               {credentials.map((cred) => (
-                <li key={cred.provider_id} className="border px-3 py-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-sm">{cred.provider_id}</span>
-                    <button
-                      onClick={() => setPendingDeleteId(cred.provider_id)}
-                      aria-label={`Delete ${cred.provider_id} credential`}
-                      className="text-red-500 transition-colors hover:text-red-700"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                <li key={cred.provider_id} className="border px-3 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <span className="font-mono text-sm">{cred.provider_id}</span>
+                      <p className="mt-1 font-mono text-[11px] text-neutral-500">
+                        Updated {new Date(cred.updated_at).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => toggleReveal(cred.provider_id)}
+                        className="font-mono text-[11px] uppercase tracking-wider text-neutral-500 transition-colors hover:text-black"
+                      >
+                        {revealedCredentialIds.includes(cred.provider_id) ? "Hide" : "Reveal"}
+                      </button>
+                      <button
+                        onClick={() => setPendingDeleteId(cred.provider_id)}
+                        aria-label={`Delete ${cred.provider_id} credential`}
+                        className="text-red-500 transition-colors hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
-                  <p className="mt-1 font-mono text-[11px] text-neutral-300">
-                    Updated {new Date(cred.updated_at).toLocaleString()}
-                  </p>
+                  <dl className="mt-3 space-y-2">
+                    <div className="grid grid-cols-[96px_1fr] gap-2">
+                      <dt className="font-mono text-[11px] uppercase tracking-wider text-neutral-400">
+                        Client ID
+                      </dt>
+                      <dd className="font-mono text-sm break-all text-neutral-700">
+                        {maskValue(cred.client_id, cred.provider_id)}
+                      </dd>
+                    </div>
+                    <div className="grid grid-cols-[96px_1fr] gap-2">
+                      <dt className="font-mono text-[11px] uppercase tracking-wider text-neutral-400">
+                        {cred.provider_id === "awsS3" ? "Region" : "Redirect URI"}
+                      </dt>
+                      <dd className="font-mono text-sm break-all text-neutral-700">
+                        {cred.redirect_uri}
+                      </dd>
+                    </div>
+                  </dl>
                 </li>
               ))}
             </ul>

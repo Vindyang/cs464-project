@@ -475,6 +475,8 @@ func TestRefreshAllFileHealthMarksMissingAndHealthy(t *testing.T) {
 			_ = json.NewEncoder(w).Encode([]types.FileMetadata{
 				{FileID: "file-123"},
 			})
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/files/file-123/health-refresh":
+			w.WriteHeader(http.StatusOK)
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/shards/file/file-123":
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(types.GetShardMapResp{
@@ -542,6 +544,8 @@ func TestRefreshAllFileHealthSkipsNonNotFoundErrors(t *testing.T) {
 			_ = json.NewEncoder(w).Encode([]types.FileMetadata{
 				{FileID: "file-123"},
 			})
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/files/file-123/health-refresh":
+			w.WriteHeader(http.StatusOK)
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/shards/file/file-123":
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(types.GetShardMapResp{

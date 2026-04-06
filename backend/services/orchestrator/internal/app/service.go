@@ -53,6 +53,7 @@ type ShardMapClient interface {
 	ListFiles(ctx context.Context) ([]types.FileMetadata, error)
 	GetShardMap(ctx context.Context, fileID string) (*types.GetShardMapResp, error)
 	MarkShardStatus(ctx context.Context, shardID string, status string) error
+	UpdateFileHealthRefresh(ctx context.Context, fileID string, refreshedAt time.Time) error
 	// LogLifecycleEvent records a file operation lifecycle event in the shardmap service.
 	// Callers treat failures as non-fatal (fire-and-forget).
 	LogLifecycleEvent(ctx context.Context, event *types.LifecycleEvent) error
@@ -116,6 +117,7 @@ func (s *Service) RefreshAllFileHealth(ctx context.Context) (*types.HealthRefres
 	summary := &types.HealthRefreshSummary{
 		FilesScanned:  len(files),
 		ErrorMessages: []string{},
+		RefreshedAt:   time.Now().UTC().Format(time.RFC3339),
 	}
 
 	for _, file := range files {
@@ -149,6 +151,7 @@ func (s *Service) RefreshFileHealth(ctx context.Context, fileID string) (*types.
 	summary := &types.HealthRefreshSummary{
 		FilesScanned:  1,
 		ErrorMessages: []string{},
+		RefreshedAt:   time.Now().UTC().Format(time.RFC3339),
 	}
 
 	for _, shard := range shardMap.Shards {
@@ -181,6 +184,13 @@ func (s *Service) RefreshFileHealth(ctx context.Context, fileID string) (*types.
 
 	if len(summary.ErrorMessages) == 0 {
 		summary.ErrorMessages = nil
+	}
+
+	if refreshedAt, err := time.Parse(time.RFC3339, summary.RefreshedAt); err == nil {
+		if touchErr := s.shardMap.UpdateFileHealthRefresh(ctx, fileID, refreshedAt); touchErr != nil {
+			summary.SkippedErrors++
+			summary.ErrorMessages = append(summary.ErrorMessages, fmt.Sprintf("file %s: failed persisting health refresh time: %v", fileID, touchErr))
+		}
 	}
 
 	return summary, nil
