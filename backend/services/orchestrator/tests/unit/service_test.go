@@ -355,12 +355,12 @@ func TestDownloadEarlyExit(t *testing.T) {
 			N:      6,
 			K:      4,
 			Shards: []types.ShardMapEntry{
-				{ShardID: "1", ShardIndex: 0, RemoteID: "remote-1", Provider: "awsS3"},
-				{ShardID: "2", ShardIndex: 1, RemoteID: "remote-2", Provider: "googleDrive"},
-				{ShardID: "3", ShardIndex: 2, RemoteID: "remote-3", Provider: "awsS3"},
-				{ShardID: "4", ShardIndex: 3, RemoteID: "remote-4", Provider: "googleDrive"},
-				{ShardID: "5", ShardIndex: 4, RemoteID: "remote-slow", Provider: "onedrive"}, // Slow
-				{ShardID: "6", ShardIndex: 5, RemoteID: "remote-slow", Provider: "onedrive"}, // Slow
+				{ShardID: "1", ShardIndex: 0, RemoteID: "remote-1", Provider: "awsS3", Status: "HEALTHY"},
+				{ShardID: "2", ShardIndex: 1, RemoteID: "remote-2", Provider: "googleDrive", Status: "HEALTHY"},
+				{ShardID: "3", ShardIndex: 2, RemoteID: "remote-3", Provider: "awsS3", Status: "HEALTHY"},
+				{ShardID: "4", ShardIndex: 3, RemoteID: "remote-4", Provider: "googleDrive", Status: "HEALTHY"},
+				{ShardID: "5", ShardIndex: 4, RemoteID: "remote-slow", Provider: "onedrive", Status: "HEALTHY"}, // Slow
+				{ShardID: "6", ShardIndex: 5, RemoteID: "remote-slow", Provider: "onedrive", Status: "HEALTHY"}, // Slow
 			},
 		})
 	}))
