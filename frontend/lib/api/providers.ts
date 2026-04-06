@@ -48,3 +48,16 @@ export async function disconnectS3(): Promise<void> {
   const res = await fetch(`${API_URL}/api/providers/awsS3/disconnect`, { method: "POST" });
   if (!res.ok) throw new Error("Failed to disconnect S3");
 }
+
+export async function getOneDriveAuthorizeURL(): Promise<{ authURL: string }> {
+  const API_URL = getApiBaseUrl();
+  const res = await fetch(`${API_URL}/api/oauth/onedrive/authorize`);
+  if (!res.ok) throw new Error("Failed to get OneDrive authorization URL");
+  return res.json();
+}
+
+export async function disconnectOneDrive(): Promise<void> {
+  const API_URL = getApiBaseUrl();
+  const res = await fetch(`${API_URL}/api/oauth/onedrive/disconnect`, { method: "POST" });
+  if (!res.ok) throw new Error("Failed to disconnect OneDrive");
+}
