@@ -13,6 +13,7 @@ import (
 	"github.com/vindyang/cs464-project/backend/services/adapter/internal/api/handlers"
 	mockprovider "github.com/vindyang/cs464-project/backend/services/adapter/internal/mock"
 	"github.com/vindyang/cs464-project/backend/services/shared/adapter"
+	"github.com/vindyang/cs464-project/backend/services/shared/clients/shardmapworkflow"
 	"github.com/vindyang/cs464-project/backend/services/shared/db"
 	"github.com/vindyang/cs464-project/backend/services/shared/oauthhandler"
 	"github.com/vindyang/cs464-project/backend/services/shared/onedrivehandler"
@@ -77,9 +78,10 @@ func main() {
 	if shardmapURL == "" {
 		shardmapURL = "http://localhost:8081"
 	}
+	shardmapClient := shardmapworkflow.NewClient(shardmapURL, nil)
 	fileHandler := handlers.NewFileHandler(shardmapURL, registry)
 	credentialsHandler := handlers.NewCredentialsHandler(store, registry)
-	settingsHandler := handlers.NewSettingsHandler(store, fileHandler, credentialsHandler)
+	settingsHandler := handlers.NewSettingsHandler(store, fileHandler, credentialsHandler, shardmapClient)
 
 	app := &App{Registry: registry}
 

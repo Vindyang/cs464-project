@@ -281,3 +281,33 @@ func (c *Client) GetAllHistory(ctx context.Context) (*types.GlobalHistoryResp, e
 	}
 	return &out, nil
 }
+
+// DeleteAllHistory removes all lifecycle events from the shardmap service.
+func (c *Client) DeleteAllHistory(ctx context.Context) (int, error) {
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.baseURL+"/api/v1/lifecycle", nil)
+	if err != nil {
+		return 0, fmt.Errorf("failed to create delete history request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return 0, fmt.Errorf("failed to delete lifecycle history: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		respBody, _ := io.ReadAll(resp.Body)
+		return 0, fmt.Errorf("shardmap delete lifecycle returned %d: %s", resp.StatusCode, respBody)
+	}
+
+	var out struct {
+		DeletedEvents int `json:"deleted_events"`
+	}
+	if resp.StatusCode == http.StatusNoContent {
+		return 0, nil
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return 0, fmt.Errorf("failed to decode delete lifecycle response: %w", err)
+	}
+	return out.DeletedEvents, nil
+}

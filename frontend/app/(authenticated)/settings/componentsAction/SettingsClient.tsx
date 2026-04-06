@@ -11,7 +11,6 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import {
 	AppSettings,
@@ -180,28 +179,6 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
                     </button>
                 </div>
             </SettingsCard>
-
-			<Tabs defaultValue="redundancy" className="space-y-6">
-				<TabsList className="h-auto gap-0.5 rounded-none border border-neutral-200 bg-neutral-50 p-1 dark:border-neutral-800 dark:bg-neutral-900/70">
-					{["redundancy", "storage"].map((tab) => (
-						<TabsTrigger
-							key={tab}
-							value={tab}
-							className="rounded-none border border-transparent font-mono text-[11px] uppercase tracking-wider data-[state=active]:border-neutral-300 data-[state=active]:bg-white data-[state=active]:shadow-none data-[state=inactive]:text-neutral-400 dark:data-[state=active]:border-neutral-700 dark:data-[state=active]:bg-neutral-950 dark:data-[state=active]:text-neutral-100 dark:data-[state=inactive]:text-neutral-500"
-						>
-							{tab}
-						</TabsTrigger>
-					))}
-				</TabsList>
-
-				<TabsContent value="redundancy">
-					
-				</TabsContent>
-
-				<TabsContent value="storage">
-					
-				</TabsContent>
-			</Tabs>
 
 			<SettingsCard>
 				<SettingsCardHeader

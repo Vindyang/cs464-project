@@ -38,6 +38,8 @@ type LifecycleRepository interface {
 	EnsureSchema() error
 	// Insert persists a new lifecycle event row.
 	Insert(event *types.LifecycleEvent) error
+	// DeleteAll removes all lifecycle events and returns the number deleted.
+	DeleteAll() (int, error)
 	// GetByFileID returns all lifecycle events for a file, newest first.
 	GetByFileID(fileID string) ([]types.LifecycleEvent, error)
 	// GetAll returns all lifecycle events across all files, newest first (max 200).
@@ -117,6 +119,19 @@ func (r *lifecycleRepository) Insert(event *types.LifecycleEvent) error {
 		return fmt.Errorf("failed to insert lifecycle event: %w", err)
 	}
 	return nil
+}
+
+// DeleteAll removes all lifecycle events from the log.
+func (r *lifecycleRepository) DeleteAll() (int, error) {
+	result, err := r.db.Exec(`DELETE FROM file_lifecycle_log`)
+	if err != nil {
+		return 0, fmt.Errorf("failed to delete lifecycle events: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get deleted lifecycle row count: %w", err)
+	}
+	return int(rows), nil
 }
 
 // GetByFileID returns all lifecycle events for a file ordered newest first.

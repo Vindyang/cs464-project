@@ -31,6 +31,17 @@ func (s stubCredentialResetter) DeleteAllCredentials() (CredentialResetSummary, 
 	return CredentialResetSummary{}, nil
 }
 
+type stubLifecycleResetter struct {
+	deleteAllHistoryFn func() (int, error)
+}
+
+func (s stubLifecycleResetter) DeleteAllHistory(_ context.Context) (int, error) {
+	if s.deleteAllHistoryFn != nil {
+		return s.deleteAllHistoryFn()
+	}
+	return 0, nil
+}
+
 func TestSettingsResetScope_AllData(t *testing.T) {
 	store := newTestCredentialStore(t)
 	h := NewSettingsHandler(
@@ -43,6 +54,9 @@ func TestSettingsResetScope_AllData(t *testing.T) {
 		}},
 		stubCredentialResetter{deleteAllCredentialsFn: func() (CredentialResetSummary, error) {
 			return CredentialResetSummary{DeletedCredentials: 2, DeletedTokens: 2, DisconnectedProviders: 2}, nil
+		}},
+		stubLifecycleResetter{deleteAllHistoryFn: func() (int, error) {
+			return 5, nil
 		}},
 	)
 
@@ -68,5 +82,8 @@ func TestSettingsResetScope_AllData(t *testing.T) {
 	}
 	if _, ok := got["credential_summary"]; !ok {
 		t.Fatalf("missing credential_summary in response")
+	}
+	if _, ok := got["lifecycle_summary"]; !ok {
+		t.Fatalf("missing lifecycle_summary in response")
 	}
 }

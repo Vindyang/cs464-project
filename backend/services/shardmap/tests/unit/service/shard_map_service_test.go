@@ -72,6 +72,7 @@ func (m *mockFileRepo) GetByUserID(_ string) ([]*models.FileWithHealth, error) {
 
 type mockLifecycleRepo struct {
 	getSummaryFn func(string) (*repository.LifecycleSummary, error)
+	deleteAllFn  func() (int, error)
 }
 
 func (m *mockLifecycleRepo) EnsureSchema() error {
@@ -79,6 +80,12 @@ func (m *mockLifecycleRepo) EnsureSchema() error {
 }
 func (m *mockLifecycleRepo) Insert(event *types.LifecycleEvent) error {
 	return nil
+}
+func (m *mockLifecycleRepo) DeleteAll() (int, error) {
+	if m.deleteAllFn != nil {
+		return m.deleteAllFn()
+	}
+	return 0, nil
 }
 func (m *mockLifecycleRepo) GetByFileID(fileID string) ([]types.LifecycleEvent, error) {
 	return nil, nil

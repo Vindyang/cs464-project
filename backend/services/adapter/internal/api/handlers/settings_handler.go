@@ -18,6 +18,9 @@ type SettingsHandler struct {
 	credentialResetter interface {
 		DeleteAllCredentials() (CredentialResetSummary, error)
 	}
+	lifecycleResetter interface {
+		DeleteAllHistory(context.Context) (int, error)
+	}
 }
 
 func NewSettingsHandler(
@@ -28,8 +31,11 @@ func NewSettingsHandler(
 	credentialResetter interface {
 		DeleteAllCredentials() (CredentialResetSummary, error)
 	},
+	lifecycleResetter interface {
+		DeleteAllHistory(context.Context) (int, error)
+	},
 ) *SettingsHandler {
-	return &SettingsHandler{store: store, fileResetter: fileResetter, credentialResetter: credentialResetter}
+	return &SettingsHandler{store: store, fileResetter: fileResetter, credentialResetter: credentialResetter, lifecycleResetter: lifecycleResetter}
 }
 
 func (h *SettingsHandler) RegisterRoutes(mux *http.ServeMux) {
@@ -97,7 +103,7 @@ func (h *SettingsHandler) reset(w http.ResponseWriter, r *http.Request) {
 		}
 		response["credential_summary"] = credentialSummary
 	case "all_data":
-		if h.fileResetter == nil || h.credentialResetter == nil {
+		if h.fileResetter == nil || h.credentialResetter == nil || h.lifecycleResetter == nil {
 			httpx.WriteError(w, http.StatusNotImplemented, "full reset is not configured", nil)
 			return
 		}
@@ -111,8 +117,14 @@ func (h *SettingsHandler) reset(w http.ResponseWriter, r *http.Request) {
 			httpx.WriteError(w, http.StatusInternalServerError, "failed to delete credentials", err)
 			return
 		}
+		deletedEvents, err := h.lifecycleResetter.DeleteAllHistory(r.Context())
+		if err != nil {
+			httpx.WriteError(w, http.StatusInternalServerError, "failed to delete lifecycle history", err)
+			return
+		}
 		response["file_summary"] = fileSummary
 		response["credential_summary"] = credentialSummary
+		response["lifecycle_summary"] = map[string]int{"deleted_events": deletedEvents}
 	default:
 		httpx.WriteError(w, http.StatusBadRequest, "invalid reset scope", nil)
 		return

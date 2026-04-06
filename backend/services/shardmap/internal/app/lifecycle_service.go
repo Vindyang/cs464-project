@@ -12,6 +12,7 @@ type LifecycleService interface {
 	RecordEvent(event *types.LifecycleEvent) error
 	GetFileHistory(fileID string) (*types.FileHistoryResp, error)
 	GetAllHistory() (*types.GlobalHistoryResp, error)
+	DeleteAllHistory() (int, error)
 }
 
 type lifecycleService struct {
@@ -70,4 +71,13 @@ func (s *lifecycleService) GetAllHistory() (*types.GlobalHistoryResp, error) {
 	return &types.GlobalHistoryResp{
 		Events: events,
 	}, nil
+}
+
+// DeleteAllHistory removes all lifecycle events from storage.
+func (s *lifecycleService) DeleteAllHistory() (int, error) {
+	deleted, err := s.repo.DeleteAll()
+	if err != nil {
+		return 0, fmt.Errorf("failed to delete lifecycle events: %w", err)
+	}
+	return deleted, nil
 }

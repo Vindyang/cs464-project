@@ -23,13 +23,14 @@ func NewLifecycleHandler(service app.LifecycleService) *LifecycleHandler {
 //
 //	POST /api/v1/lifecycle           — record a lifecycle event
 //	GET  /api/v1/lifecycle           — get global lifecycle events
+//	DELETE /api/v1/lifecycle         — delete all lifecycle events
 //	GET  /api/v1/lifecycle/{fileId}  — get history for a file
 func (h *LifecycleHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/lifecycle", h.handleRoot)
 	mux.HandleFunc("/api/v1/lifecycle/", h.handleHistory)
 }
 
-// handleRoot dispatches POST/GET /api/v1/lifecycle.
+// handleRoot dispatches POST/GET/DELETE /api/v1/lifecycle.
 func (h *LifecycleHandler) handleRoot(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		resp, err := h.service.GetAllHistory()
@@ -41,6 +42,19 @@ func (h *LifecycleHandler) handleRoot(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		writeJSON(w, http.StatusOK, resp)
+		return
+	}
+
+	if r.Method == http.MethodDelete {
+		deleted, err := h.service.DeleteAllHistory()
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{
+				"error":   "failed to delete lifecycle history",
+				"details": err.Error(),
+			})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"deleted_events": deleted})
 		return
 	}
 
