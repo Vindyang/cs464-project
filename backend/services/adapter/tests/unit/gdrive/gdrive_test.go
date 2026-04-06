@@ -28,7 +28,7 @@ func TestMain(m *testing.M) {
 //	GDRIVE_OAUTH_CREDENTIALS_FILE=/path/to/oauth-credentials.json  (Web app type)
 //	GDRIVE_OAUTH_REDIRECT_URI=http://localhost:8080/api/oauth/gdrive/callback
 //
-// A valid token must already exist in Supabase (connect via the UI first).
+// A valid token must already exist in the local SQLite store (connect via the UI first).
 func TestGDriveIntegration(t *testing.T) {
 	oauthCredsFile := os.Getenv("GDRIVE_OAUTH_CREDENTIALS_FILE")
 	redirectURI := os.Getenv("GDRIVE_OAUTH_REDIRECT_URI")
@@ -48,7 +48,7 @@ func TestGDriveIntegration(t *testing.T) {
 
 	// For integration tests, use a minimal valid-looking token.
 	// Real token exchange requires DB — skip if no token available.
-	t.Skip("integration test requires a live token from Supabase; connect via UI first")
+	t.Skip("integration test requires a live token from the local SQLite store; connect via UI first")
 
 	a, err := gdrive.NewGDriveAdapter(config, nil, nil)
 	if err != nil {

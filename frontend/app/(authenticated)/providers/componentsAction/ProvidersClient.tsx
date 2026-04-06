@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ProviderMetadata, getProviders, disconnectGDrive, getGDriveAuthorizeURL, connectS3, disconnectS3 } from "@/lib/api/providers";
+import { ProviderMetadata, getProviders, disconnectGDrive, getGDriveAuthorizeURL, connectS3, disconnectS3, getOneDriveAuthorizeURL, disconnectOneDrive } from "@/lib/api/providers";
 import { FileMetadata, getFiles, uploadFile } from "@/lib/api/files";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -11,7 +11,7 @@ import { Upload, X } from "lucide-react";
 const CONNECT_OPTIONS = [
   { id: "googleDrive", name: "Google Drive", description: "Connect your Google Drive account.", available: true },
   { id: "awsS3", name: "Amazon S3", description: "Connect using Access Key credentials.", available: true },
-  { id: "oneDrive", name: "OneDrive", description: "Coming soon.", available: false },
+  { id: "oneDrive", name: "OneDrive", description: "Connect your Microsoft OneDrive account.", available: true },
 ];
 
 interface ProvidersClientProps {
@@ -88,6 +88,10 @@ export function ProvidersClient({ initialProviders }: ProvidersClientProps) {
       toast.success("Google Drive connected successfully");
       router.replace("/providers");
       refresh();
+    } else if (connected === "oneDrive") {
+      toast.success("OneDrive connected successfully");
+      router.replace("/providers");
+      refresh();
     } else if (error) {
       toast.error("Failed to connect provider. Please try again.");
       router.replace("/providers");
@@ -127,6 +131,14 @@ export function ProvidersClient({ initialProviders }: ProvidersClientProps) {
       } finally {
         setConnecting(null);
       }
+    } else if (providerId === "oneDrive") {
+      try {
+        const { authURL } = await getOneDriveAuthorizeURL();
+        window.location.assign(authURL);
+      } catch {
+        toast.error("Failed to start OneDrive connection");
+        setConnecting(null);
+      }
     } else {
       setConnecting(null);
     }
@@ -141,6 +153,7 @@ export function ProvidersClient({ initialProviders }: ProvidersClientProps) {
           try {
             if (providerId === "googleDrive") await disconnectGDrive();
             else if (providerId === "awsS3") await disconnectS3();
+            else if (providerId === "oneDrive") await disconnectOneDrive();
             toast.success("Provider disconnected");
             refresh();
           } catch {

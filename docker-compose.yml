@@ -4,8 +4,6 @@ services:
       context: ./backend
       dockerfile: services/adapter/Dockerfile
     restart: unless-stopped
-    env_file:
-      - ./backend/.env
     environment:
       PORT: "8080"
       SHARDMAP_URL: "http://shardmap:8081"
@@ -21,8 +19,6 @@ services:
       context: ./backend
       dockerfile: services/shardmap/Dockerfile
     restart: unless-stopped
-    env_file:
-      - ./backend/.env
     environment:
       PORT: "8081"
       Omnishard_SHARDMAP_DB_PATH: "/app/data/Omnishard-shardmap.db"
@@ -37,8 +33,6 @@ services:
       context: ./backend
       dockerfile: services/sharding/Dockerfile
     restart: unless-stopped
-    env_file:
-      - ./backend/.env
     environment:
       PORT: "8083"
     ports:
@@ -50,8 +44,6 @@ services:
       context: ./backend
       dockerfile: services/orchestrator/Dockerfile
     restart: unless-stopped
-    env_file:
-      - ./backend/.env
     environment:
       PORT: "8082"
       ADAPTER_URL: "http://adapter:8080"
@@ -73,8 +65,6 @@ services:
       context: ./backend
       dockerfile: services/gateway/Dockerfile
     restart: unless-stopped
-    env_file:
-      - ./backend/.env
     environment:
       ORCHESTRATOR_URL: "http://orchestrator:8082"
       ADAPTER_URL: "http://adapter:8080"

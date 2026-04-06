@@ -2,8 +2,6 @@ services:
   adapter:
     image: ${DOCKERHUB_NAMESPACE:?Set DOCKERHUB_NAMESPACE}/omnishard-adapter:${OMNISHARD_TAG:-latest}
     restart: unless-stopped
-    env_file:
-      - ../../backend/.env
     environment:
       PORT: "8080"
       SHARDMAP_URL: "http://shardmap:8081"
@@ -16,8 +14,6 @@ services:
   shardmap:
     image: ${DOCKERHUB_NAMESPACE:?Set DOCKERHUB_NAMESPACE}/omnishard-shardmap:${OMNISHARD_TAG:-latest}
     restart: unless-stopped
-    env_file:
-      - ../../backend/.env
     environment:
       PORT: "8081"
       Omnishard_SHARDMAP_DB_PATH: "/app/data/Omnishard-shardmap.db"
@@ -29,8 +25,6 @@ services:
   sharding:
     image: ${DOCKERHUB_NAMESPACE:?Set DOCKERHUB_NAMESPACE}/omnishard-sharding:${OMNISHARD_TAG:-latest}
     restart: unless-stopped
-    env_file:
-      - ../../backend/.env
     environment:
       PORT: "8083"
     ports:
@@ -39,8 +33,6 @@ services:
   orchestrator:
     image: ${DOCKERHUB_NAMESPACE:?Set DOCKERHUB_NAMESPACE}/omnishard-orchestrator:${OMNISHARD_TAG:-latest}
     restart: unless-stopped
-    env_file:
-      - ../../backend/.env
     environment:
       PORT: "8082"
       ADAPTER_URL: "http://adapter:8080"
@@ -59,8 +51,6 @@ services:
   gateway:
     image: ${DOCKERHUB_NAMESPACE:?Set DOCKERHUB_NAMESPACE}/omnishard-gateway:${OMNISHARD_TAG:-latest}
     restart: unless-stopped
-    env_file:
-      - ../../backend/.env
     environment:
       ORCHESTRATOR_URL: "http://orchestrator:8082"
       ADAPTER_URL: "http://adapter:8080"

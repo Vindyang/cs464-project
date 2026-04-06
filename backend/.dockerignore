@@ -5,5 +5,9 @@
 **/bin
 **/tmp
 **/.env
+tests/
+**/tests/
+**/*_test.go
+**/.env.example
 frontend
 references

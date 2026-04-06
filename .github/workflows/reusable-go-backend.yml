@@ -1,0 +1,49 @@
+name: Reusable - Go Backend Job
+
+on:
+  workflow_call:
+    inputs:
+      command:
+        description: Shell command to run in the backend directory.
+        required: true
+        type: string
+      go_version:
+        description: Go version to install.
+        required: false
+        default: '1.24'
+        type: string
+      working_directory:
+        description: Working directory for the backend command.
+        required: false
+        default: './backend'
+        type: string
+      timeout_minutes:
+        description: Job timeout in minutes.
+        required: false
+        default: 15
+        type: number
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ inputs.go_version }}
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('backend/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Run backend command
+        working-directory: ${{ inputs.working_directory }}
+        run: ${{ inputs.command }}

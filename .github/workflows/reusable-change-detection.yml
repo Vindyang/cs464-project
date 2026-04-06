@@ -1,0 +1,88 @@
+name: Reusable - Detect Backend Changes
+
+on:
+  workflow_call:
+    outputs:
+      adapter:
+        description: Whether adapter service files changed.
+        value: ${{ jobs.detect-changes.outputs.adapter }}
+      orchestrator:
+        description: Whether orchestrator service files changed.
+        value: ${{ jobs.detect-changes.outputs.orchestrator }}
+      shardmap:
+        description: Whether shardmap service files changed.
+        value: ${{ jobs.detect-changes.outputs.shardmap }}
+      sharding:
+        description: Whether sharding service files changed.
+        value: ${{ jobs.detect-changes.outputs.sharding }}
+      shared:
+        description: Whether shared backend code changed.
+        value: ${{ jobs.detect-changes.outputs.shared }}
+      backend_tests:
+        description: Whether backend test files changed.
+        value: ${{ jobs.detect-changes.outputs.backend_tests }}
+      frontend:
+        description: Whether frontend files changed.
+        value: ${{ jobs.detect-changes.outputs.frontend }}
+      backend_any:
+        description: Whether any backend file changed.
+        value: ${{ jobs.detect-changes.outputs.backend_any }}
+      workflow_files:
+        description: Whether workflow files changed.
+        value: ${{ jobs.detect-changes.outputs.workflow_files }}
+      gateway:
+        description: Whether gateway service files changed.
+        value: ${{ jobs.detect-changes.outputs.gateway }}
+      all_in_one_assets:
+        description: Whether all-in-one deployment assets changed.
+        value: ${{ jobs.detect-changes.outputs.all_in_one_assets }}
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  detect-changes:
+    name: Detect backend changes
+    runs-on: ubuntu-latest
+    outputs:
+      adapter: ${{ steps.changes.outputs.adapter }}
+      orchestrator: ${{ steps.changes.outputs.orchestrator }}
+      shardmap: ${{ steps.changes.outputs.shardmap }}
+      sharding: ${{ steps.changes.outputs.sharding }}
+      shared: ${{ steps.changes.outputs.shared }}
+      backend_tests: ${{ steps.changes.outputs.backend_tests }}
+      frontend: ${{ steps.changes.outputs.frontend }}
+      backend_any: ${{ steps.changes.outputs.backend_any }}
+      workflow_files: ${{ steps.changes.outputs.workflow_files }}
+      gateway: ${{ steps.changes.outputs.gateway }}
+      all_in_one_assets: ${{ steps.changes.outputs.all_in_one_assets }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            adapter:
+              - 'backend/services/adapter/**'
+            orchestrator:
+              - 'backend/services/orchestrator/**'
+            shardmap:
+              - 'backend/services/shardmap/**'
+            sharding:
+              - 'backend/services/sharding/**'
+            gateway:
+              - 'backend/services/gateway/**'
+            shared:
+              - 'backend/services/shared/**'
+            backend_tests:
+              - 'backend/tests/**'
+            frontend:
+              - 'frontend/**'
+            backend_any:
+              - 'backend/**'
+            workflow_files:
+              - '.github/workflows/**'
+            all_in_one_assets:
+              - 'deploy/images/all-in-one/**'
