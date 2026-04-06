@@ -1,5 +1,7 @@
 package types
 
+import "time"
+
 // RegisterFileReq from Shard Map Service
 type RegisterFileReq struct {
 	OriginalName string `json:"original_name"`
@@ -21,7 +23,13 @@ type RecordShardReq struct {
 	Shards []ShardInfo `json:"shards"`
 }
 
+type RecordShardResp struct {
+	FileID string      `json:"file_id"`
+	Shards []ShardInfo `json:"shards"`
+}
+
 type ShardInfo struct {
+	ShardID     string `json:"shard_id,omitempty"`
 	ChunkIndex  int    `json:"chunk_index"`
 	ShardIndex  int    `json:"shard_index"`
 	Type        string `json:"type"` // "data" or "parity"
@@ -32,12 +40,43 @@ type ShardInfo struct {
 
 // GetShardMapResp from Shard Map Service
 type GetShardMapResp struct {
-	FileID       string          `json:"file_id"`
-	OriginalName string          `json:"original_name"`
-	N            int             `json:"n"`
-	K            int             `json:"k"`
-	Status       string          `json:"status"`
-	Shards       []ShardMapEntry `json:"shards"`
+	FileID           string          `json:"file_id"`
+	OriginalName     string          `json:"original_name"`
+	N                int             `json:"n"`
+	K                int             `json:"k"`
+	Status           string          `json:"status"`
+	FirstCreatedAt   *string         `json:"first_created_at,omitempty"`
+	LastDownloadedAt *string         `json:"last_downloaded_at,omitempty"`
+	Shards           []ShardMapEntry `json:"shards"`
+}
+
+// FileMetadata is returned by shardmap list/files endpoints.
+type FileMetadata struct {
+	FileID           string  `json:"file_id"`
+	OriginalName     string  `json:"original_name"`
+	OriginalSize     int64   `json:"original_size"`
+	TotalChunks      int     `json:"total_chunks"`
+	TotalShards      int     `json:"total_shards"`
+	N                int     `json:"n"`
+	K                int     `json:"k"`
+	ChunkSize        int64   `json:"chunk_size"`
+	ShardSize        int64   `json:"shard_size"`
+	Status           string  `json:"status"`
+	CreatedAt        string  `json:"created_at"`
+	UpdatedAt        string  `json:"updated_at"`
+	FirstCreatedAt   *string `json:"first_created_at,omitempty"`
+	LastDownloadedAt *string `json:"last_downloaded_at,omitempty"`
+}
+
+// HealthRefreshSummary aggregates refresh results.
+type HealthRefreshSummary struct {
+	FilesScanned  int      `json:"files_scanned"`
+	ShardsChecked int      `json:"shards_checked"`
+	MarkedHealthy int      `json:"marked_healthy"`
+	MarkedMissing int      `json:"marked_missing"`
+	SkippedErrors int      `json:"skipped_errors"`
+	FailedFiles   int      `json:"failed_files"`
+	ErrorMessages []string `json:"error_messages,omitempty"`
 }
 
 type ShardMapEntry struct {
@@ -88,4 +127,31 @@ type DownloadResp struct {
 	FileName string   `json:"file_name"`
 	ShardIDs []string `json:"shard_ids"`
 	Shards   [][]byte `json:"shards"`
+}
+
+// LifecycleEvent is sent from the orchestrator to the shardmap service
+// to record file operation history (upload or download).
+type LifecycleEvent struct {
+	FileID     string    `json:"file_id"`
+	EventType  string    `json:"event_type"` // "upload" or "download"
+	FileName   string    `json:"file_name,omitempty"`
+	FileSize   int64     `json:"file_size,omitempty"`
+	ShardCount int       `json:"shard_count,omitempty"`
+	Providers  []string  `json:"providers,omitempty"`
+	StartedAt  time.Time `json:"started_at"`
+	EndedAt    time.Time `json:"ended_at"`
+	DurationMs int64     `json:"duration_ms"`
+	Status     string    `json:"status"` // "success" or "failed"
+	ErrorMsg   string    `json:"error_msg,omitempty"`
+}
+
+// FileHistoryResp is returned by the shardmap lifecycle history endpoint.
+type FileHistoryResp struct {
+	FileID string           `json:"file_id"`
+	Events []LifecycleEvent `json:"events"`
+}
+
+// GlobalHistoryResp is returned by the global lifecycle history endpoint.
+type GlobalHistoryResp struct {
+	Events []LifecycleEvent `json:"events"`
 }

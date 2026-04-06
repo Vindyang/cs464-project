@@ -1,10 +1,14 @@
 package adapter
-
+// test CD again
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 )
+
+// ErrShardNotFound is returned when a shard no longer exists on a provider.
+var ErrShardNotFound = errors.New("shard not found")
 
 // ProviderMetadata canonical identity for adapters
 type ProviderMetadata struct {

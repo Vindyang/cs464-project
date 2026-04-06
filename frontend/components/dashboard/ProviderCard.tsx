@@ -60,7 +60,7 @@ export function ProviderCard({
               </div>
               <div className="flex justify-between text-xs text-text-secondary mt-1.5">
                 <span>{formattedUsed} Used</span>
-                <span>{formattedTotal} Total</span>
+                <span>{quotaTotalBytes > 0 ? `${formattedTotal} Total` : "—"}</span>
               </div>
             </div>
 

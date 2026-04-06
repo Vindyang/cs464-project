@@ -1,0 +1,132 @@
+name: CI — Service Unit Tests
+
+on:
+  push:
+    branches: [main, microservices, "feature/**"]
+    paths:
+      - 'backend/services/**'
+      - '.github/workflows/ci-service-units.yml'
+  pull_request:
+    branches: [main, microservices, "feature/**"]
+    paths:
+      - 'backend/services/**'
+      - '.github/workflows/ci-service-units.yml'
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  detect-changes:
+    name: Detect changed services
+    runs-on: ubuntu-latest
+    outputs:
+      adapter: ${{ steps.changes.outputs.adapter }}
+      orchestrator: ${{ steps.changes.outputs.orchestrator }}
+      shardmap: ${{ steps.changes.outputs.shardmap }}
+      sharding: ${{ steps.changes.outputs.sharding }}
+      shared: ${{ steps.changes.outputs.shared }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            adapter:
+              - 'backend/services/adapter/**'
+            orchestrator:
+              - 'backend/services/orchestrator/**'
+            shardmap:
+              - 'backend/services/shardmap/**'
+            sharding:
+              - 'backend/services/sharding/**'
+            shared:
+              - 'backend/services/shared/**'
+
+  test-adapter:
+    name: Unit tests — adapter
+    needs: detect-changes
+    if: needs.detect-changes.outputs.adapter == 'true' || needs.detect-changes.outputs.shared == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('backend/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Run adapter unit tests
+        run: go test ./services/adapter/tests/unit/... -count=1 -v -timeout 60s
+
+  test-orchestrator:
+    name: Unit tests — orchestrator
+    needs: detect-changes
+    if: needs.detect-changes.outputs.orchestrator == 'true' || needs.detect-changes.outputs.shared == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('backend/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Run orchestrator unit tests
+        run: go test ./services/orchestrator/tests/unit/... -count=1 -v -timeout 60s
+
+  test-shardmap:
+    name: Unit tests — shardmap
+    needs: detect-changes
+    if: needs.detect-changes.outputs.shardmap == 'true' || needs.detect-changes.outputs.shared == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('backend/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Run shardmap unit tests
+        run: go test ./services/shardmap/tests/unit/... -count=1 -v -timeout 60s
+
+  test-sharding:
+    name: Unit tests — sharding
+    needs: detect-changes
+    if: needs.detect-changes.outputs.sharding == 'true' || needs.detect-changes.outputs.shared == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('backend/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Run sharding unit tests
+        run: go test ./services/sharding/tests/unit/... -count=1 -v -timeout 60s

@@ -139,15 +139,17 @@ type ShardInfo struct {
 
 // GetShardMapResponse - GET /api/v1/shards/file/:fileId
 type GetShardMapResponse struct {
-	FileID       string      `json:"file_id"`
-	OriginalName string      `json:"original_name"`
-	OriginalSize int64       `json:"original_size"`
-	TotalChunks  int         `json:"total_chunks"`
-	N            int         `json:"n"`
-	K            int         `json:"k"`
-	ShardSize    int64       `json:"shard_size"`
-	Status       string      `json:"status"`
-	Shards       []ShardInfo `json:"shards"`
+	FileID           string      `json:"file_id"`
+	OriginalName     string      `json:"original_name"`
+	OriginalSize     int64       `json:"original_size"`
+	TotalChunks      int         `json:"total_chunks"`
+	N                int         `json:"n"`
+	K                int         `json:"k"`
+	ShardSize        int64       `json:"shard_size"`
+	Status           string      `json:"status"`
+	FirstCreatedAt   *string     `json:"first_created_at,omitempty"`
+	LastDownloadedAt *string     `json:"last_downloaded_at,omitempty"`
+	Shards           []ShardInfo `json:"shards"`
 }
 
 // MarkShardStatusRequest - PUT /api/v1/shards/:shardId/status

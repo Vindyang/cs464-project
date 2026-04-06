@@ -30,14 +30,13 @@ func NewShardRepository(db *sqlx.DB) ShardRepository {
 func (r *shardRepository) Create(shard *models.Shard) error {
 	query := `
 		INSERT INTO shards (id, file_id, chunk_index, shard_index, shard_type, remote_id, provider, checksum_sha256, status, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-		RETURNING id, created_at, updated_at
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
-	err := r.db.QueryRow(
+	_, err := r.db.Exec(
 		query,
-		shard.ID,
-		shard.FileID,
+		shard.ID.String(),
+		shard.FileID.String(),
 		shard.ChunkIndex,
 		shard.ShardIndex,
 		shard.ShardType,
@@ -47,7 +46,7 @@ func (r *shardRepository) Create(shard *models.Shard) error {
 		shard.Status,
 		shard.CreatedAt,
 		shard.UpdatedAt,
-	).Scan(&shard.ID, &shard.CreatedAt, &shard.UpdatedAt)
+	)
 
 	if err != nil {
 		return fmt.Errorf("failed to create shard: %w", err)
@@ -65,8 +64,7 @@ func (r *shardRepository) CreateBatch(shards []*models.Shard) error {
 
 	query := `
 		INSERT INTO shards (id, file_id, chunk_index, shard_index, shard_type, remote_id, provider, checksum_sha256, status, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-		RETURNING id, created_at, updated_at
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	stmt, err := tx.Prepare(query)
@@ -76,9 +74,9 @@ func (r *shardRepository) CreateBatch(shards []*models.Shard) error {
 	defer stmt.Close()
 
 	for _, shard := range shards {
-		err := stmt.QueryRow(
-			shard.ID,
-			shard.FileID,
+		_, err := stmt.Exec(
+			shard.ID.String(),
+			shard.FileID.String(),
 			shard.ChunkIndex,
 			shard.ShardIndex,
 			shard.ShardType,
@@ -88,7 +86,7 @@ func (r *shardRepository) CreateBatch(shards []*models.Shard) error {
 			shard.Status,
 			shard.CreatedAt,
 			shard.UpdatedAt,
-		).Scan(&shard.ID, &shard.CreatedAt, &shard.UpdatedAt)
+		)
 
 		if err != nil {
 			return fmt.Errorf("failed to create shard in batch: %w", err)
@@ -107,10 +105,10 @@ func (r *shardRepository) GetByID(id uuid.UUID) (*models.Shard, error) {
 	query := `
 		SELECT id, file_id, chunk_index, shard_index, shard_type, remote_id, provider, checksum_sha256, status, created_at, updated_at
 		FROM shards
-		WHERE id = $1
+		WHERE id = ?
 	`
 
-	err := r.db.Get(shard, query, id)
+	err := r.db.Get(shard, query, id.String())
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("shard not found: %w", err)
@@ -126,11 +124,11 @@ func (r *shardRepository) GetByFileID(fileID uuid.UUID) ([]*models.Shard, error)
 	query := `
 		SELECT id, file_id, chunk_index, shard_index, shard_type, remote_id, provider, checksum_sha256, status, created_at, updated_at
 		FROM shards
-		WHERE file_id = $1
+		WHERE file_id = ?
 		ORDER BY chunk_index, shard_index
 	`
 
-	err := r.db.Select(&shards, query, fileID)
+	err := r.db.Select(&shards, query, fileID.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get shards by file ID: %w", err)
 	}
@@ -143,11 +141,11 @@ func (r *shardRepository) GetByFileAndChunk(fileID uuid.UUID, chunkIndex int) ([
 	query := `
 		SELECT id, file_id, chunk_index, shard_index, shard_type, remote_id, provider, checksum_sha256, status, created_at, updated_at
 		FROM shards
-		WHERE file_id = $1 AND chunk_index = $2
+		WHERE file_id = ? AND chunk_index = ?
 		ORDER BY shard_index
 	`
 
-	err := r.db.Select(&shards, query, fileID, chunkIndex)
+	err := r.db.Select(&shards, query, fileID.String(), chunkIndex)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get shards by file and chunk: %w", err)
 	}
@@ -158,11 +156,11 @@ func (r *shardRepository) GetByFileAndChunk(fileID uuid.UUID, chunkIndex int) ([
 func (r *shardRepository) UpdateStatus(id uuid.UUID, status models.ShardStatus) error {
 	query := `
 		UPDATE shards
-		SET status = $1, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $2
+		SET status = ?, updated_at = CURRENT_TIMESTAMP
+		WHERE id = ?
 	`
 
-	result, err := r.db.Exec(query, status, id)
+	result, err := r.db.Exec(query, status, id.String())
 	if err != nil {
 		return fmt.Errorf("failed to update shard status: %w", err)
 	}
@@ -180,9 +178,9 @@ func (r *shardRepository) UpdateStatus(id uuid.UUID, status models.ShardStatus) 
 }
 
 func (r *shardRepository) Delete(id uuid.UUID) error {
-	query := `DELETE FROM shards WHERE id = $1`
+	query := `DELETE FROM shards WHERE id = ?`
 
-	result, err := r.db.Exec(query, id)
+	result, err := r.db.Exec(query, id.String())
 	if err != nil {
 		return fmt.Errorf("failed to delete shard: %w", err)
 	}

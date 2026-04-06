@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 interface FileUploadModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onUpload: (file: File, encrypt: boolean) => void;
+  onUpload: (file: File, encrypt: boolean) => Promise<void> | void;
 }
 
 export function FileUploadModal({
@@ -34,12 +34,29 @@ export function FileUploadModal({
     }
   };
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (file) {
       setIsUploading(true);
-      onUpload(file, encrypt);
+      try {
+        await onUpload(file, encrypt);
+        setFile(null);
+        setEncrypt(true);
+        onOpenChange(false);
+      } catch {
+        // Parent handles user-facing errors; keep modal open for retry.
+      } finally {
+        setIsUploading(false);
+      }
     }
   };
+
+  useEffect(() => {
+    if (!open) {
+      setFile(null);
+      setEncrypt(true);
+      setIsUploading(false);
+    }
+  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

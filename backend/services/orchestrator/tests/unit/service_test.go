@@ -65,7 +65,16 @@ func TestUploadHappyPath(t *testing.T) {
 			json.NewDecoder(r.Body).Decode(&recordReq)
 			recordedShardCount = len(recordReq.Shards)
 			w.Header().Set("Content-Type", "application/json")
+			respShards := make([]types.ShardInfo, 0, len(recordReq.Shards))
+			for i, s := range recordReq.Shards {
+				s.ShardID = fmt.Sprintf("shard-%d", i)
+				respShards = append(respShards, s)
+			}
 			w.WriteHeader(http.StatusCreated)
+			json.NewEncoder(w).Encode(types.RecordShardResp{
+				FileID: recordReq.FileID,
+				Shards: respShards,
+			})
 		}
 	}))
 	defer shardMapServer.Close()
@@ -233,7 +242,19 @@ func TestUploadSkipsDegradedProviders(t *testing.T) {
 				Status: "PENDING",
 			})
 		} else if r.Method == "POST" && r.URL.Path == "/api/v1/shards/record" {
+			var recordReq types.RecordShardReq
+			json.NewDecoder(r.Body).Decode(&recordReq)
+			w.Header().Set("Content-Type", "application/json")
+			respShards := make([]types.ShardInfo, 0, len(recordReq.Shards))
+			for i, s := range recordReq.Shards {
+				s.ShardID = fmt.Sprintf("shard-%d", i)
+				respShards = append(respShards, s)
+			}
 			w.WriteHeader(http.StatusCreated)
+			json.NewEncoder(w).Encode(types.RecordShardResp{
+				FileID: recordReq.FileID,
+				Shards: respShards,
+			})
 		}
 	}))
 	defer shardMapServer.Close()
@@ -390,8 +411,22 @@ func BenchmarkUploadParallel(b *testing.B) {
 		if r.Method == "POST" && r.URL.Path == "/api/v1/shards/register" {
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(types.RegisterFileResp{FileID: "file-123"})
-		} else {
+		} else if r.Method == "POST" && r.URL.Path == "/api/v1/shards/record" {
+			var recordReq types.RecordShardReq
+			_ = json.NewDecoder(r.Body).Decode(&recordReq)
+			w.Header().Set("Content-Type", "application/json")
+			respShards := make([]types.ShardInfo, 0, len(recordReq.Shards))
+			for i, s := range recordReq.Shards {
+				s.ShardID = fmt.Sprintf("shard-%d", i)
+				respShards = append(respShards, s)
+			}
 			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(types.RecordShardResp{
+				FileID: recordReq.FileID,
+				Shards: respShards,
+			})
+		} else {
+			w.WriteHeader(http.StatusOK)
 		}
 	}))
 	defer shardMapServer.Close()
@@ -413,5 +448,133 @@ func BenchmarkUploadParallel(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		ctx := context.Background()
 		service.UploadFile(ctx, "test.txt", shards, isDataShard)
+	}
+}
+
+func TestRefreshAllFileHealthMarksMissingAndHealthy(t *testing.T) {
+	adapterServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/shards/remote-healthy":
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("ok"))
+		case "/shards/remote-missing":
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte("missing"))
+		default:
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	}))
+	defer adapterServer.Close()
+
+	markedStatuses := map[string]string{}
+	var mu sync.Mutex
+	shardMapServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/files":
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode([]types.FileMetadata{
+				{FileID: "file-123"},
+			})
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/shards/file/file-123":
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(types.GetShardMapResp{
+				FileID: "file-123",
+				Shards: []types.ShardMapEntry{
+					{ShardID: "s-1", RemoteID: "remote-healthy", Provider: "awsS3"},
+					{ShardID: "s-2", RemoteID: "remote-missing", Provider: "awsS3"},
+				},
+			})
+		case r.Method == http.MethodPut && r.URL.Path == "/api/v1/shards/s-1/status":
+			var req map[string]string
+			_ = json.NewDecoder(r.Body).Decode(&req)
+			mu.Lock()
+			markedStatuses["s-1"] = req["status"]
+			mu.Unlock()
+			w.WriteHeader(http.StatusOK)
+		case r.Method == http.MethodPut && r.URL.Path == "/api/v1/shards/s-2/status":
+			var req map[string]string
+			_ = json.NewDecoder(r.Body).Decode(&req)
+			mu.Lock()
+			markedStatuses["s-2"] = req["status"]
+			mu.Unlock()
+			w.WriteHeader(http.StatusOK)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer shardMapServer.Close()
+
+	adapter := adapterclient.NewClient(adapterServer.URL, nil)
+	shardMap := shardmapworkflow.NewClient(shardMapServer.URL, nil)
+	service := app.NewService(adapter, shardMap)
+
+	summary, err := service.RefreshAllFileHealth(context.Background())
+	if err != nil {
+		t.Fatalf("refresh failed: %v", err)
+	}
+
+	if summary.FilesScanned != 1 || summary.ShardsChecked != 2 {
+		t.Fatalf("unexpected summary counts: %+v", summary)
+	}
+	if summary.MarkedHealthy != 1 || summary.MarkedMissing != 1 {
+		t.Fatalf("unexpected mark counts: %+v", summary)
+	}
+	if markedStatuses["s-1"] != "HEALTHY" {
+		t.Fatalf("expected shard s-1 status HEALTHY, got %q", markedStatuses["s-1"])
+	}
+	if markedStatuses["s-2"] != "MISSING" {
+		t.Fatalf("expected shard s-2 status MISSING, got %q", markedStatuses["s-2"])
+	}
+}
+
+func TestRefreshAllFileHealthSkipsNonNotFoundErrors(t *testing.T) {
+	adapterServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte("temporary failure"))
+	}))
+	defer adapterServer.Close()
+
+	markCalls := 0
+	shardMapServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/files":
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode([]types.FileMetadata{
+				{FileID: "file-123"},
+			})
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/shards/file/file-123":
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(types.GetShardMapResp{
+				FileID: "file-123",
+				Shards: []types.ShardMapEntry{
+					{ShardID: "s-1", RemoteID: "remote-error", Provider: "awsS3"},
+				},
+			})
+		case r.Method == http.MethodPut && r.URL.Path == "/api/v1/shards/s-1/status":
+			markCalls++
+			w.WriteHeader(http.StatusOK)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer shardMapServer.Close()
+
+	adapter := adapterclient.NewClient(adapterServer.URL, nil)
+	shardMap := shardmapworkflow.NewClient(shardMapServer.URL, nil)
+	service := app.NewService(adapter, shardMap)
+
+	summary, err := service.RefreshAllFileHealth(context.Background())
+	if err != nil {
+		t.Fatalf("refresh failed: %v", err)
+	}
+
+	if summary.MarkedMissing != 0 || summary.MarkedHealthy != 0 {
+		t.Fatalf("expected no status marks for transient error, got %+v", summary)
+	}
+	if summary.SkippedErrors != 1 {
+		t.Fatalf("expected skipped errors = 1, got %+v", summary)
+	}
+	if markCalls != 0 {
+		t.Fatalf("expected no mark status calls, got %d", markCalls)
 	}
 }

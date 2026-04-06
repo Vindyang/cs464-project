@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -32,15 +34,9 @@ func (h *ShardIOHandler) UploadShard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := r.ParseMultipartForm(25 << 20); err != nil {
-		httpx.WriteError(w, http.StatusBadRequest, "Failed to parse multipart form", err)
-		return
-	}
-
-	shardID := r.FormValue("shard_id")
-	providerID := r.FormValue("provider")
-	if shardID == "" || providerID == "" {
-		httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "shard_id and provider are required"})
+	shardID, providerID, payload, err := parseShardUploadMultipart(r)
+	if err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "Invalid shard upload payload", err)
 		return
 	}
 
@@ -50,20 +46,18 @@ func (h *ShardIOHandler) UploadShard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	file, _, err := r.FormFile("file_data")
-	if err != nil {
-		httpx.WriteError(w, http.StatusBadRequest, "Missing file_data form field", err)
-		return
-	}
-	defer file.Close()
-
-	payload, err := io.ReadAll(file)
-	if err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, "Failed to read shard payload", err)
+	if shardID == "" || providerID == "" {
+		httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "shard_id and provider are required"})
 		return
 	}
 
-	remoteID, err := provider.UploadShard(r.Context(), shardID, parseShardIndex(shardID), bytes.NewReader(payload))
+	if len(payload) == 0 {
+		httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "file_data is required"})
+		return
+	}
+
+	payloadReader := bytes.NewReader(payload)
+	remoteID, err := provider.UploadShard(r.Context(), parseFileID(shardID), parseShardIndex(shardID), payloadReader)
 	if err != nil {
 		httpx.WriteError(w, http.StatusInternalServerError, "Failed to upload shard", err)
 		return
@@ -74,6 +68,49 @@ func (h *ShardIOHandler) UploadShard(w http.ResponseWriter, r *http.Request) {
 		"remote_id":       remoteID,
 		"checksum_sha256": hex.EncodeToString(hash[:]),
 	})
+}
+
+func parseShardUploadMultipart(r *http.Request) (shardID string, providerID string, payload []byte, err error) {
+	reader, err := r.MultipartReader()
+	if err != nil {
+		return "", "", nil, fmt.Errorf("failed to open multipart reader: %w", err)
+	}
+
+	for {
+		part, partErr := reader.NextPart()
+		if errors.Is(partErr, io.EOF) {
+			break
+		}
+		if partErr != nil {
+			return "", "", nil, fmt.Errorf("failed to read multipart part: %w", partErr)
+		}
+
+		switch part.FormName() {
+		case "shard_id":
+			b, readErr := io.ReadAll(part)
+			if readErr != nil {
+				return "", "", nil, fmt.Errorf("failed to read shard_id: %w", readErr)
+			}
+			shardID = strings.TrimSpace(string(b))
+		case "provider":
+			b, readErr := io.ReadAll(part)
+			if readErr != nil {
+				return "", "", nil, fmt.Errorf("failed to read provider: %w", readErr)
+			}
+			providerID = strings.TrimSpace(string(b))
+		case "file_data":
+			b, readErr := io.ReadAll(part)
+			if readErr != nil {
+				return "", "", nil, fmt.Errorf("failed to read file_data: %w", readErr)
+			}
+			payload = b
+		default:
+			_, _ = io.Copy(io.Discard, part)
+		}
+		_ = part.Close()
+	}
+
+	return shardID, providerID, payload, nil
 }
 
 func (h *ShardIOHandler) handleShardByRemoteID(w http.ResponseWriter, r *http.Request) {
@@ -108,6 +145,14 @@ func (h *ShardIOHandler) downloadShard(w http.ResponseWriter, r *http.Request, r
 
 	reader, err := provider.DownloadShard(r.Context(), remoteID)
 	if err != nil {
+		lowerErr := strings.ToLower(err.Error())
+		if errors.Is(err, adapter.ErrShardNotFound) ||
+			strings.Contains(lowerErr, "not found") ||
+			strings.Contains(lowerErr, "no such key") ||
+			strings.Contains(lowerErr, "404") {
+			httpx.WriteError(w, http.StatusNotFound, "Shard not found", err)
+			return
+		}
 		httpx.WriteError(w, http.StatusInternalServerError, "Failed to download shard", err)
 		return
 	}
@@ -143,6 +188,14 @@ func (h *ShardIOHandler) deleteShard(w http.ResponseWriter, r *http.Request, rem
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// parseFileID extracts the file UUID from a shard ID of the form "{fileID}-shard-{index}".
+func parseFileID(shardID string) string {
+	if idx := strings.LastIndex(shardID, "-shard-"); idx != -1 {
+		return shardID[:idx]
+	}
+	return shardID
 }
 
 func parseShardIndex(shardID string) int {

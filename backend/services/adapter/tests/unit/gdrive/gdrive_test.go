@@ -27,15 +27,13 @@ func TestMain(m *testing.M) {
 //
 //	GDRIVE_OAUTH_CREDENTIALS_FILE=/path/to/oauth-credentials.json  (Web app type)
 //	GDRIVE_OAUTH_REDIRECT_URI=http://localhost:8080/api/oauth/gdrive/callback
-//	GDRIVE_FOLDER_ID=<Drive folder ID>
 //
 // A valid token must already exist in Supabase (connect via the UI first).
 func TestGDriveIntegration(t *testing.T) {
 	oauthCredsFile := os.Getenv("GDRIVE_OAUTH_CREDENTIALS_FILE")
 	redirectURI := os.Getenv("GDRIVE_OAUTH_REDIRECT_URI")
-	folderID := os.Getenv("GDRIVE_FOLDER_ID")
-	if oauthCredsFile == "" || redirectURI == "" || folderID == "" {
-		t.Skip("GDRIVE_OAUTH_CREDENTIALS_FILE, GDRIVE_OAUTH_REDIRECT_URI, and GDRIVE_FOLDER_ID not set; skipping integration test")
+	if oauthCredsFile == "" || redirectURI == "" {
+		t.Skip("GDRIVE_OAUTH_CREDENTIALS_FILE and GDRIVE_OAUTH_REDIRECT_URI not set; skipping integration test")
 	}
 
 	raw, err := os.ReadFile(oauthCredsFile)
@@ -52,7 +50,7 @@ func TestGDriveIntegration(t *testing.T) {
 	// Real token exchange requires DB — skip if no token available.
 	t.Skip("integration test requires a live token from Supabase; connect via UI first")
 
-	a, err := gdrive.NewGDriveAdapter(config, nil, folderID)
+	a, err := gdrive.NewGDriveAdapter(config, nil, nil)
 	if err != nil {
 		t.Fatalf("NewGDriveAdapter: %v", err)
 	}
@@ -80,7 +78,7 @@ func TestGDriveIntegration(t *testing.T) {
 	})
 
 	t.Run("UploadDownloadDelete", func(t *testing.T) {
-		const payload = "nebula-shard-test-payload"
+		const payload = "Omnishard-shard-test-payload"
 
 		remoteID, err := a.UploadShard(ctx, "test-file-001", 0, strings.NewReader(payload))
 		if err != nil {

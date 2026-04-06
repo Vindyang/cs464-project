@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: Nebula Drive API Gateway
+  title: Omnishard API Gateway
   version: v1
   description: Public API exposed by the gateway service.
 servers:
@@ -45,6 +45,83 @@ paths:
                 format: binary
         "404":
           description: File not found.
+  /history/{fileId}:
+    get:
+      summary: Get lifecycle history for a file
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Lifecycle history response.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /history:
+    get:
+      summary: Get global lifecycle history across files
+      responses:
+        "200":
+          description: Global lifecycle history response.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /files/{fileId}:
+    delete:
+      summary: Delete a file via orchestrator workflow
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: delete_shards
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "204":
+          description: File deleted successfully.
+        "404":
+          description: File not found.
+  /files/{fileId}/health/refresh:
+    post:
+      summary: Refresh shard health for one file
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: File health refresh summary.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "404":
+          description: File not found.
+  /files/health/refresh:
+    post:
+      summary: Refresh shard health for all files
+      responses:
+        "200":
+          description: Global health refresh summary.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
   /providers:
     get:
       summary: List provider status from adapter

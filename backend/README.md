@@ -1,6 +1,6 @@
-# Nebula Drive Backend
+# Omnishard Backend
 
-Nebula Drive is organized as independently deployable Go services with strict ownership boundaries.
+Omnishard is organized as independently deployable Go services with strict ownership boundaries.
 The orchestrator is the workflow owner and coordinates sharding, storage, and shard metadata.
 The gateway is the public API entrypoint and enforces endpoint/versioning standards.
 
@@ -36,6 +36,7 @@ Legacy monolith code under top-level `internal/` has been removed.
 ## End-to-End Workflow Ownership
 
 Upload workflow:
+
 1. Gateway receives the request on `/api/v1/upload`.
 2. Gateway forwards to orchestrator.
 3. Orchestrator receives file upload.
@@ -44,6 +45,7 @@ Upload workflow:
 6. Orchestrator calls shardmap to register and record shard metadata.
 
 Download workflow:
+
 1. Gateway receives the request on `/api/v1/download/{fileId}`.
 2. Gateway forwards to orchestrator.
 3. Orchestrator requests shard locations from shardmap.
@@ -87,11 +89,15 @@ Common service URLs:
 
 Adapter OAuth/token storage:
 
-- `DATABASE_URL`
+- `Omnishard_DB_PATH`
 - `GDRIVE_OAUTH_CREDENTIALS_FILE`
 - `GDRIVE_OAUTH_REDIRECT_URI`
 - `GDRIVE_FOLDER_ID`
 - `FRONTEND_URL`
+
+Shardmap local persistence:
+
+- `Omnishard_SHARDMAP_DB_PATH`
 
 ## Run Locally
 
@@ -145,7 +151,7 @@ For backend-only mode:
 docker compose --profile backend down
 ```
 
-Stop and also remove Postgres data volume:
+Stop and also remove local service data volumes:
 
 ```powershell
 docker compose --profile full down -v
@@ -172,6 +178,48 @@ Internal service DNS used in Docker network:
 - `http://orchestrator:8082`
 - `http://sharding:8083`
 - `http://gateway:8084`
+
+## Release deployment flavors
+
+Two release-focused Docker Compose manifests now sit alongside the source-build developer workflow:
+
+- `deploy/compose/full-microservices.yml`
+  - Pulls published images for adapter, shardmap, sharding, orchestrator, gateway, and frontend.
+  - Best for debugging service boundaries while avoiding local builds.
+- `deploy/compose/single-image-microservices.yml`
+  - Pulls one published `omnishard-all-in-one` image.
+  - Runs adapter, shardmap, sharding, orchestrator, gateway, and frontend as separate internal processes in one container.
+
+Set the image namespace before using either release manifest:
+
+```powershell
+$env:DOCKERHUB_NAMESPACE = "your-dockerhub-namespace"
+```
+
+Optional tag override:
+
+```powershell
+$env:OMNISHARD_TAG = "latest"
+```
+
+Run release flavor 1:
+
+```powershell
+docker compose -f deploy/compose/full-microservices.yml up -d
+```
+
+Run release flavor 2:
+
+```powershell
+docker compose -f deploy/compose/single-image-microservices.yml up -d
+```
+
+Single-image public ports:
+
+- Frontend: `http://localhost:3000`
+- Adapter/API surface: `http://localhost:8080`
+
+The gateway remains internal to the all-in-one container on port `8084`.
 
 ## Tests
 
@@ -241,3 +289,39 @@ Internal service endpoints:
 
 - Gateway intentionally does not add authentication yet.
 - OAuth endpoints remain owned by `adapter`.
+
+## Docker Hub CD for Individual Services
+
+This backend is configured for per-service image publishing through GitHub Actions.
+
+Workflow:
+
+- `.github/workflows/cd-dockerhub-services.yml`
+
+Additional release-image workflows:
+
+- `.github/workflows/cd-dockerhub-frontend.yml`
+- `.github/workflows/cd-dockerhub-all-in-one.yml`
+- `.github/workflows/cd-dockerhub-force-deploy.yml`
+
+Per-service repositories:
+
+- `${DOCKERHUB_NAMESPACE}/omnishard-adapter`
+- `${DOCKERHUB_NAMESPACE}/omnishard-shardmap`
+- `${DOCKERHUB_NAMESPACE}/omnishard-sharding`
+- `${DOCKERHUB_NAMESPACE}/omnishard-orchestrator`
+- `${DOCKERHUB_NAMESPACE}/omnishard-gateway`
+
+GitHub repository setup required:
+
+- Variable: `DOCKERHUB_NAMESPACE`
+- Secret: `DOCKERHUB_USERNAME`
+- Secret: `DOCKERHUB_TOKEN`
+
+How it behaves:
+
+- Publishes on push to `main` and `microservices` when service files change.
+- Supports manual publish via `workflow_dispatch`.
+- If `backend/services/shared` changes, adapter/orchestrator/shardmap/sharding are republished.
+- Gateway is republished when `backend/services/gateway` changes.
+- Tags pushed: `latest` (default branch only), branch tag, and commit SHA.

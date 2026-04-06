@@ -3,6 +3,15 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  Database,
+  FolderOpen,
+  History,
+  KeyRound,
+  LayoutDashboard,
+  Network,
+  Settings,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Sidebar,
@@ -18,10 +27,13 @@ import {
 } from "@/components/ui/sidebar";
 
 const navItems = [
-  { title: "Dashboard", href: "/dashboard" },
-  { title: "Nodes", href: "/nodes" },
-  { title: "Providers", href: "/providers" },
-  { title: "Settings", href: "/settings" },
+  { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { title: "Files", href: "/files", icon: FolderOpen },
+  { title: "History", href: "/history", icon: History },
+  { title: "Nodes", href: "/nodes", icon: Network },
+  { title: "Providers", href: "/providers", icon: Database },
+  { title: "Credentials", href: "/credentials", icon: KeyRound },
+  { title: "Settings", href: "/settings", icon: Settings },
 ];
 
 function formatBytes(bytes: number): string {
@@ -51,19 +63,19 @@ export function AppSidebar({
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       {/* Logo */}
-      <SidebarHeader className="h-12 flex-row items-center border-b px-4 !py-0">
-        <div className="flex items-center gap-2">
+      <SidebarHeader className="h-14 flex-row items-center border-b px-4 !py-0">
+        <div className="flex items-center gap-2.5">
           <div className="flex h-5 w-5 items-center justify-center border-2 border-neutral-900 shrink-0">
             <div className="h-1.5 w-1.5 bg-neutral-900" />
           </div>
-          <span className="font-mono text-[11px] font-bold uppercase tracking-[0.15em] text-neutral-900">
-            Nebula Drive
+          <span className="font-mono text-[12px] font-bold uppercase tracking-[0.15em] text-neutral-900">
+            Omnishard
           </span>
         </div>
       </SidebarHeader>
 
       {/* Navigation */}
-      <SidebarContent className="px-2 py-3">
+      <SidebarContent className="px-2 py-4">
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -72,18 +84,22 @@ export function AppSidebar({
                   item.href === "/dashboard"
                     ? pathname === "/dashboard" || pathname === "/"
                     : pathname.startsWith(item.href);
+                const Icon = item.icon;
                 return (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton
                       asChild
                       isActive={isActive}
                       className={cn(
-                        "font-mono text-[11px] uppercase tracking-[0.08em] rounded-none",
-                        "text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100",
+                        "h-9 font-mono text-[12px] font-medium uppercase tracking-[0.08em] rounded-none",
+                        "text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100",
                         "data-[active=true]:bg-neutral-900 data-[active=true]:text-white data-[active=true]:hover:bg-neutral-800",
                       )}
                     >
-                      <Link href={item.href}>{item.title}</Link>
+                      <Link href={item.href}>
+                        <Icon />
+                        <span>{item.title}</span>
+                      </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
@@ -94,17 +110,17 @@ export function AppSidebar({
       </SidebarContent>
 
       {/* Storage footer */}
-      <SidebarFooter className="border-t p-4">
-        <div className="space-y-2">
-          <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-neutral-400">
+      <SidebarFooter className="border-t p-5">
+        <div className="space-y-2.5">
+          <p className="font-mono text-[11px] font-medium uppercase tracking-[0.1em] text-neutral-500">
             Storage Used
           </p>
           <div className="flex items-baseline gap-1">
-            <span className="font-mono text-sm font-semibold tabular-nums">
+            <span className="font-mono text-base font-semibold tabular-nums">
               {formatBytes(totalStorageUsedBytes)}
             </span>
             {totalStorageTotalBytes > 0 && (
-              <span className="font-mono text-[10px] text-neutral-400">
+              <span className="font-mono text-[12px] font-medium text-neutral-500">
                 / {formatBytes(totalStorageTotalBytes)}
               </span>
             )}
@@ -115,7 +131,7 @@ export function AppSidebar({
               style={{ width: `${usedPct}%` }}
             />
           </div>
-          <p className="font-mono text-[9px] text-neutral-400">
+          <p className="font-mono text-[11px] font-medium text-neutral-500">
             {usedPct}% utilized
           </p>
         </div>

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -11,18 +10,16 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
 	"github.com/vindyang/cs464-project/backend/services/adapter/internal/api/handlers"
+	mockprovider "github.com/vindyang/cs464-project/backend/services/adapter/internal/mock"
 	"github.com/vindyang/cs464-project/backend/services/shared/adapter"
-	"github.com/vindyang/cs464-project/backend/services/shared/adapter/gdrive"
 	"github.com/vindyang/cs464-project/backend/services/shared/db"
 	"github.com/vindyang/cs464-project/backend/services/shared/oauthhandler"
-	"golang.org/x/oauth2/google"
+	"github.com/vindyang/cs464-project/backend/services/shared/s3handler"
 )
 
-const driveScope = "https://www.googleapis.com/auth/drive.file"
-
+//test CD again
 type App struct {
 	Registry *adapter.Registry
 }
@@ -30,49 +27,55 @@ type App struct {
 func main() {
 	_ = godotenv.Load()
 
-	ctx := context.Background()
-
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
 
-	// Connect to Supabase via pgx (OAuth token storage)
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		log.Fatal("DATABASE_URL must be set")
+	// Open local SQLite store (token + credential + config persistence).
+	dbPath := os.Getenv("Omnishard_DB_PATH")
+	if dbPath == "" {
+		dbPath = "Omnishard.db"
 	}
-	tokenDB, err := db.New(ctx, dbURL)
+	store, err := db.NewStore(dbPath)
 	if err != nil {
-		log.Fatalf("Failed to connect to token database: %v", err)
+		log.Fatalf("Failed to open local store: %v", err)
 	}
-	defer tokenDB.Close()
+	defer store.Close()
 
 	// Initialize adapter registry
 	registry := adapter.NewRegistry()
 
-	// Restore Google Drive adapter from stored token if available
-	redirectURI := os.Getenv("GDRIVE_OAUTH_REDIRECT_URI")
-	folderID := os.Getenv("GDRIVE_FOLDER_ID")
-	if redirectURI != "" && folderID != "" {
-		if err := tryRestoreGDriveAdapter(ctx, tokenDB, registry, redirectURI, folderID); err != nil {
+	mockModeEnabled := os.Getenv("ADAPTER_MOCK_MODE") == "true"
+	if mockModeEnabled {
+		registry.Register("mockLocal", mockprovider.NewProvider())
+		log.Println("Adapter mock mode enabled: registered mockLocal provider")
+	} else {
+		// Restore Google Drive adapter from stored token if available
+		if err := tryRestoreGDriveAdapter(store, registry); err != nil {
 			log.Printf("Google Drive adapter not restored: %v", err)
+		}
+
+		// Restore S3 adapter from stored credentials if available
+		s3Handler := s3handler.New(store, registry)
+		if err := s3Handler.RestoreAdapter(); err != nil {
+			log.Printf("S3 adapter not restored: %v", err)
 		}
 	}
 
 	// OAuth handler for Google Drive
-	oauthHandler, err := oauthhandler.New(tokenDB, registry)
-	if err != nil {
-		log.Fatalf("Failed to initialize OAuth handler: %v", err)
-	}
+	oauthHandler := oauthhandler.New(store, registry)
+	s3Handler := s3handler.New(store, registry)
 
+	credentialsHandler := handlers.NewCredentialsHandler(store)
+	settingsHandler := handlers.NewSettingsHandler(store)
 	shardIOHandler := handlers.NewShardIOHandler(registry)
 
 	shardmapURL := os.Getenv("SHARDMAP_URL")
 	if shardmapURL == "" {
 		shardmapURL = "http://localhost:8081"
 	}
-	fileHandler := handlers.NewFileHandler(shardmapURL)
+	fileHandler := handlers.NewFileHandler(shardmapURL, registry)
 
 	app := &App{Registry: registry}
 
@@ -87,6 +90,10 @@ func main() {
 	mux.HandleFunc("/api/oauth/gdrive/authorize", oauthHandler.Authorize)
 	mux.HandleFunc("/api/oauth/gdrive/callback", oauthHandler.Callback)
 	mux.HandleFunc("/api/oauth/gdrive/disconnect", oauthHandler.Disconnect)
+	mux.HandleFunc("/api/providers/awsS3/connect", s3Handler.Connect)
+	mux.HandleFunc("/api/providers/awsS3/disconnect", s3Handler.Disconnect)
+	credentialsHandler.RegisterRoutes(mux)
+	settingsHandler.RegisterRoutes(mux)
 	shardIOHandler.RegisterRoutes(mux)
 	fileHandler.RegisterRoutes(mux)
 
@@ -118,32 +125,20 @@ func main() {
 	log.Println("Server exited gracefully")
 }
 
-// tryRestoreGDriveAdapter loads a stored token from DB and registers the adapter.
-func tryRestoreGDriveAdapter(ctx context.Context, tokenDB *db.DB, registry *adapter.Registry, redirectURI, folderID string) error {
-	tok, err := tokenDB.LoadProviderToken(ctx, "googleDrive")
+// tryRestoreGDriveAdapter loads a stored token from the local store and re-registers the adapter.
+// Non-fatal: logs and returns nil if no token is found.
+func tryRestoreGDriveAdapter(store *db.Store, registry *adapter.Registry) error {
+	tok, err := store.LoadToken("googleDrive")
 	if err != nil {
-		if err == pgx.ErrNoRows {
-			log.Println("No stored Google Drive token — connect via UI")
-			return nil
-		}
-		return err
+		// No token stored yet — user hasn't connected. Not an error.
+		log.Println("No stored Google Drive token — connect via UI")
+		return nil
 	}
 
-	raw, err := loadGDriveCredentials()
-	if err != nil {
+	h := oauthhandler.New(store, registry)
+	if err := h.RestoreAdapter(registry, tok); err != nil {
 		return err
 	}
-	config, err := google.ConfigFromJSON(raw, driveScope)
-	if err != nil {
-		return err
-	}
-	config.RedirectURL = redirectURI
-
-	gda, err := gdrive.NewGDriveAdapter(config, tok, folderID)
-	if err != nil {
-		return err
-	}
-	registry.Register("googleDrive", gda)
 	log.Println("Google Drive adapter restored from stored token")
 	return nil
 }
@@ -164,19 +159,6 @@ func (app *App) listProviders(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(metadatas)
-}
-
-// loadGDriveCredentials returns the raw GCP OAuth2 credentials JSON.
-// Prefers GDRIVE_OAUTH_CREDENTIALS_JSON (raw JSON) over GDRIVE_OAUTH_CREDENTIALS_FILE (file path).
-func loadGDriveCredentials() ([]byte, error) {
-	if raw := os.Getenv("GDRIVE_OAUTH_CREDENTIALS_JSON"); raw != "" {
-		return []byte(raw), nil
-	}
-	credsFile := os.Getenv("GDRIVE_OAUTH_CREDENTIALS_FILE")
-	if credsFile == "" {
-		return nil, fmt.Errorf("neither GDRIVE_OAUTH_CREDENTIALS_JSON nor GDRIVE_OAUTH_CREDENTIALS_FILE is set")
-	}
-	return os.ReadFile(credsFile)
 }
 
 func loggingMiddleware(next http.Handler) http.Handler {
