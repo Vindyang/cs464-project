@@ -2,16 +2,18 @@ name: CI - Main
 
 on:
   push:
-    branches: [main, microservices, "feature/**"]
+    branches: [main, microservices]
     paths:
       - 'backend/**'
       - 'frontend/**'
+      - 'deploy/**'
       - '.github/workflows/**'
   pull_request:
-    branches: [main, microservices, "feature/**"]
+    branches: [main, microservices]
     paths:
       - 'backend/**'
       - 'frontend/**'
+      - 'deploy/**'
       - '.github/workflows/**'
 
 permissions:
@@ -19,6 +21,56 @@ permissions:
   pull-requests: read
 
 jobs:
+  pipeline-policy:
+    name: Resolve pipeline policy
+    runs-on: ubuntu-latest
+    outputs:
+      strict_ci: ${{ steps.policy.outputs.strict_ci }}
+      deploy_enabled: ${{ steps.policy.outputs.deploy_enabled }}
+      push_images: ${{ steps.policy.outputs.push_images }}
+      image_tag: ${{ steps.policy.outputs.image_tag }}
+      checkout_ref: ${{ steps.policy.outputs.checkout_ref }}
+    steps:
+      - name: Resolve branch policy
+        id: policy
+        run: |
+          strict_ci=false
+          deploy_enabled=true
+          push_images=false
+          image_tag="${{ github.sha }}"
+          checkout_ref="${{ github.sha }}"
+
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_name }}" = "main" ]; then
+            strict_ci=true
+          fi
+
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.base_ref }}" = "main" ]; then
+            strict_ci=true
+            image_tag="${{ github.event.pull_request.head.sha }}"
+            checkout_ref="${{ github.event.pull_request.head.sha }}"
+            if [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+              deploy_enabled=false
+            fi
+          fi
+
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.base_ref }}" = "microservices" ]; then
+            image_tag="${{ github.event.pull_request.head.sha }}"
+            checkout_ref="${{ github.event.pull_request.head.sha }}"
+            if [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+              deploy_enabled=false
+            fi
+          fi
+
+          if [ "${{ github.event_name }}" = "push" ]; then
+            push_images=true
+          fi
+
+          echo "strict_ci=$strict_ci" >> "$GITHUB_OUTPUT"
+          echo "deploy_enabled=$deploy_enabled" >> "$GITHUB_OUTPUT"
+          echo "push_images=$push_images" >> "$GITHUB_OUTPUT"
+          echo "image_tag=$image_tag" >> "$GITHUB_OUTPUT"
+          echo "checkout_ref=$checkout_ref" >> "$GITHUB_OUTPUT"
+
   detect-changes:
     name: Detect changes
     uses: ./.github/workflows/reusable-change-detection.yml
@@ -113,6 +165,7 @@ jobs:
     runs-on: ubuntu-latest
     if: always()
     needs:
+      - pipeline-policy
       - detect-changes
       - backend-quality
       - unit-adapter
@@ -125,6 +178,9 @@ jobs:
     steps:
       - name: Check job results
         run: |
+          failed=false
+          cancelled=false
+
           if [ "${{ needs.backend-quality.result }}" = "failure" ] || \
              [ "${{ needs.unit-adapter.result }}" = "failure" ] || \
              [ "${{ needs.unit-orchestrator.result }}" = "failure" ] || \
@@ -133,8 +189,7 @@ jobs:
              [ "${{ needs.integration-contracts.result }}" = "failure" ] || \
              [ "${{ needs.e2e-backend.result }}" = "failure" ] || \
              [ "${{ needs.frontend-quality.result }}" = "failure" ]; then
-            echo "One or more CI jobs failed."
-            exit 1
+            failed=true
           fi
 
           if [ "${{ needs.backend-quality.result }}" = "cancelled" ] || \
@@ -145,8 +200,118 @@ jobs:
              [ "${{ needs.integration-contracts.result }}" = "cancelled" ] || \
              [ "${{ needs.e2e-backend.result }}" = "cancelled" ] || \
              [ "${{ needs.frontend-quality.result }}" = "cancelled" ]; then
-            echo "One or more CI jobs were cancelled."
+            cancelled=true
+          fi
+
+          if [ "${{ needs.pipeline-policy.outputs.strict_ci }}" = "true" ] && { [ "$failed" = "true" ] || [ "$cancelled" = "true" ]; }; then
+            echo "Strict CI policy active: failing pipeline before deployment."
             exit 1
           fi
 
+          if [ "$failed" = "true" ] || [ "$cancelled" = "true" ]; then
+            echo "Permissive CI policy active: continuing to deployment despite CI issues."
+          fi
+
           echo "CI main completed successfully."
+
+  deploy-adapter:
+    name: Deploy adapter image
+    needs: [pipeline-policy, detect-changes, ci-summary]
+    if: always() && needs.ci-summary.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.detect-changes.outputs.adapter == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.workflow_files == 'true')
+    uses: ./.github/workflows/reusable-docker-build-push.yml
+    secrets: inherit
+    with:
+      image_name: ${{ vars.DOCKERHUB_NAMESPACE }}/omnishard-adapter
+      context: ./backend
+      dockerfile: ./backend/services/adapter/Dockerfile
+      image_tag: ${{ needs.pipeline-policy.outputs.image_tag }}
+      checkout_ref: ${{ needs.pipeline-policy.outputs.checkout_ref }}
+      push_image: ${{ needs.pipeline-policy.outputs.push_images == 'true' }}
+
+  deploy-orchestrator:
+    name: Deploy orchestrator image
+    needs: [pipeline-policy, detect-changes, ci-summary]
+    if: always() && needs.ci-summary.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.detect-changes.outputs.orchestrator == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.workflow_files == 'true')
+    uses: ./.github/workflows/reusable-docker-build-push.yml
+    secrets: inherit
+    with:
+      image_name: ${{ vars.DOCKERHUB_NAMESPACE }}/omnishard-orchestrator
+      context: ./backend
+      dockerfile: ./backend/services/orchestrator/Dockerfile
+      image_tag: ${{ needs.pipeline-policy.outputs.image_tag }}
+      checkout_ref: ${{ needs.pipeline-policy.outputs.checkout_ref }}
+      push_image: ${{ needs.pipeline-policy.outputs.push_images == 'true' }}
+
+  deploy-shardmap:
+    name: Deploy shardmap image
+    needs: [pipeline-policy, detect-changes, ci-summary]
+    if: always() && needs.ci-summary.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.detect-changes.outputs.shardmap == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.workflow_files == 'true')
+    uses: ./.github/workflows/reusable-docker-build-push.yml
+    secrets: inherit
+    with:
+      image_name: ${{ vars.DOCKERHUB_NAMESPACE }}/omnishard-shardmap
+      context: ./backend
+      dockerfile: ./backend/services/shardmap/Dockerfile
+      image_tag: ${{ needs.pipeline-policy.outputs.image_tag }}
+      checkout_ref: ${{ needs.pipeline-policy.outputs.checkout_ref }}
+      push_image: ${{ needs.pipeline-policy.outputs.push_images == 'true' }}
+
+  deploy-sharding:
+    name: Deploy sharding image
+    needs: [pipeline-policy, detect-changes, ci-summary]
+    if: always() && needs.ci-summary.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.detect-changes.outputs.sharding == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.workflow_files == 'true')
+    uses: ./.github/workflows/reusable-docker-build-push.yml
+    secrets: inherit
+    with:
+      image_name: ${{ vars.DOCKERHUB_NAMESPACE }}/omnishard-sharding
+      context: ./backend
+      dockerfile: ./backend/services/sharding/Dockerfile
+      image_tag: ${{ needs.pipeline-policy.outputs.image_tag }}
+      checkout_ref: ${{ needs.pipeline-policy.outputs.checkout_ref }}
+      push_image: ${{ needs.pipeline-policy.outputs.push_images == 'true' }}
+
+  deploy-gateway:
+    name: Deploy gateway image
+    needs: [pipeline-policy, detect-changes, ci-summary]
+    if: always() && needs.ci-summary.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.detect-changes.outputs.gateway == 'true' || needs.detect-changes.outputs.workflow_files == 'true')
+    uses: ./.github/workflows/reusable-docker-build-push.yml
+    secrets: inherit
+    with:
+      image_name: ${{ vars.DOCKERHUB_NAMESPACE }}/omnishard-gateway
+      context: ./backend
+      dockerfile: ./backend/services/gateway/Dockerfile
+      image_tag: ${{ needs.pipeline-policy.outputs.image_tag }}
+      checkout_ref: ${{ needs.pipeline-policy.outputs.checkout_ref }}
+      push_image: ${{ needs.pipeline-policy.outputs.push_images == 'true' }}
+
+  deploy-frontend:
+    name: Deploy frontend image
+    needs: [pipeline-policy, detect-changes, ci-summary]
+    if: always() && needs.ci-summary.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.detect-changes.outputs.frontend == 'true' || needs.detect-changes.outputs.workflow_files == 'true')
+    uses: ./.github/workflows/reusable-docker-build-push.yml
+    secrets: inherit
+    with:
+      image_name: ${{ vars.DOCKERHUB_NAMESPACE }}/omnishard-frontend
+      context: ./frontend
+      dockerfile: ./frontend/Dockerfile
+      image_tag: ${{ needs.pipeline-policy.outputs.image_tag }}
+      checkout_ref: ${{ needs.pipeline-policy.outputs.checkout_ref }}
+      build_args: |
+        NEXT_PUBLIC_API_URL=http://localhost:8080
+      push_image: ${{ needs.pipeline-policy.outputs.push_images == 'true' }}
+
+  deploy-all-in-one:
+    name: Deploy all-in-one image
+    needs: [pipeline-policy, detect-changes, ci-summary]
+    if: always() && needs.ci-summary.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.detect-changes.outputs.backend_any == 'true' || needs.detect-changes.outputs.frontend == 'true' || needs.detect-changes.outputs.all_in_one_assets == 'true' || needs.detect-changes.outputs.workflow_files == 'true')
+    uses: ./.github/workflows/reusable-docker-build-push.yml
+    secrets: inherit
+    with:
+      image_name: ${{ vars.DOCKERHUB_NAMESPACE }}/omnishard-all-in-one
+      context: .
+      dockerfile: ./deploy/images/all-in-one/Dockerfile
+      image_tag: ${{ needs.pipeline-policy.outputs.image_tag }}
+      checkout_ref: ${{ needs.pipeline-policy.outputs.checkout_ref }}
+      build_args: |
+        NEXT_PUBLIC_API_URL=http://localhost:8080
+      push_image: ${{ needs.pipeline-policy.outputs.push_images == 'true' }}

@@ -30,6 +30,12 @@ on:
       workflow_files:
         description: Whether workflow files changed.
         value: ${{ jobs.detect-changes.outputs.workflow_files }}
+      gateway:
+        description: Whether gateway service files changed.
+        value: ${{ jobs.detect-changes.outputs.gateway }}
+      all_in_one_assets:
+        description: Whether all-in-one deployment assets changed.
+        value: ${{ jobs.detect-changes.outputs.all_in_one_assets }}
 
 permissions:
   contents: read
@@ -49,6 +55,8 @@ jobs:
       frontend: ${{ steps.changes.outputs.frontend }}
       backend_any: ${{ steps.changes.outputs.backend_any }}
       workflow_files: ${{ steps.changes.outputs.workflow_files }}
+      gateway: ${{ steps.changes.outputs.gateway }}
+      all_in_one_assets: ${{ steps.changes.outputs.all_in_one_assets }}
     steps:
       - uses: actions/checkout@v4
 
@@ -64,6 +72,8 @@ jobs:
               - 'backend/services/shardmap/**'
             sharding:
               - 'backend/services/sharding/**'
+            gateway:
+              - 'backend/services/gateway/**'
             shared:
               - 'backend/services/shared/**'
             backend_tests:
@@ -74,3 +84,5 @@ jobs:
               - 'backend/**'
             workflow_files:
               - '.github/workflows/**'
+            all_in_one_assets:
+              - 'deploy/images/all-in-one/**'
