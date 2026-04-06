@@ -69,9 +69,8 @@ jobs:
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=ref,event=branch
-            type=sha
+            type=raw,value=latest
+            type=raw,value=${{ github.sha }}
 
       - uses: docker/build-push-action@v6
         with:
@@ -103,9 +102,8 @@ jobs:
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=ref,event=branch
-            type=sha
+            type=raw,value=latest
+            type=raw,value=${{ github.sha }}
 
       - uses: docker/build-push-action@v6
         with:
@@ -137,9 +135,8 @@ jobs:
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=ref,event=branch
-            type=sha
+            type=raw,value=latest
+            type=raw,value=${{ github.sha }}
 
       - uses: docker/build-push-action@v6
         with:
@@ -171,9 +168,8 @@ jobs:
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=ref,event=branch
-            type=sha
+            type=raw,value=latest
+            type=raw,value=${{ github.sha }}
 
       - uses: docker/build-push-action@v6
         with:
@@ -205,9 +201,8 @@ jobs:
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=ref,event=branch
-            type=sha
+            type=raw,value=latest
+            type=raw,value=${{ github.sha }}
 
       - uses: docker/build-push-action@v6
         with:

@@ -302,6 +302,7 @@ Additional release-image workflows:
 
 - `.github/workflows/cd-dockerhub-frontend.yml`
 - `.github/workflows/cd-dockerhub-all-in-one.yml`
+- `.github/workflows/cd-dockerhub-force-deploy.yml`
 
 Per-service repositories:
 

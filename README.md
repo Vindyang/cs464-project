@@ -180,6 +180,7 @@ Additional published release images:
 
 - `.github/workflows/cd-dockerhub-frontend.yml`
 - `.github/workflows/cd-dockerhub-all-in-one.yml`
+- `.github/workflows/cd-dockerhub-force-deploy.yml`
 
 Published image repositories:
 
@@ -206,6 +207,99 @@ Set the following repository configuration in GitHub:
 - Only services touched by the commit are rebuilt and pushed.
 - If `backend/services/shared` changes, adapter/orchestrator/shardmap/sharding are all republished.
 - Image tags include:
-	- `latest` (default branch only)
-	- branch name tag
-	- commit SHA tag
+	- `latest`
+	- full commit SHA tag
+
+## Testing release builds
+
+### Force-publish test images
+
+Use the manual workflow when you want to build and push images without waiting for a code-change trigger.
+
+1. Open GitHub Actions and run `.github/workflows/cd-dockerhub-force-deploy.yml`.
+2. Check `deploy_full_microservices` to publish flavor 1 images.
+3. Check `deploy_all_in_one` to publish flavor 2.
+4. Check both if you want to rebuild and push both release flavors in one run.
+5. Wait for the workflow to complete and note the commit SHA for the run.
+
+### Test flavor 1 locally
+
+1. Set the namespace for your Docker Hub org or user:
+
+```powershell
+$env:DOCKERHUB_NAMESPACE = "your-dockerhub-namespace"
+```
+
+2. Set the exact image tag you want to test. Use either `latest` or the full commit SHA pushed by the workflow:
+
+```powershell
+$env:OMNISHARD_TAG = "<full-commit-sha>"
+```
+
+3. Pull and start the release stack:
+
+```powershell
+docker compose -f deploy/compose/full-microservices.yml pull
+docker compose -f deploy/compose/full-microservices.yml up -d
+```
+
+4. Verify containers are running:
+
+```powershell
+docker compose -f deploy/compose/full-microservices.yml ps
+```
+
+5. Smoke-test the release:
+	- Open `http://localhost:3000`
+	- Visit `http://localhost:8084/api/v1/health`
+	- Verify credentials and providers load in the UI
+	- Upload a file and download it back
+
+6. Check logs if needed:
+
+```powershell
+docker compose -f deploy/compose/full-microservices.yml logs -f frontend
+docker compose -f deploy/compose/full-microservices.yml logs -f gateway
+docker compose -f deploy/compose/full-microservices.yml logs -f orchestrator
+```
+
+7. Tear it down when finished:
+
+```powershell
+docker compose -f deploy/compose/full-microservices.yml down
+```
+
+### Test flavor 2 locally
+
+1. Reuse the same `DOCKERHUB_NAMESPACE` and set `OMNISHARD_TAG` to `latest` or the target full commit SHA.
+
+2. Pull and start the all-in-one release:
+
+```powershell
+docker compose -f deploy/compose/single-image-microservices.yml pull
+docker compose -f deploy/compose/single-image-microservices.yml up -d
+```
+
+3. Verify the container is running:
+
+```powershell
+docker compose -f deploy/compose/single-image-microservices.yml ps
+```
+
+4. Smoke-test the release:
+	- Open `http://localhost:3000`
+	- Confirm adapter-facing endpoints respond on `http://localhost:8080`
+	- Upload a file and download it back through the UI
+	- Restart the container once and confirm state persists
+
+5. Inspect logs if needed:
+
+```powershell
+docker compose -f deploy/compose/single-image-microservices.yml logs -f
+```
+
+6. Tear it down when finished:
+
+```powershell
+docker compose -f deploy/compose/single-image-microservices.yml down
+```
