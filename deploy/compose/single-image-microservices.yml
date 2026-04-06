@@ -1,0 +1,26 @@
+services:
+  omnishard:
+    image: ${DOCKERHUB_NAMESPACE:?Set DOCKERHUB_NAMESPACE}/omnishard-all-in-one:${OMNISHARD_TAG:-latest}
+    restart: unless-stopped
+    env_file:
+      - ../../backend/.env
+    environment:
+      NEXT_PUBLIC_API_URL: "http://localhost:8080"
+      API_INTERNAL_URL: "http://127.0.0.1:8080"
+      GATEWAY_URL: "http://127.0.0.1:8084"
+      NEXT_PUBLIC_BETTER_AUTH_URL: "http://localhost:3000"
+      FRONTEND_URL: "http://localhost:3000"
+      ADAPTER_URL: "http://127.0.0.1:8080"
+      SHARDMAP_URL: "http://127.0.0.1:8081"
+      SHARDING_URL: "http://127.0.0.1:8083"
+      ORCHESTRATOR_URL: "http://127.0.0.1:8082"
+      Omnishard_DB_PATH: "/app/data/Omnishard.db"
+      Omnishard_SHARDMAP_DB_PATH: "/app/data/Omnishard-shardmap.db"
+    volumes:
+      - omnishard_data:/app/data
+    ports:
+      - "3000:3000"
+      - "8080:8080"
+
+volumes:
+  omnishard_data:

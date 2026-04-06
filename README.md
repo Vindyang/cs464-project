@@ -5,6 +5,64 @@
 Run all Docker Compose commands from the project root:
 `cs464-project/` (this directory contains `docker-compose.yml`).
 
+## Release flavors
+
+The repository now supports three distinct Docker Compose use cases:
+
+- Source-build developer workflow: `docker-compose.yml`
+- Release flavor 1 (full microservices, pulled images): `deploy/compose/full-microservices.yml`
+- Release flavor 2 (single-image microservices, pulled image): `deploy/compose/single-image-microservices.yml`
+
+The root `docker-compose.yml` remains the contributor/developer compose and builds images from local source.
+The release compose files are for pull-only local deployments backed by Docker Hub images.
+
+### Release setup
+
+Set the Docker Hub namespace once before using the release manifests:
+
+```powershell
+$env:DOCKERHUB_NAMESPACE = "your-dockerhub-namespace"
+```
+
+Optional: set a non-default image tag.
+
+```powershell
+$env:OMNISHARD_TAG = "latest"
+```
+
+### Release flavor 1: full microservices
+
+Runs frontend plus each backend service in its own container using published images.
+
+```powershell
+docker compose -f deploy/compose/full-microservices.yml up -d
+```
+
+Stop it with:
+
+```powershell
+docker compose -f deploy/compose/full-microservices.yml down
+```
+
+### Release flavor 2: single-image microservices
+
+Runs frontend, gateway, and all backend services inside one container while preserving the current service boundaries internally.
+
+```powershell
+docker compose -f deploy/compose/single-image-microservices.yml up -d
+```
+
+Stop it with:
+
+```powershell
+docker compose -f deploy/compose/single-image-microservices.yml down
+```
+
+Public ports for the single-image release:
+
+- Frontend UI: `http://localhost:3000`
+- Adapter/API surface used by the current frontend: `http://localhost:8080`
+
 ## Backend only (profile: backend)
 
 ### Build backend images
@@ -114,9 +172,14 @@ docker compose logs -f frontend
 
 ## Docker Hub Continuous Deployment
 
-Each service is published to its own Docker Hub repository using the GitHub Actions workflow:
+Per-service backend images are published using the GitHub Actions workflow:
 
 - `.github/workflows/cd-dockerhub-services.yml`
+
+Additional published release images:
+
+- `.github/workflows/cd-dockerhub-frontend.yml`
+- `.github/workflows/cd-dockerhub-all-in-one.yml`
 
 Published image repositories:
 
@@ -125,6 +188,8 @@ Published image repositories:
 - `${DOCKERHUB_NAMESPACE}/omnishard-sharding`
 - `${DOCKERHUB_NAMESPACE}/omnishard-orchestrator`
 - `${DOCKERHUB_NAMESPACE}/omnishard-gateway`
+- `${DOCKERHUB_NAMESPACE}/omnishard-frontend`
+- `${DOCKERHUB_NAMESPACE}/omnishard-all-in-one`
 
 ### Required GitHub configuration
 

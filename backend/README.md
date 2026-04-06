@@ -179,6 +179,48 @@ Internal service DNS used in Docker network:
 - `http://sharding:8083`
 - `http://gateway:8084`
 
+## Release deployment flavors
+
+Two release-focused Docker Compose manifests now sit alongside the source-build developer workflow:
+
+- `deploy/compose/full-microservices.yml`
+  - Pulls published images for adapter, shardmap, sharding, orchestrator, gateway, and frontend.
+  - Best for debugging service boundaries while avoiding local builds.
+- `deploy/compose/single-image-microservices.yml`
+  - Pulls one published `omnishard-all-in-one` image.
+  - Runs adapter, shardmap, sharding, orchestrator, gateway, and frontend as separate internal processes in one container.
+
+Set the image namespace before using either release manifest:
+
+```powershell
+$env:DOCKERHUB_NAMESPACE = "your-dockerhub-namespace"
+```
+
+Optional tag override:
+
+```powershell
+$env:OMNISHARD_TAG = "latest"
+```
+
+Run release flavor 1:
+
+```powershell
+docker compose -f deploy/compose/full-microservices.yml up -d
+```
+
+Run release flavor 2:
+
+```powershell
+docker compose -f deploy/compose/single-image-microservices.yml up -d
+```
+
+Single-image public ports:
+
+- Frontend: `http://localhost:3000`
+- Adapter/API surface: `http://localhost:8080`
+
+The gateway remains internal to the all-in-one container on port `8084`.
+
 ## Tests
 
 Service suite:
@@ -255,6 +297,11 @@ This backend is configured for per-service image publishing through GitHub Actio
 Workflow:
 
 - `.github/workflows/cd-dockerhub-services.yml`
+
+Additional release-image workflows:
+
+- `.github/workflows/cd-dockerhub-frontend.yml`
+- `.github/workflows/cd-dockerhub-all-in-one.yml`
 
 Per-service repositories:
 
