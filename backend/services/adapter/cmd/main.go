@@ -16,6 +16,7 @@ import (
 	"github.com/vindyang/cs464-project/backend/services/shared/adapter"
 	"github.com/vindyang/cs464-project/backend/services/shared/db"
 	"github.com/vindyang/cs464-project/backend/services/shared/oauthhandler"
+	"github.com/vindyang/cs464-project/backend/services/shared/onedrivehandler"
 	"github.com/vindyang/cs464-project/backend/services/shared/s3handler"
 )
 
@@ -46,6 +47,8 @@ func main() {
 	// Initialize adapter registry
 	registry := adapter.NewRegistry()
 
+	odHandler := onedrivehandler.New(store, registry)
+
 	mockModeEnabled := os.Getenv("ADAPTER_MOCK_MODE") == "true"
 	if mockModeEnabled {
 		registry.Register("mockLocal", mockprovider.NewProvider())
@@ -60,6 +63,11 @@ func main() {
 		s3Handler := s3handler.New(store, registry)
 		if err := s3Handler.RestoreAdapter(); err != nil {
 			log.Printf("S3 adapter not restored: %v", err)
+		}
+
+		// Restore OneDrive adapter from stored token if available
+		if err := tryRestoreOneDriveAdapter(store, registry, odHandler); err != nil {
+			log.Printf("OneDrive adapter not restored: %v", err)
 		}
 	}
 
@@ -92,6 +100,9 @@ func main() {
 	mux.HandleFunc("/api/oauth/gdrive/disconnect", oauthHandler.Disconnect)
 	mux.HandleFunc("/api/providers/awsS3/connect", s3Handler.Connect)
 	mux.HandleFunc("/api/providers/awsS3/disconnect", s3Handler.Disconnect)
+	mux.HandleFunc("/api/oauth/onedrive/authorize", odHandler.Authorize)
+	mux.HandleFunc("/api/oauth/onedrive/callback", odHandler.Callback)
+	mux.HandleFunc("/api/oauth/onedrive/disconnect", odHandler.Disconnect)
 	credentialsHandler.RegisterRoutes(mux)
 	settingsHandler.RegisterRoutes(mux)
 	shardIOHandler.RegisterRoutes(mux)
@@ -140,6 +151,19 @@ func tryRestoreGDriveAdapter(store *db.Store, registry *adapter.Registry) error 
 		return err
 	}
 	log.Println("Google Drive adapter restored from stored token")
+	return nil
+}
+
+func tryRestoreOneDriveAdapter(store *db.Store, registry *adapter.Registry, h *onedrivehandler.OneDriveHandler) error {
+	tok, err := store.LoadToken("oneDrive")
+	if err != nil {
+		log.Println("No stored OneDrive token — connect via UI")
+		return nil
+	}
+	if err := h.RestoreAdapter(registry, tok); err != nil {
+		return err
+	}
+	log.Println("OneDrive adapter restored from stored token")
 	return nil
 }
 
