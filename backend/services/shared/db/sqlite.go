@@ -140,6 +140,19 @@ func (s *Store) DeleteToken(providerID string) error {
 	return nil
 }
 
+// DeleteAllTokens removes all stored provider tokens and returns the number deleted.
+func (s *Store) DeleteAllTokens() (int, error) {
+	result, err := s.db.Exec(`DELETE FROM provider_tokens`)
+	if err != nil {
+		return 0, fmt.Errorf("db: delete all tokens: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("db: rows affected deleting tokens: %w", err)
+	}
+	return int(rows), nil
+}
+
 // ── Credentials ───────────────────────────────────────────────────────────────
 
 // UpsertCredentials saves (or replaces) OAuth client credentials for a provider.
@@ -183,6 +196,19 @@ func (s *Store) DeleteCredentials(providerID string) error {
 		return fmt.Errorf("db: delete credentials for %q: %w", providerID, err)
 	}
 	return nil
+}
+
+// DeleteAllCredentials removes all stored provider credentials and returns the number deleted.
+func (s *Store) DeleteAllCredentials() (int, error) {
+	result, err := s.db.Exec(`DELETE FROM credentials`)
+	if err != nil {
+		return 0, fmt.Errorf("db: delete all credentials: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("db: rows affected deleting credentials: %w", err)
+	}
+	return int(rows), nil
 }
 
 // ListCredentials returns all configured provider credentials with safe fields only.

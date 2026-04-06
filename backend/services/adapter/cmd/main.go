@@ -71,8 +71,6 @@ func main() {
 	oauthHandler := oauthhandler.New(store, registry)
 	s3Handler := s3handler.New(store, registry)
 
-	credentialsHandler := handlers.NewCredentialsHandler(store)
-	settingsHandler := handlers.NewSettingsHandler(store)
 	shardIOHandler := handlers.NewShardIOHandler(registry)
 
 	shardmapURL := os.Getenv("SHARDMAP_URL")
@@ -80,6 +78,8 @@ func main() {
 		shardmapURL = "http://localhost:8081"
 	}
 	fileHandler := handlers.NewFileHandler(shardmapURL, registry)
+	credentialsHandler := handlers.NewCredentialsHandler(store, registry)
+	settingsHandler := handlers.NewSettingsHandler(store, fileHandler, credentialsHandler)
 
 	app := &App{Registry: registry}
 

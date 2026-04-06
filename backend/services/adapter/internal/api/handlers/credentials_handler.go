@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/vindyang/cs464-project/backend/services/shared/adapter"
 	"github.com/vindyang/cs464-project/backend/services/shared/db"
 	"github.com/vindyang/cs464-project/backend/services/shared/s3handler"
 	"github.com/vindyang/cs464-project/backend/services/shared/transport/httpx"
@@ -12,11 +13,18 @@ import (
 
 // CredentialsHandler handles CRUD operations for provider OAuth client credentials.
 type CredentialsHandler struct {
-	store *db.Store
+	store    *db.Store
+	registry *adapter.Registry
 }
 
-func NewCredentialsHandler(store *db.Store) *CredentialsHandler {
-	return &CredentialsHandler{store: store}
+type CredentialResetSummary struct {
+	DeletedCredentials    int `json:"deleted_credentials"`
+	DeletedTokens         int `json:"deleted_tokens"`
+	DisconnectedProviders int `json:"disconnected_providers"`
+}
+
+func NewCredentialsHandler(store *db.Store, registry *adapter.Registry) *CredentialsHandler {
+	return &CredentialsHandler{store: store, registry: registry}
 }
 
 func (h *CredentialsHandler) RegisterRoutes(mux *http.ServeMux) {
@@ -67,37 +75,49 @@ func (h *CredentialsHandler) status(w http.ResponseWriter, r *http.Request) {
 
 // route dispatches to the correct method handler based on HTTP verb.
 func (h *CredentialsHandler) route(w http.ResponseWriter, r *http.Request) {
+	id, action := credentialPathParts(r)
+	if action == "secret" {
+		if r.Method != http.MethodGet {
+			httpx.WriteError(w, http.StatusMethodNotAllowed, "Method not allowed", nil)
+			return
+		}
+		h.getSecret(w, id)
+		return
+	}
+
 	switch r.Method {
 	case http.MethodGet:
-		h.get(w, r)
+		h.get(w, id)
 	case http.MethodPut:
-		h.upsert(w, r)
+		h.upsert(w, r, id)
 	case http.MethodDelete:
-		h.delete(w, r)
+		h.delete(w, id)
 	default:
 		httpx.WriteError(w, http.StatusMethodNotAllowed, "Method not allowed", nil)
 	}
 }
 
-// providerID extracts the provider segment from /api/credentials/{provider}.
-func providerID(r *http.Request) string {
+func credentialPathParts(r *http.Request) (string, string) {
 	// r.PathValue works with Go 1.22+ pattern routing.
 	// Fall back to trimming the prefix for mux.HandleFunc-style routing.
 	if id := r.PathValue("provider"); id != "" {
-		return id
+		return id, ""
 	}
-	path := r.URL.Path
-	const prefix = "/api/credentials/"
-	if len(path) > len(prefix) {
-		return path[len(prefix):]
+	path := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/credentials/"), "/")
+	if path == "" {
+		return "", ""
 	}
-	return ""
+	parts := strings.Split(path, "/")
+	id := parts[0]
+	if len(parts) > 1 {
+		return id, parts[1]
+	}
+	return id, ""
 }
 
 // GET /api/credentials/{provider}
 // Returns client_id and redirect_uri only — never exposes client_secret.
-func (h *CredentialsHandler) get(w http.ResponseWriter, r *http.Request) {
-	id := providerID(r)
+func (h *CredentialsHandler) get(w http.ResponseWriter, id string) {
 	if id == "" {
 		httpx.WriteError(w, http.StatusBadRequest, "provider is required", nil)
 		return
@@ -120,10 +140,35 @@ func (h *CredentialsHandler) get(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// GET /api/credentials/{provider}/secret
+// Returns the full stored credential for explicit reveal-on-demand flows.
+func (h *CredentialsHandler) getSecret(w http.ResponseWriter, id string) {
+	if id == "" {
+		httpx.WriteError(w, http.StatusBadRequest, "provider is required", nil)
+		return
+	}
+
+	clientID, clientSecret, redirectURI, err := h.store.LoadCredentials(id)
+	if errors.Is(err, db.ErrNotFound) {
+		httpx.WriteError(w, http.StatusNotFound, "no credentials configured for provider", nil)
+		return
+	}
+	if err != nil {
+		httpx.WriteError(w, http.StatusInternalServerError, "failed to load credentials", err)
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, map[string]string{
+		"provider_id":   id,
+		"client_id":     clientID,
+		"client_secret": clientSecret,
+		"redirect_uri":  redirectURI,
+	})
+}
+
 // PUT /api/credentials/{provider}
 // Body: { "client_id": "...", "client_secret": "...", "redirect_uri": "..." }
-func (h *CredentialsHandler) upsert(w http.ResponseWriter, r *http.Request) {
-	id := providerID(r)
+func (h *CredentialsHandler) upsert(w http.ResponseWriter, r *http.Request, id string) {
 	if id == "" {
 		httpx.WriteError(w, http.StatusBadRequest, "provider is required", nil)
 		return
@@ -164,17 +209,60 @@ func (h *CredentialsHandler) upsert(w http.ResponseWriter, r *http.Request) {
 }
 
 // DELETE /api/credentials/{provider}
-func (h *CredentialsHandler) delete(w http.ResponseWriter, r *http.Request) {
-	id := providerID(r)
+func (h *CredentialsHandler) delete(w http.ResponseWriter, id string) {
 	if id == "" {
 		httpx.WriteError(w, http.StatusBadRequest, "provider is required", nil)
 		return
 	}
 
-	if err := h.store.DeleteCredentials(id); err != nil {
+	if err := h.deleteProviderData(id); err != nil {
 		httpx.WriteError(w, http.StatusInternalServerError, "failed to delete credentials", err)
 		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *CredentialsHandler) DeleteAllCredentials() (CredentialResetSummary, error) {
+	records, err := h.store.ListCredentials()
+	if err != nil {
+		return CredentialResetSummary{}, err
+	}
+
+	deletedCredentials, err := h.store.DeleteAllCredentials()
+	if err != nil {
+		return CredentialResetSummary{}, err
+	}
+
+	deletedTokens, err := h.store.DeleteAllTokens()
+	if err != nil {
+		return CredentialResetSummary{}, err
+	}
+
+	disconnected := 0
+	if h.registry != nil {
+		for _, record := range records {
+			h.registry.Unregister(record.ProviderID)
+			disconnected++
+		}
+	}
+
+	return CredentialResetSummary{
+		DeletedCredentials:    deletedCredentials,
+		DeletedTokens:         deletedTokens,
+		DisconnectedProviders: disconnected,
+	}, nil
+}
+
+func (h *CredentialsHandler) deleteProviderData(id string) error {
+	if err := h.store.DeleteCredentials(id); err != nil {
+		return err
+	}
+	if err := h.store.DeleteToken(id); err != nil {
+		return err
+	}
+	if h.registry != nil {
+		h.registry.Unregister(id)
+	}
+	return nil
 }

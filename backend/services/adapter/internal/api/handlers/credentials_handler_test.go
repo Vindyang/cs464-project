@@ -2,15 +2,34 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/vindyang/cs464-project/backend/services/shared/adapter"
 	"github.com/vindyang/cs464-project/backend/services/shared/db"
+	"golang.org/x/oauth2"
 )
+
+type stubProvider struct{}
+
+func (stubProvider) GetMetadata(_ context.Context) (*adapter.ProviderMetadata, error) {
+	return &adapter.ProviderMetadata{ProviderID: "stub"}, nil
+}
+func (stubProvider) UploadShard(_ context.Context, _ string, _ int, _ io.Reader) (string, error) {
+	return "", nil
+}
+func (stubProvider) DownloadShard(_ context.Context, _ string) (io.ReadCloser, error) {
+	return io.NopCloser(strings.NewReader("")), nil
+}
+func (stubProvider) DeleteShard(_ context.Context, _ string) error { return nil }
+func (stubProvider) HealthCheck(_ context.Context) error           { return nil }
 
 func newTestCredentialStore(t *testing.T) *db.Store {
 	t.Helper()
@@ -30,7 +49,8 @@ func newCredentialHandlerServer(t *testing.T) (*db.Store, http.Handler) {
 	t.Helper()
 
 	store := newTestCredentialStore(t)
-	h := NewCredentialsHandler(store)
+	registry := adapter.NewRegistry()
+	h := NewCredentialsHandler(store, registry)
 	mux := http.NewServeMux()
 	h.RegisterRoutes(mux)
 	return store, mux
@@ -82,6 +102,60 @@ func TestCredentialsCollectionAndStatus_Empty(t *testing.T) {
 		}
 		if len(got.Providers) != 0 {
 			t.Fatalf("providers: got %v want empty", got.Providers)
+		}
+	})
+}
+
+func TestCredentialSecretRevealAndDeleteCleansUpProvider(t *testing.T) {
+	store := newTestCredentialStore(t)
+	registry := adapter.NewRegistry()
+	registry.Register("googleDrive", stubProvider{})
+	h := NewCredentialsHandler(store, registry)
+	mux := http.NewServeMux()
+	h.RegisterRoutes(mux)
+
+	if err := store.UpsertCredentials("googleDrive", "client-id", "client-secret", "http://localhost/callback"); err != nil {
+		t.Fatalf("upsert credentials: %v", err)
+	}
+	if err := store.UpsertToken("googleDrive", &oauth2.Token{AccessToken: "token", TokenType: "Bearer"}); err != nil {
+		t.Fatalf("upsert token: %v", err)
+	}
+
+	t.Run("GET /api/credentials/googleDrive/secret reveals the stored secret", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/credentials/googleDrive/secret", nil)
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Fatalf("status code: got %d want %d body=%s", rr.Code, http.StatusOK, rr.Body.String())
+		}
+
+		var got map[string]string
+		if err := json.Unmarshal(rr.Body.Bytes(), &got); err != nil {
+			t.Fatalf("decode response: %v", err)
+		}
+		if got["client_secret"] != "client-secret" {
+			t.Fatalf("client_secret: got %q want %q", got["client_secret"], "client-secret")
+		}
+	})
+
+	t.Run("DELETE /api/credentials/googleDrive removes credentials, token, and live registration", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodDelete, "/api/credentials/googleDrive", nil)
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusNoContent {
+			t.Fatalf("status code: got %d want %d", rr.Code, http.StatusNoContent)
+		}
+
+		if _, _, _, err := store.LoadCredentials("googleDrive"); !errors.Is(err, db.ErrNotFound) {
+			t.Fatalf("expected credentials to be deleted, got err=%v", err)
+		}
+		if _, err := store.LoadToken("googleDrive"); !errors.Is(err, db.ErrNotFound) {
+			t.Fatalf("expected token to be deleted, got err=%v", err)
+		}
+		if _, err := registry.Get("googleDrive"); err == nil {
+			t.Fatalf("expected provider to be unregistered")
 		}
 	})
 }

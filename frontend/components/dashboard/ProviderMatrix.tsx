@@ -71,25 +71,25 @@ export function ProviderMatrix({ providers }: ProviderMatrixProps) {
         </Button>
       </div>
 
-      <div className="border bg-white">
+      <div className="border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950">
         {/* Table Header */}
-        <div className="grid grid-cols-[50px_2fr_120px_80px_100px_80px] items-center gap-4 border-b bg-neutral-50 px-4 py-3">
-          <div className="font-mono text-[9px] uppercase tracking-wider text-neutral-500">
+        <div className="grid grid-cols-[50px_2fr_120px_80px_100px_80px] items-center gap-4 border-b border-neutral-200 bg-neutral-50 px-4 py-3 dark:border-neutral-800 dark:bg-neutral-900/70">
+          <div className="font-mono text-[9px] uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
             #
           </div>
-          <div className="font-mono text-[9px] uppercase tracking-wider text-neutral-500">
+          <div className="font-mono text-[9px] uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
             Provider
           </div>
-          <div className="font-mono text-[9px] uppercase tracking-wider text-neutral-500">
+          <div className="font-mono text-[9px] uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
             Region
           </div>
-          <div className="font-mono text-[9px] uppercase tracking-wider text-neutral-500">
+          <div className="font-mono text-[9px] uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
             Latency
           </div>
-          <div className="font-mono text-[9px] uppercase tracking-wider text-neutral-500">
+          <div className="font-mono text-[9px] uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
             Usage
           </div>
-          <div className="font-mono text-[9px] uppercase tracking-wider text-neutral-500">
+          <div className="font-mono text-[9px] uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
             Shards
           </div>
         </div>
@@ -107,7 +107,7 @@ export function ProviderMatrix({ providers }: ProviderMatrixProps) {
             <div
               key={provider.providerId}
               className={cn(
-                "grid grid-cols-[50px_2fr_120px_80px_100px_80px] items-center gap-4 px-4 py-4 transition-all hover:bg-neutral-50",
+                "grid grid-cols-[50px_2fr_120px_80px_100px_80px] items-center gap-4 px-4 py-4 transition-all hover:bg-neutral-50 dark:hover:bg-neutral-900/60",
                 index < providers.length - 1 && "border-b"
               )}
             >
@@ -125,7 +125,7 @@ export function ProviderMatrix({ providers }: ProviderMatrixProps) {
 
               {/* Name */}
               <div>
-                <div className="font-mono text-sm font-medium">
+                <div className="font-mono text-sm font-medium text-neutral-950 dark:text-neutral-100">
                   {provider.displayName}
                 </div>
                 <div
@@ -143,33 +143,33 @@ export function ProviderMatrix({ providers }: ProviderMatrixProps) {
               </div>
 
               {/* Region */}
-              <div className="font-mono text-xs text-neutral-600">
+              <div className="font-mono text-xs text-neutral-600 dark:text-neutral-400">
                 {provider.region}
               </div>
 
               {/* Latency */}
               <div className="flex items-center gap-1.5">
-                <Activity className="h-3 w-3 text-neutral-400" />
-                <span className="font-mono text-xs text-neutral-600">
+                <Activity className="h-3 w-3 text-neutral-400 dark:text-neutral-500" />
+                <span className="font-mono text-xs text-neutral-600 dark:text-neutral-400">
                   {provider.latencyMs}ms
                 </span>
               </div>
 
               {/* Usage */}
               <div>
-                <div className="mb-1 font-mono text-[10px] text-neutral-500">
+                <div className="mb-1 font-mono text-[10px] text-neutral-500 dark:text-neutral-400">
                   {usagePercent}%
                 </div>
-                <div className="h-1 w-full overflow-hidden bg-neutral-200">
+                <div className="h-1 w-full overflow-hidden bg-neutral-200 dark:bg-neutral-800">
                   <div
-                    className="h-full bg-black"
+                    className="h-full bg-black dark:bg-sky-400"
                     style={{ width: `${usagePercent}%` }}
                   />
                 </div>
               </div>
 
               {/* Shards */}
-              <div className="font-mono text-xs text-neutral-400">—</div>
+              <div className="font-mono text-xs text-neutral-400 dark:text-neutral-500">—</div>
             </div>
           );
         })}
@@ -182,17 +182,17 @@ export function ProviderMatrix({ providers }: ProviderMatrixProps) {
         const offline = providers.filter(p => p.status === 'disconnected' || p.status === 'error' || p.status === 'offline').length;
         return (
           <div className="grid grid-cols-3 gap-3">
-            <div className="border bg-white p-3">
-              <div className="mb-1 font-mono text-[9px] uppercase tracking-wider text-neutral-500">Active</div>
-              <div className="font-mono text-xl font-bold">{active}</div>
+            <div className="border border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-950">
+              <div className="mb-1 font-mono text-[9px] uppercase tracking-wider text-neutral-500 dark:text-neutral-400">Active</div>
+              <div className="font-mono text-xl font-bold text-neutral-950 dark:text-neutral-100">{active}</div>
             </div>
-            <div className="border bg-neutral-50 p-3">
-              <div className="mb-1 font-mono text-[9px] uppercase tracking-wider text-neutral-500">Degraded</div>
-              <div className="font-mono text-xl font-bold text-neutral-600">{degraded}</div>
+            <div className="border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900/70">
+              <div className="mb-1 font-mono text-[9px] uppercase tracking-wider text-neutral-500 dark:text-neutral-400">Degraded</div>
+              <div className="font-mono text-xl font-bold text-neutral-600 dark:text-neutral-300">{degraded}</div>
             </div>
-            <div className="border bg-neutral-100 p-3">
-              <div className="mb-1 font-mono text-[9px] uppercase tracking-wider text-neutral-500">Offline</div>
-              <div className="font-mono text-xl font-bold text-neutral-400">{offline}</div>
+            <div className="border border-neutral-200 bg-neutral-100 p-3 dark:border-neutral-800 dark:bg-neutral-900">
+              <div className="mb-1 font-mono text-[9px] uppercase tracking-wider text-neutral-500 dark:text-neutral-400">Offline</div>
+              <div className="font-mono text-xl font-bold text-neutral-400 dark:text-neutral-500">{offline}</div>
             </div>
           </div>
         );

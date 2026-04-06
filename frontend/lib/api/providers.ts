@@ -14,7 +14,12 @@ export interface ProviderMetadata {
 
 export async function getProviders(): Promise<ProviderMetadata[]> {
   const API_URL = getApiBaseUrl();
-  const res = await fetch(`${API_URL}/api/providers`);
+  const res = await fetch(
+    `${API_URL}/api/providers`,
+    typeof window === "undefined"
+      ? { next: { revalidate: 15 } }
+      : { cache: "no-store" },
+  );
   if (!res.ok) throw new Error("Failed to fetch providers");
   return res.json();
 }

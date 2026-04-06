@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strconv"
@@ -10,15 +11,30 @@ import (
 )
 
 type SettingsHandler struct {
-	store *db.Store
+	store        *db.Store
+	fileResetter interface {
+		DeleteAllFiles(context.Context, bool) (FileDeleteSummary, error)
+	}
+	credentialResetter interface {
+		DeleteAllCredentials() (CredentialResetSummary, error)
+	}
 }
 
-func NewSettingsHandler(store *db.Store) *SettingsHandler {
-	return &SettingsHandler{store: store}
+func NewSettingsHandler(
+	store *db.Store,
+	fileResetter interface {
+		DeleteAllFiles(context.Context, bool) (FileDeleteSummary, error)
+	},
+	credentialResetter interface {
+		DeleteAllCredentials() (CredentialResetSummary, error)
+	},
+) *SettingsHandler {
+	return &SettingsHandler{store: store, fileResetter: fileResetter, credentialResetter: credentialResetter}
 }
 
 func (h *SettingsHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/settings", h.route)
+	mux.HandleFunc("/api/settings/reset", h.reset)
 }
 
 func (h *SettingsHandler) route(w http.ResponseWriter, r *http.Request) {
@@ -30,6 +46,79 @@ func (h *SettingsHandler) route(w http.ResponseWriter, r *http.Request) {
 	default:
 		httpx.WriteError(w, http.StatusMethodNotAllowed, "Method not allowed", nil)
 	}
+}
+
+func (h *SettingsHandler) reset(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		httpx.WriteError(w, http.StatusMethodNotAllowed, "Method not allowed", nil)
+		return
+	}
+
+	var body struct {
+		Scope        string `json:"scope"`
+		DeleteShards *bool  `json:"delete_shards,omitempty"`
+	}
+	if err := httpx.DecodeJSON(r, &body, 1<<20); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid request body", err)
+		return
+	}
+
+	deleteShards := true
+	if body.DeleteShards != nil {
+		deleteShards = *body.DeleteShards
+	}
+
+	response := map[string]any{
+		"scope":         body.Scope,
+		"delete_shards": deleteShards,
+	}
+
+	switch body.Scope {
+	case "files":
+		if h.fileResetter == nil {
+			httpx.WriteError(w, http.StatusNotImplemented, "file reset is not configured", nil)
+			return
+		}
+		fileSummary, err := h.fileResetter.DeleteAllFiles(r.Context(), deleteShards)
+		if err != nil {
+			httpx.WriteError(w, http.StatusInternalServerError, "failed to delete file data", err)
+			return
+		}
+		response["file_summary"] = fileSummary
+	case "credentials":
+		if h.credentialResetter == nil {
+			httpx.WriteError(w, http.StatusNotImplemented, "credential reset is not configured", nil)
+			return
+		}
+		credentialSummary, err := h.credentialResetter.DeleteAllCredentials()
+		if err != nil {
+			httpx.WriteError(w, http.StatusInternalServerError, "failed to delete credentials", err)
+			return
+		}
+		response["credential_summary"] = credentialSummary
+	case "all_data":
+		if h.fileResetter == nil || h.credentialResetter == nil {
+			httpx.WriteError(w, http.StatusNotImplemented, "full reset is not configured", nil)
+			return
+		}
+		fileSummary, err := h.fileResetter.DeleteAllFiles(r.Context(), deleteShards)
+		if err != nil {
+			httpx.WriteError(w, http.StatusInternalServerError, "failed to delete file data", err)
+			return
+		}
+		credentialSummary, err := h.credentialResetter.DeleteAllCredentials()
+		if err != nil {
+			httpx.WriteError(w, http.StatusInternalServerError, "failed to delete credentials", err)
+			return
+		}
+		response["file_summary"] = fileSummary
+		response["credential_summary"] = credentialSummary
+	default:
+		httpx.WriteError(w, http.StatusBadRequest, "invalid reset scope", nil)
+		return
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, response)
 }
 
 func (h *SettingsHandler) get(w http.ResponseWriter, _ *http.Request) {

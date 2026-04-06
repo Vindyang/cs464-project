@@ -79,20 +79,22 @@ export interface UploadFileResult {
   details?: string;
 }
 
+function getServerFetchOptions(revalidate: number) {
+  return typeof window === "undefined"
+    ? { next: { revalidate } }
+    : { cache: "no-store" as const }
+}
+
 export async function getFiles(): Promise<FileMetadata[]> {
   const API_URL = getApiBaseUrl();
-  const res = await fetch(`${API_URL}/api/v1/files`, {
-    cache: "no-store",
-  });
+  const res = await fetch(`${API_URL}/api/v1/files`, getServerFetchOptions(15));
   if (!res.ok) throw new Error("Failed to fetch files");
   return res.json();
 }
 
 export async function getFileById(fileId: string): Promise<FileMetadata | null> {
   const API_URL = getApiBaseUrl();
-  const res = await fetch(`${API_URL}/api/v1/files/${fileId}`, {
-    cache: "no-store",
-  });
+  const res = await fetch(`${API_URL}/api/v1/files/${fileId}`, getServerFetchOptions(15));
   if (res.status === 404) return null;
   if (!res.ok) throw new Error("Failed to fetch file");
   return res.json();
@@ -100,9 +102,7 @@ export async function getFileById(fileId: string): Promise<FileMetadata | null> 
 
 export async function getFileShards(fileId: string): Promise<ShardMap | null> {
   const API_URL = getApiBaseUrl();
-  const res = await fetch(`${API_URL}/api/v1/shards/file/${fileId}`, {
-    cache: "no-store",
-  });
+  const res = await fetch(`${API_URL}/api/v1/shards/file/${fileId}`, getServerFetchOptions(15));
   if (res.status === 404) return null;
   if (!res.ok) throw new Error("Failed to fetch shards");
   return res.json();
@@ -119,7 +119,7 @@ export async function getFileHistory(fileId: string): Promise<FileHistoryRespons
       : `/api/history/${fileId}`;
 
   const res = await fetch(historyUrl, {
-    cache: "no-store",
+    ...(typeof window === "undefined" ? { next: { revalidate: 15 } } : { cache: "no-store" }),
   });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error("Failed to fetch file history");

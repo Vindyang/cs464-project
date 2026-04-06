@@ -51,3 +51,7 @@ export function formatRelativeTime(iso?: string | null): string {
   }
   return rtf.format(Math.round(diffMs / 86_400_000), "day");
 }
+
+export function roundHealthPercent(value?: number | null, fallback = 100): number {
+  return Math.round(value ?? fallback)
+}

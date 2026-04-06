@@ -1,5 +1,5 @@
 import { getDashboardData } from "./componentsAction/actions";
-import { cn, formatBytes, formatDateTime, formatRelativeTime } from "@/lib/utils";
+import { cn, formatBytes, formatDateTime, formatRelativeTime, roundHealthPercent } from "@/lib/utils";
 import Link from "next/link";
 import { ReactNode } from "react";
 
@@ -39,12 +39,12 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* ── Page Header ── */}
-      <div className="flex flex-wrap items-end justify-between gap-4 border-b pb-5">
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-neutral-200 pb-5 dark:border-neutral-800">
         <div>
-          <p className="mb-1 font-mono text-[12px] font-medium uppercase tracking-[0.15em] text-neutral-500">
+          <p className="mb-1 font-mono text-[12px] font-medium uppercase tracking-[0.15em] text-neutral-500 dark:text-neutral-400">
             System
           </p>
-          <h1 className="text-3xl font-semibold tracking-tight">Overview</h1>
+          <h1 className="text-3xl font-semibold tracking-tight text-neutral-950 dark:text-neutral-100">Overview</h1>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
             <span className="border border-sky-200 bg-sky-50 px-2 py-1 font-mono uppercase tracking-[0.08em] text-sky-700 dark:border-sky-900 dark:bg-sky-950/60 dark:text-sky-300">
               Last Health Sync {formatRelativeTime(latestHealthRefreshAt)}
@@ -110,9 +110,9 @@ export default async function DashboardPage() {
           <SectionHeader label="Provider Storage" href="/providers" linkLabel="Manage" />
 
           {providers.length === 0 ? (
-            <div className="py-12 text-center font-mono text-sm text-neutral-400">
+            <div className="py-12 text-center font-mono text-sm text-neutral-400 dark:text-neutral-500">
               No providers connected.{" "}
-              <Link href="/providers" className="underline hover:text-neutral-900 transition-colors">
+              <Link href="/providers" className="underline transition-colors hover:text-neutral-900 dark:hover:text-neutral-100">
                 Connect one
               </Link>
             </div>
@@ -121,16 +121,16 @@ export default async function DashboardPage() {
               <div className="overflow-x-auto">
                 <div className="min-w-[620px]">
                   {/* Table header */}
-                  <div className="mb-1 grid gap-3 border-b px-0 pb-2.5" style={{ gridTemplateColumns: "10px 1fr 88px 96px 190px" }}>
+                  <div className="mb-1 grid gap-3 border-b border-neutral-200 px-0 pb-2.5 dark:border-neutral-800" style={{ gridTemplateColumns: "10px 1fr 88px 96px 190px" }}>
                     {["", "Provider", "Status", "Latency", "Usage"].map((h) => (
-                      <span key={h} className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-neutral-500">
+                      <span key={h} className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-neutral-500 dark:text-neutral-400">
                         {h}
                       </span>
                     ))}
                   </div>
 
                   {/* Provider rows */}
-                  <div className="divide-y">
+                  <div className="divide-y divide-neutral-200 dark:divide-neutral-800">
                     {providers.map((p) => {
                       const isActive = p.status === "active" || p.status === "connected";
                       const usedPct =
@@ -147,15 +147,15 @@ export default async function DashboardPage() {
                           <div
                             className={cn(
                               "h-1.5 w-1.5",
-                              isActive ? "bg-neutral-900" : "bg-neutral-300"
+                              isActive ? "bg-neutral-900 dark:bg-sky-400" : "bg-neutral-300 dark:bg-neutral-700"
                             )}
                           />
 
                           {/* Name + region */}
                           <div className="min-w-0">
-                            <div className="truncate text-base font-medium leading-snug">{p.displayName}</div>
+                            <div className="truncate text-base font-medium leading-snug text-neutral-950 dark:text-neutral-100">{p.displayName}</div>
                             {p.region && (
-                              <div className="font-mono text-[12px] font-medium text-neutral-500">{p.region}</div>
+                              <div className="font-mono text-[12px] font-medium text-neutral-500 dark:text-neutral-400">{p.region}</div>
                             )}
                           </div>
 
@@ -163,29 +163,29 @@ export default async function DashboardPage() {
                           <span
                             className={cn(
                               "font-mono text-[11px] font-medium uppercase tracking-wider",
-                              isActive ? "text-neutral-700" : "text-neutral-500"
+                              isActive ? "text-neutral-700 dark:text-neutral-200" : "text-neutral-500 dark:text-neutral-400"
                             )}
                           >
                             {p.status}
                           </span>
 
                           {/* Latency */}
-                          <span className="font-mono text-[12px] text-neutral-500">
+                          <span className="font-mono text-[12px] text-neutral-500 dark:text-neutral-400">
                             {p.latencyMs != null ? `${p.latencyMs}ms` : "—"}
                           </span>
 
                       {/* Usage bar + numbers */}
                       <div className="flex min-w-0 items-center gap-2.5">
-                        <div className="flex-1 h-1 bg-neutral-100 overflow-hidden">
+                        <div className="flex-1 h-1 overflow-hidden bg-neutral-100 dark:bg-neutral-800">
                           <div
-                            className="h-full bg-neutral-900 transition-all"
+                            className="h-full bg-neutral-900 transition-all dark:bg-sky-400"
                             style={{ width: `${usedPct}%` }}
                           />
                         </div>
-                        <span className="w-9 shrink-0 text-right font-mono text-[12px] font-medium tabular-nums text-neutral-600">
+                        <span className="w-9 shrink-0 text-right font-mono text-[12px] font-medium tabular-nums text-neutral-600 dark:text-neutral-300">
                           {usedPct}%
                         </span>
-                        <span className="shrink-0 truncate font-mono text-[12px] font-medium text-neutral-500">
+                        <span className="shrink-0 truncate font-mono text-[12px] font-medium text-neutral-500 dark:text-neutral-400">
                           {formatBytes(p.quotaUsedBytes)}{p.quotaTotalBytes > 0 ? ` / ${formatBytes(p.quotaTotalBytes)}` : " / —"}
                         </span>
                       </div>
@@ -204,39 +204,39 @@ export default async function DashboardPage() {
           <SectionHeader label="Recent Files" href="/files" linkLabel="All files" />
 
           {recentFiles.length === 0 ? (
-            <div className="py-10 text-center font-mono text-sm text-neutral-400">
+            <div className="py-10 text-center font-mono text-sm text-neutral-400 dark:text-neutral-500">
               No files uploaded yet.
             </div>
           ) : (
-            <ul className="divide-y">
+            <ul className="divide-y divide-neutral-200 dark:divide-neutral-800">
               {recentFiles.map((f) => {
-                const pct = f.health_status?.health_percent ?? 100;
+                const pct = roundHealthPercent(f.health_status?.health_percent, 100);
                 const isDegraded = f.status === "DEGRADED";
                 const dateLabel = recentFileDateFormatter.format(new Date(f.created_at));
                 return (
                   <li key={f.file_id}>
                     <Link
                       href={`/files/${f.file_id}`}
-                      className="group -mx-5 flex items-start gap-3 px-5 py-3.5 transition-colors hover:bg-neutral-50"
+                      className="group -mx-5 flex items-start gap-3 px-5 py-3.5 transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/70"
                     >
                       <div
                         className={cn(
                           "mt-1.5 w-1.5 h-1.5 shrink-0",
-                          isDegraded ? "bg-neutral-300" : "bg-neutral-900"
+                          isDegraded ? "bg-neutral-300 dark:bg-amber-400" : "bg-neutral-900 dark:bg-sky-400"
                         )}
                       />
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-medium leading-snug group-hover:underline">
+                        <div className="truncate text-sm font-medium leading-snug text-neutral-950 group-hover:underline dark:text-neutral-100">
                           {f.original_name}
                         </div>
-                        <div className="mt-1 flex items-center gap-1.5 font-mono text-[12px] font-medium text-neutral-500">
+                        <div className="mt-1 flex items-center gap-1.5 font-mono text-[12px] font-medium text-neutral-500 dark:text-neutral-400">
                           <span>{formatBytes(f.original_size ?? 0)}</span>
-                          <span className="text-neutral-200">·</span>
+                          <span className="text-neutral-200 dark:text-neutral-700">·</span>
                           <span>{dateLabel}</span>
                         </div>
                       </div>
                       <div className="shrink-0 text-right">
-                        <div className="font-mono text-[12px] font-semibold tabular-nums">
+                        <div className="font-mono text-[12px] font-semibold tabular-nums text-neutral-950 dark:text-neutral-100">
                           {pct}%
                         </div>
                         <div
@@ -267,23 +267,23 @@ export default async function DashboardPage() {
           />
           <div className="mt-2 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             {degradedFiles.map((f) => {
-              const pct = f.health_status?.health_percent ?? 0;
+              const pct = roundHealthPercent(f.health_status?.health_percent, 0);
               const recoverable = f.health_status?.recoverable ?? false;
               return (
                 <Link
                   key={f.file_id}
                   href={`/files/${f.file_id}`}
-                  className="group block border p-4 hover:border-neutral-900 transition-colors"
+                  className="group block border border-neutral-200 p-4 transition-colors hover:border-neutral-900 dark:border-neutral-800 dark:hover:border-neutral-600"
                 >
-                  <div className="mb-2.5 truncate font-mono text-[12px] font-medium text-neutral-500">
+                  <div className="mb-2.5 truncate font-mono text-[12px] font-medium text-neutral-500 dark:text-neutral-400">
                     {f.original_name}
                   </div>
                   <div className="mb-2.5 flex items-baseline gap-1">
-                    <span className="text-2xl font-semibold tabular-nums">{pct}</span>
-                    <span className="font-mono text-[12px] font-medium text-neutral-500">%</span>
+                    <span className="text-2xl font-semibold tabular-nums text-neutral-950 dark:text-neutral-100">{pct}</span>
+                    <span className="font-mono text-[12px] font-medium text-neutral-500 dark:text-neutral-400">%</span>
                   </div>
-                  <div className="h-0.5 w-full bg-neutral-100">
-                    <div className="h-full bg-neutral-900" style={{ width: `${pct}%` }} />
+                  <div className="h-0.5 w-full bg-neutral-100 dark:bg-neutral-800">
+                    <div className="h-full bg-neutral-900 dark:bg-amber-400" style={{ width: `${pct}%` }} />
                   </div>
                   <div
                     className={cn(
@@ -321,12 +321,12 @@ function StatCard({
   return (
     <section
       className={cn(
-        "border bg-white p-6 dark:bg-neutral-950",
+        "border bg-white p-6 dark:border-neutral-800 dark:bg-neutral-950",
         tone === "healthy" && "border-emerald-200 dark:border-emerald-900",
         tone === "warning" && "border-amber-200 bg-amber-50/60 dark:border-amber-900 dark:bg-amber-950/20",
       )}
     >
-      <p className="mb-3.5 font-mono text-[12px] font-medium uppercase tracking-[0.08em] text-neutral-500">
+      <p className="mb-3.5 font-mono text-[12px] font-medium uppercase tracking-[0.08em] text-neutral-500 dark:text-neutral-400">
         {label}
       </p>
       <p
@@ -337,7 +337,7 @@ function StatCard({
       >
         {value}
       </p>
-      <p className="mt-2 font-mono text-[12px] font-medium leading-relaxed text-neutral-500">{sub}</p>
+      <p className="mt-2 font-mono text-[12px] font-medium leading-relaxed text-neutral-500 dark:text-neutral-400">{sub}</p>
     </section>
   );
 }
@@ -350,7 +350,7 @@ function DashCard({
   className?: string;
 }) {
   return (
-    <section className={cn("border bg-white p-6", className)}>{children}</section>
+    <section className={cn("border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-950", className)}>{children}</section>
   );
 }
 
@@ -365,12 +365,12 @@ function SectionHeader({
 }) {
   return (
     <div className="mb-6 flex items-center justify-between">
-      <span className="font-mono text-[12px] font-medium uppercase tracking-[0.08em] text-neutral-600">
+      <span className="font-mono text-[12px] font-medium uppercase tracking-[0.08em] text-neutral-600 dark:text-neutral-300">
         {label}
       </span>
       <Link
         href={href}
-        className="font-mono text-[12px] font-medium uppercase tracking-wider text-neutral-500 transition-colors hover:text-neutral-900"
+        className="font-mono text-[12px] font-medium uppercase tracking-wider text-neutral-500 transition-colors hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
       >
         {linkLabel} →
       </Link>

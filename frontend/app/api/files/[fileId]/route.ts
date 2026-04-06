@@ -26,8 +26,9 @@ export async function DELETE(
   }
 
   const data = await upstream.json().catch(() => ({}));
-  return NextResponse.json(
-    { error: data?.error || "Failed to delete file" },
-    { status: upstream.status || 500 }
-  );
+  if (upstream.ok) {
+    return NextResponse.json(data, { status: upstream.status });
+  }
+
+  return NextResponse.json({ error: data?.error || "Failed to delete file" }, { status: upstream.status || 500 });
 }
