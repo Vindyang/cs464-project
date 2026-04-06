@@ -25,12 +25,7 @@ export interface CredentialStatus {
 
 export async function getCredentials(): Promise<ProviderCredential[]> {
   const API_URL = getApiBaseUrl();
-  const res = await fetch(
-    `${API_URL}/api/credentials`,
-    typeof window === "undefined"
-      ? { next: { revalidate: 300 } }
-      : { cache: "no-store" },
-  );
+  const res = await fetch(`${API_URL}/api/credentials`, { cache: "no-store" });
   if (!res.ok) {
     throw new Error("Failed to fetch credentials");
   }
@@ -39,12 +34,7 @@ export async function getCredentials(): Promise<ProviderCredential[]> {
 
 export async function getCredentialStatus(): Promise<CredentialStatus> {
   const API_URL = getApiBaseUrl();
-  const res = await fetch(
-    `${API_URL}/api/credentials/status`,
-    typeof window === "undefined"
-      ? { next: { revalidate: 120 } }
-      : { cache: "no-store" },
-  );
+  const res = await fetch(`${API_URL}/api/credentials/status`, { cache: "no-store" });
   if (!res.ok) {
     throw new Error("Failed to fetch credential status");
   }

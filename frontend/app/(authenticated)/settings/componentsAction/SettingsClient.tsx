@@ -82,11 +82,11 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
 				router.refresh()
 			} else if (pendingResetScope === "credentials") {
 				toast.success(`Deleted ${result.credential_summary?.deleted_credentials ?? 0} credentials and disconnected providers`)
-				router.push("/credentials")
+				router.push("/dashboard")
 				router.refresh()
 			} else {
 				toast.success("Deleted file data and credentials")
-				router.push("/credentials")
+				router.push("/dashboard")
 				router.refresh()
 			}
 

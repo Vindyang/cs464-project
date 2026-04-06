@@ -21,6 +21,7 @@ import {
 	RevealedProviderCredential,
 	saveCredential,
 } from "@/lib/api/credentials";
+import { formatUtcDateTime } from "@/lib/utils";
 import { toast } from "sonner";
 
 const PROVIDERS = [
@@ -292,7 +293,7 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
 											<div>
 												<span className="font-mono text-sm text-neutral-900 dark:text-neutral-100">{credential.provider_id}</span>
 												<p className="mt-1 font-mono text-[11px] text-neutral-500 dark:text-neutral-400">
-													Updated {new Date(credential.updated_at).toLocaleString()}
+													Updated {formatUtcDateTime(credential.updated_at)}
 												</p>
 											</div>
 											<div className="flex items-center gap-2">

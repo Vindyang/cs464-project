@@ -20,6 +20,16 @@ export function formatDate(iso: string): string {
   });
 }
 
+export function formatUtcDate(iso?: string | null): string {
+  if (!iso) return "Never";
+  return new Date(iso).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 export function formatDateTime(iso?: string | null): string {
   if (!iso) return "Never";
   return new Date(iso).toLocaleString("en-US", {
@@ -29,6 +39,18 @@ export function formatDateTime(iso?: string | null): string {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+export function formatUtcDateTime(iso?: string | null): string {
+  if (!iso) return "Never";
+  return `${new Date(iso).toLocaleString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "UTC",
+  })} UTC`;
 }
 
 export function formatRelativeTime(iso?: string | null): string {

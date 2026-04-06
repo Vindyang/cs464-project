@@ -7,25 +7,12 @@ import {
 } from "@/components/ui/sidebar";
 import { getProviders } from "@/lib/api/providers";
 import { getFiles } from "@/lib/api/files";
-import { getCredentialStatus } from "@/lib/api/credentials";
 
 export default async function CredentialsLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const credentialStatus = await getCredentialStatus().catch(() => ({
-    configured: false,
-  }));
-
-  if (!credentialStatus.configured) {
-    return (
-      <div className="mx-auto min-h-screen w-full max-w-5xl p-6">
-        {children}
-      </div>
-    );
-  }
-
   const [providers, files] = await Promise.all([
     getProviders().catch(() => []),
     getFiles().catch(() => []),

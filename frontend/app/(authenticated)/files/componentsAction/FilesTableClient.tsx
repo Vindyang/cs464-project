@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Eye, Loader2, Trash2 } from "lucide-react";
 import { deleteFile, FileMetadata } from "@/lib/api/files";
-import { cn, formatBytes, formatDateTime, formatRelativeTime } from "@/lib/utils";
+import { cn, formatBytes, formatUtcDate, formatUtcDateTime } from "@/lib/utils";
 import { toast } from "sonner";
 
 import { DownloadFileButton } from "./DownloadFileButton";
@@ -103,13 +103,10 @@ export function FilesTableClient({ initialFiles }: FilesTableClientProps) {
                   </div>
                 </div>
                 <div className="font-mono text-[11px] text-neutral-500 dark:text-neutral-400">
-                  <div>{formatRelativeTime(file.last_health_refresh_at)}</div>
-                  <div className="mt-1 text-[10px] text-neutral-400 dark:text-neutral-500">
-                    {formatDateTime(file.last_health_refresh_at)}
-                  </div>
+                  <div>{formatUtcDateTime(file.last_health_refresh_at)}</div>
                 </div>
                 <span className="font-mono text-[11px] text-neutral-500 dark:text-neutral-400">
-                  {new Date(file.created_at).toLocaleDateString("en-US")}
+                  {formatUtcDate(file.created_at)}
                 </span>
                 <div className="flex items-center gap-1">
                   <Link

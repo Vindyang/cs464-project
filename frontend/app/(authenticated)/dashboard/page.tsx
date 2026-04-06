@@ -1,10 +1,14 @@
 import { getDashboardData } from "./componentsAction/actions";
 import { cn, formatBytes, formatDateTime, formatRelativeTime, roundHealthPercent } from "@/lib/utils";
+import { getCredentialStatus } from "@/lib/api/credentials";
 import Link from "next/link";
 import { ReactNode } from "react";
 
 export default async function DashboardPage() {
-  const { files, providers } = await getDashboardData();
+  const [{ files, providers }, credentialStatus] = await Promise.all([
+    getDashboardData(),
+    getCredentialStatus().catch(() => ({ configured: false, count: 0, providers: [] })),
+  ]);
   const recentFileDateFormatter = new Intl.DateTimeFormat(undefined, {
     month: "short",
     day: "numeric",
@@ -61,6 +65,25 @@ export default async function DashboardPage() {
           My Files
         </Link>
       </div>
+
+      {!credentialStatus.configured && (
+        <section className="flex flex-wrap items-start justify-between gap-4 border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-100">
+          <div>
+            <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-sky-700 dark:text-sky-300">
+              Setup Required
+            </p>
+            <p className="mt-1 max-w-2xl">
+              No provider credentials are configured right now. Add credentials to begin uploading files, connecting providers, and using the service.
+            </p>
+          </div>
+          <Link
+            href="/credentials"
+            className="border border-sky-600 bg-sky-600 px-4 py-2 font-mono text-[11px] uppercase tracking-wider text-white transition-colors hover:bg-sky-700"
+          >
+            Set Credentials
+          </Link>
+        </section>
+      )}
 
       {degradedFiles.length > 0 && (
         <section className="border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">

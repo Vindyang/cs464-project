@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { type FileMetadata } from "@/lib/api/files";
-import { formatDateTime, formatRelativeTime } from "@/lib/utils";
+import { formatUtcDateTime } from "@/lib/utils";
 import { FilesTableClient } from "./FilesTableClient";
 import { toast } from "sonner";
 
@@ -65,10 +65,7 @@ export function FilesPageClient({ initialFiles }: FilesPageClientProps) {
           <h1 className="text-2xl font-semibold tracking-tight">Files</h1>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
             <span className="border border-sky-200 bg-sky-50 px-2 py-1 font-mono uppercase tracking-[0.08em] text-sky-700 dark:border-sky-900 dark:bg-sky-950/60 dark:text-sky-300">
-              Last Health Sync {formatRelativeTime(latestHealthRefreshAt)}
-            </span>
-            <span className="font-mono text-neutral-500 dark:text-neutral-400">
-              {formatDateTime(latestHealthRefreshAt)}
+              Last Health Sync {formatUtcDateTime(latestHealthRefreshAt)}
             </span>
             {atRiskFiles.length > 0 && (
               <span className="border border-amber-200 bg-amber-50 px-2 py-1 font-mono uppercase tracking-[0.08em] text-amber-800 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-300">
