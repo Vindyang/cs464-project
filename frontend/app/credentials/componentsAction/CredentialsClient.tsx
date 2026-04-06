@@ -45,8 +45,8 @@ const PROVIDER_FIELDS: Record<string, {
   },
   oneDrive: {
     field1: { label: "Client ID", placeholder: "Azure app (client) ID" },
-    field2: { label: "Client Secret", placeholder: "Azure app client secret" },
-    field3: { label: "Redirect URI", placeholder: "http://localhost:8080/api/oauth/onedrive/callback", default: "" },
+    field2: { label: "Client Secret", placeholder: "Azure client secret value" },
+    field3: { label: "Redirect URI", placeholder: "http://localhost:8080/api/oauth/onedrive/callback", default: "http://localhost:8080/api/oauth/onedrive/callback" },
   },
 };
 
