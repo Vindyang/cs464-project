@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -137,14 +138,18 @@ func (h *ShardIOHandler) downloadShard(w http.ResponseWriter, r *http.Request, r
 		return
 	}
 
+	log.Printf("adapter shard download requested: provider=%q remote_id=%q", providerID, remoteID)
+
 	provider, err := h.registry.Get(providerID)
 	if err != nil {
+		log.Printf("adapter shard download provider lookup failed: provider=%q remote_id=%q err=%v", providerID, remoteID, err)
 		httpx.WriteError(w, http.StatusBadRequest, "Invalid provider", err)
 		return
 	}
 
 	reader, err := provider.DownloadShard(r.Context(), remoteID)
 	if err != nil {
+		log.Printf("adapter shard download failed: provider=%q remote_id=%q err=%v", providerID, remoteID, err)
 		lowerErr := strings.ToLower(err.Error())
 		if errors.Is(err, adapter.ErrShardNotFound) ||
 			strings.Contains(lowerErr, "not found") ||
@@ -160,9 +165,12 @@ func (h *ShardIOHandler) downloadShard(w http.ResponseWriter, r *http.Request, r
 
 	shardData, err := io.ReadAll(reader)
 	if err != nil {
+		log.Printf("adapter shard download read failed: provider=%q remote_id=%q err=%v", providerID, remoteID, err)
 		httpx.WriteError(w, http.StatusInternalServerError, "Failed to read shard data", err)
 		return
 	}
+
+	log.Printf("adapter shard download completed: provider=%q remote_id=%q bytes=%d", providerID, remoteID, len(shardData))
 
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.WriteHeader(http.StatusOK)
