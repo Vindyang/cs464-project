@@ -25,7 +25,6 @@ jobs:
     name: Resolve pipeline policy
     runs-on: ubuntu-latest
     outputs:
-      strict_ci: ${{ steps.policy.outputs.strict_ci }}
       deploy_enabled: ${{ steps.policy.outputs.deploy_enabled }}
       push_images: ${{ steps.policy.outputs.push_images }}
       image_tag: ${{ steps.policy.outputs.image_tag }}
@@ -34,38 +33,21 @@ jobs:
       - name: Resolve branch policy
         id: policy
         run: |
-          strict_ci=false
-          deploy_enabled=true
+          deploy_enabled=false
           push_images=false
           image_tag="${{ github.sha }}"
           checkout_ref="${{ github.sha }}"
 
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            image_tag="${{ github.event.pull_request.head.sha }}"
+            checkout_ref="${{ github.event.pull_request.head.sha }}"
+          fi
+
           if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_name }}" = "main" ]; then
-            strict_ci=true
-          fi
-
-          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.base_ref }}" = "main" ]; then
-            strict_ci=true
-            image_tag="${{ github.event.pull_request.head.sha }}"
-            checkout_ref="${{ github.event.pull_request.head.sha }}"
-            if [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
-              deploy_enabled=false
-            fi
-          fi
-
-          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.base_ref }}" = "microservices" ]; then
-            image_tag="${{ github.event.pull_request.head.sha }}"
-            checkout_ref="${{ github.event.pull_request.head.sha }}"
-            if [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
-              deploy_enabled=false
-            fi
-          fi
-
-          if [ "${{ github.event_name }}" = "push" ]; then
+            deploy_enabled=true
             push_images=true
           fi
 
-          echo "strict_ci=$strict_ci" >> "$GITHUB_OUTPUT"
           echo "deploy_enabled=$deploy_enabled" >> "$GITHUB_OUTPUT"
           echo "push_images=$push_images" >> "$GITHUB_OUTPUT"
           echo "image_tag=$image_tag" >> "$GITHUB_OUTPUT"
@@ -178,9 +160,6 @@ jobs:
     steps:
       - name: Check job results
         run: |
-          failed=false
-          cancelled=false
-
           if [ "${{ needs.backend-quality.result }}" = "failure" ] || \
              [ "${{ needs.unit-adapter.result }}" = "failure" ] || \
              [ "${{ needs.unit-orchestrator.result }}" = "failure" ] || \
@@ -189,7 +168,8 @@ jobs:
              [ "${{ needs.integration-contracts.result }}" = "failure" ] || \
              [ "${{ needs.e2e-backend.result }}" = "failure" ] || \
              [ "${{ needs.frontend-quality.result }}" = "failure" ]; then
-            failed=true
+            echo "One or more CI jobs failed."
+            exit 1
           fi
 
           if [ "${{ needs.backend-quality.result }}" = "cancelled" ] || \
@@ -200,16 +180,8 @@ jobs:
              [ "${{ needs.integration-contracts.result }}" = "cancelled" ] || \
              [ "${{ needs.e2e-backend.result }}" = "cancelled" ] || \
              [ "${{ needs.frontend-quality.result }}" = "cancelled" ]; then
-            cancelled=true
-          fi
-
-          if [ "${{ needs.pipeline-policy.outputs.strict_ci }}" = "true" ] && { [ "$failed" = "true" ] || [ "$cancelled" = "true" ]; }; then
-            echo "Strict CI policy active: failing pipeline before deployment."
+            echo "One or more CI jobs were cancelled."
             exit 1
-          fi
-
-          if [ "$failed" = "true" ] || [ "$cancelled" = "true" ]; then
-            echo "Permissive CI policy active: continuing to deployment despite CI issues."
           fi
 
           echo "CI main completed successfully."
