@@ -6,7 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -17,8 +20,8 @@ import (
 )
 
 const (
-	graphBase                    = "https://graph.microsoft.com/v1.0"
-	OmnishardFolderConfigKey     = "onedrive_omnishard_folder_id"
+	graphBase                = "https://graph.microsoft.com/v1.0"
+	OmnishardFolderConfigKey = "onedrive_omnishard_folder_id"
 )
 
 // OneDriveAdapter implements StorageProvider using the Microsoft Graph API.
@@ -27,7 +30,7 @@ type OneDriveAdapter struct {
 	client       *http.Client
 	store        *db.Store
 	mu           sync.Mutex
-	folderID     string            // in-memory cache of the Omnishard root item ID
+	folderID     string // in-memory cache of the Omnishard root item ID
 	fileFolderMu sync.Mutex
 	fileFolders  map[string]string // fileID → OneDrive item ID
 }
@@ -44,16 +47,30 @@ func NewOneDriveAdapter(config *oauth2.Config, token *oauth2.Token, store *db.St
 
 // driveResponse is the top-level response from GET /me/drive.
 type driveResponse struct {
-	Quota struct {
+	ID        string `json:"id"`
+	DriveType string `json:"driveType"`
+	Quota     struct {
 		Total int64 `json:"total"`
 		Used  int64 `json:"used"`
 	} `json:"quota"`
+	Owner struct {
+		User struct {
+			DisplayName string `json:"displayName"`
+			ID          string `json:"id"`
+		} `json:"user"`
+	} `json:"owner"`
 }
 
 // driveItem is a minimal Graph driveItem (file or folder).
 type driveItem struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
+}
+
+type driveItemDownloadInfo struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	DownloadURL string `json:"@microsoft.graph.downloadUrl"`
 }
 
 // driveItemList is the response from a children list or search.
@@ -67,10 +84,21 @@ func (o *OneDriveAdapter) GetMetadata(ctx context.Context) (*adapter.ProviderMet
 
 	var dr driveResponse
 	if err := o.graphGet(ctx, "/me/drive", &dr); err != nil {
+		log.Printf("onedrive metadata probe failed: err=%v", err)
 		return nil, fmt.Errorf("onedrive: get drive: %w", err)
 	}
 
 	latency := time.Since(start).Milliseconds()
+	log.Printf(
+		"onedrive metadata probe ok: drive_id=%q drive_type=%q owner=%q owner_id=%q quota_used=%d quota_total=%d latency_ms=%d",
+		dr.ID,
+		dr.DriveType,
+		dr.Owner.User.DisplayName,
+		dr.Owner.User.ID,
+		dr.Quota.Used,
+		dr.Quota.Total,
+		latency,
+	)
 
 	return &adapter.ProviderMetadata{
 		ProviderID:   "oneDrive",
@@ -196,27 +224,73 @@ func (o *OneDriveAdapter) UploadShard(ctx context.Context, fileID string, index 
 // DownloadShard downloads a shard by its Graph item ID.
 // The returned ReadCloser must be closed by the caller.
 func (o *OneDriveAdapter) DownloadShard(ctx context.Context, remoteID string) (io.ReadCloser, error) {
-	url := fmt.Sprintf("%s/me/drive/items/%s/content", graphBase, remoteID)
+	start := time.Now()
+	remoteDriveID := driveIDFromRemoteID(remoteID)
+	escapedRemoteID := url.PathEscape(remoteID)
+	contentURL := fmt.Sprintf("%s/me/drive/items/%s/content", graphBase, escapedRemoteID)
+	log.Printf("onedrive download start: remote_id=%q remote_drive_prefix=%q content_url=%q", remoteID, remoteDriveID, contentURL)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	redirectClient := &http.Client{
+		Transport: o.client.Transport,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, contentURL, nil)
 	if err != nil {
+		log.Printf("onedrive download request build failed: remote_id=%q err=%v", remoteID, err)
 		return nil, fmt.Errorf("onedrive: build download request: %w", err)
 	}
 
-	resp, err := o.client.Do(req)
+	resp, err := redirectClient.Do(req)
 	if err != nil {
+		log.Printf("onedrive download transport failed: remote_id=%q remote_drive_prefix=%q err=%v", remoteID, remoteDriveID, err)
 		return nil, fmt.Errorf("onedrive: download shard %q: %w", remoteID, err)
 	}
 
 	if resp.StatusCode == http.StatusNotFound {
+		log.Printf("onedrive download not found: remote_id=%q remote_drive_prefix=%q duration_ms=%d", remoteID, remoteDriveID, time.Since(start).Milliseconds())
 		resp.Body.Close()
 		return nil, fmt.Errorf("%w: onedrive shard %q", adapter.ErrShardNotFound, remoteID)
+	}
+	if resp.StatusCode >= 300 && resp.StatusCode < 400 {
+		redirectURL := resp.Header.Get("Location")
+		resp.Body.Close()
+		if redirectURL == "" {
+			log.Printf("onedrive download redirect missing location: remote_id=%q remote_drive_prefix=%q status=%d duration_ms=%d", remoteID, remoteDriveID, resp.StatusCode, time.Since(start).Milliseconds())
+			return nil, fmt.Errorf("onedrive: download shard %q: redirect missing location", remoteID)
+		}
+
+		log.Printf("onedrive download redirect resolved: remote_id=%q remote_drive_prefix=%q status=%d redirect_target=%q", remoteID, remoteDriveID, resp.StatusCode, sanitizeURLForLog(redirectURL))
+
+		downloadReq, err := http.NewRequestWithContext(ctx, http.MethodGet, redirectURL, nil)
+		if err != nil {
+			log.Printf("onedrive redirect download request build failed: remote_id=%q err=%v", remoteID, err)
+			return nil, fmt.Errorf("onedrive: build redirect download request: %w", err)
+		}
+
+		resp, err = http.DefaultClient.Do(downloadReq)
+		if err != nil {
+			log.Printf("onedrive redirect download transport failed: remote_id=%q remote_drive_prefix=%q err=%v", remoteID, remoteDriveID, err)
+			return nil, fmt.Errorf("onedrive: download shard %q via redirect: %w", remoteID, err)
+		}
 	}
 	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
+		log.Printf(
+			"onedrive download failed: remote_id=%q remote_drive_prefix=%q status=%d duration_ms=%d body=%s",
+			remoteID,
+			remoteDriveID,
+			resp.StatusCode,
+			time.Since(start).Milliseconds(),
+			strings.TrimSpace(string(b)),
+		)
 		return nil, fmt.Errorf("onedrive: download shard %q: status %d: %s", remoteID, resp.StatusCode, b)
 	}
+
+	log.Printf("onedrive download ok: remote_id=%q remote_drive_prefix=%q duration_ms=%d", remoteID, remoteDriveID, time.Since(start).Milliseconds())
 
 	return resp.Body, nil
 }
@@ -285,8 +359,18 @@ func (o *OneDriveAdapter) DeleteShard(ctx context.Context, remoteID string) erro
 func (o *OneDriveAdapter) HealthCheck(ctx context.Context) error {
 	var dr driveResponse
 	if err := o.graphGet(ctx, "/me/drive", &dr); err != nil {
+		log.Printf("onedrive health check failed: err=%v", err)
 		return fmt.Errorf("onedrive: health check: %w", err)
 	}
+	log.Printf(
+		"onedrive health check ok: drive_id=%q drive_type=%q owner=%q owner_id=%q quota_used=%d quota_total=%d",
+		dr.ID,
+		dr.DriveType,
+		dr.Owner.User.DisplayName,
+		dr.Owner.User.ID,
+		dr.Quota.Used,
+		dr.Quota.Total,
+	)
 	return nil
 }
 
@@ -352,4 +436,24 @@ func (o *OneDriveAdapter) createFolder(ctx context.Context, parentID, name strin
 		return "", err
 	}
 	return item.ID, nil
+}
+
+func driveIDFromRemoteID(remoteID string) string {
+	if remoteID == "" {
+		return ""
+	}
+	if idx := strings.Index(remoteID, "!"); idx > 0 {
+		return remoteID[:idx]
+	}
+	return ""
+}
+
+func sanitizeURLForLog(rawURL string) string {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return "invalid-url"
+	}
+	parsed.RawQuery = ""
+	parsed.Fragment = ""
+	return parsed.String()
 }
