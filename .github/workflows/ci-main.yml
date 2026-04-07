@@ -60,7 +60,7 @@ jobs:
   deploy-adapter:
     name: Deploy adapter image
     needs: [pipeline-policy, ci]
-    if: always() && needs.ci.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.ci.outputs.adapter == 'true' || needs.ci.outputs.shared == 'true' || needs.ci.outputs.workflow_files == 'true')
+    if: always() && needs.ci.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.ci.outputs.adapter == 'true' || needs.ci.outputs.shared == 'true')
     uses: ./.github/workflows/reusable-docker-build-push.yml
     secrets: inherit
     with:
@@ -74,7 +74,7 @@ jobs:
   deploy-orchestrator:
     name: Deploy orchestrator image
     needs: [pipeline-policy, ci]
-    if: always() && needs.ci.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.ci.outputs.orchestrator == 'true' || needs.ci.outputs.shared == 'true' || needs.ci.outputs.workflow_files == 'true')
+    if: always() && needs.ci.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.ci.outputs.orchestrator == 'true' || needs.ci.outputs.shared == 'true')
     uses: ./.github/workflows/reusable-docker-build-push.yml
     secrets: inherit
     with:
@@ -88,7 +88,7 @@ jobs:
   deploy-shardmap:
     name: Deploy shardmap image
     needs: [pipeline-policy, ci]
-    if: always() && needs.ci.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.ci.outputs.shardmap == 'true' || needs.ci.outputs.shared == 'true' || needs.ci.outputs.workflow_files == 'true')
+    if: always() && needs.ci.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.ci.outputs.shardmap == 'true' || needs.ci.outputs.shared == 'true')
     uses: ./.github/workflows/reusable-docker-build-push.yml
     secrets: inherit
     with:
@@ -102,7 +102,7 @@ jobs:
   deploy-sharding:
     name: Deploy sharding image
     needs: [pipeline-policy, ci]
-    if: always() && needs.ci.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.ci.outputs.sharding == 'true' || needs.ci.outputs.shared == 'true' || needs.ci.outputs.workflow_files == 'true')
+    if: always() && needs.ci.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.ci.outputs.sharding == 'true' || needs.ci.outputs.shared == 'true')
     uses: ./.github/workflows/reusable-docker-build-push.yml
     secrets: inherit
     with:
@@ -116,7 +116,7 @@ jobs:
   deploy-gateway:
     name: Deploy gateway image
     needs: [pipeline-policy, ci]
-    if: always() && needs.ci.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.ci.outputs.gateway == 'true' || needs.ci.outputs.workflow_files == 'true')
+    if: always() && needs.ci.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && needs.ci.outputs.gateway == 'true'
     uses: ./.github/workflows/reusable-docker-build-push.yml
     secrets: inherit
     with:
@@ -130,7 +130,7 @@ jobs:
   deploy-frontend:
     name: Deploy frontend image
     needs: [pipeline-policy, ci]
-    if: always() && needs.ci.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.ci.outputs.frontend == 'true' || needs.ci.outputs.workflow_files == 'true')
+    if: always() && needs.ci.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && needs.ci.outputs.frontend == 'true'
     uses: ./.github/workflows/reusable-docker-build-push.yml
     secrets: inherit
     with:
@@ -146,7 +146,7 @@ jobs:
   deploy-all-in-one:
     name: Deploy all-in-one image
     needs: [pipeline-policy, ci]
-    if: always() && needs.ci.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.ci.outputs.backend_any == 'true' || needs.ci.outputs.frontend == 'true' || needs.ci.outputs.all_in_one_assets == 'true' || needs.ci.outputs.workflow_files == 'true')
+    if: always() && needs.ci.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.ci.outputs.backend_any == 'true' || needs.ci.outputs.frontend == 'true' || needs.ci.outputs.all_in_one_assets == 'true')
     uses: ./.github/workflows/reusable-docker-build-push.yml
     secrets: inherit
     with:

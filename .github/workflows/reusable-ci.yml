@@ -49,7 +49,7 @@ jobs:
   backend-quality:
     name: Backend quality gate
     needs: detect-changes
-    if: needs.detect-changes.outputs.backend_any == 'true' || needs.detect-changes.outputs.workflow_files == 'true'
+    if: needs.detect-changes.outputs.backend_any == 'true'
     uses: ./.github/workflows/reusable-go-backend.yml
     with:
       command: |
@@ -60,7 +60,7 @@ jobs:
   unit-adapter:
     name: Unit tests - adapter
     needs: detect-changes
-    if: needs.detect-changes.outputs.adapter == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.workflow_files == 'true'
+    if: needs.detect-changes.outputs.adapter == 'true' || needs.detect-changes.outputs.shared == 'true'
     uses: ./.github/workflows/reusable-go-backend.yml
     with:
       command: go test ./services/adapter/tests/unit/... -count=1 -v -timeout 60s
@@ -68,7 +68,7 @@ jobs:
   unit-orchestrator:
     name: Unit tests - orchestrator
     needs: detect-changes
-    if: needs.detect-changes.outputs.orchestrator == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.workflow_files == 'true'
+    if: needs.detect-changes.outputs.orchestrator == 'true' || needs.detect-changes.outputs.shared == 'true'
     uses: ./.github/workflows/reusable-go-backend.yml
     with:
       command: go test ./services/orchestrator/tests/unit/... -count=1 -v -timeout 60s
@@ -76,7 +76,7 @@ jobs:
   unit-shardmap:
     name: Unit tests - shardmap
     needs: detect-changes
-    if: needs.detect-changes.outputs.shardmap == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.workflow_files == 'true'
+    if: needs.detect-changes.outputs.shardmap == 'true' || needs.detect-changes.outputs.shared == 'true'
     uses: ./.github/workflows/reusable-go-backend.yml
     with:
       command: go test ./services/shardmap/tests/unit/... -count=1 -v -timeout 60s
@@ -84,7 +84,7 @@ jobs:
   unit-sharding:
     name: Unit tests - sharding
     needs: detect-changes
-    if: needs.detect-changes.outputs.sharding == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.workflow_files == 'true'
+    if: needs.detect-changes.outputs.sharding == 'true' || needs.detect-changes.outputs.shared == 'true'
     uses: ./.github/workflows/reusable-go-backend.yml
     with:
       command: go test ./services/sharding/tests/unit/... -count=1 -v -timeout 60s
@@ -92,7 +92,7 @@ jobs:
   integration-contracts:
     name: Integration contracts
     needs: detect-changes
-    if: needs.detect-changes.outputs.adapter == 'true' || needs.detect-changes.outputs.orchestrator == 'true' || needs.detect-changes.outputs.shardmap == 'true' || needs.detect-changes.outputs.sharding == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.backend_tests == 'true' || needs.detect-changes.outputs.workflow_files == 'true'
+    if: needs.detect-changes.outputs.adapter == 'true' || needs.detect-changes.outputs.orchestrator == 'true' || needs.detect-changes.outputs.shardmap == 'true' || needs.detect-changes.outputs.sharding == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.backend_tests == 'true'
     uses: ./.github/workflows/reusable-go-backend.yml
     with:
       command: go test ./tests/integration/... -count=1 -v -timeout 120s
@@ -101,7 +101,7 @@ jobs:
   e2e-backend:
     name: E2E backend tests
     needs: detect-changes
-    if: needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.backend_tests == 'true' || needs.detect-changes.outputs.workflow_files == 'true'
+    if: needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.backend_tests == 'true'
     uses: ./.github/workflows/reusable-go-backend.yml
     with:
       command: go test -tags e2e ./tests/e2e/... -count=1 -v -timeout 300s
@@ -110,7 +110,7 @@ jobs:
   frontend-quality:
     name: Frontend lint and build
     needs: detect-changes
-    if: needs.detect-changes.outputs.frontend == 'true' || needs.detect-changes.outputs.workflow_files == 'true'
+    if: needs.detect-changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
