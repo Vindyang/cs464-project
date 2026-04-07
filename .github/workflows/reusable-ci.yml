@@ -1,0 +1,175 @@
+name: Reusable - CI
+
+on:
+  workflow_call:
+    outputs:
+      adapter:
+        description: Whether adapter service files changed.
+        value: ${{ jobs.detect-changes.outputs.adapter }}
+      orchestrator:
+        description: Whether orchestrator service files changed.
+        value: ${{ jobs.detect-changes.outputs.orchestrator }}
+      shardmap:
+        description: Whether shardmap service files changed.
+        value: ${{ jobs.detect-changes.outputs.shardmap }}
+      sharding:
+        description: Whether sharding service files changed.
+        value: ${{ jobs.detect-changes.outputs.sharding }}
+      shared:
+        description: Whether shared backend code changed.
+        value: ${{ jobs.detect-changes.outputs.shared }}
+      backend_tests:
+        description: Whether backend test files changed.
+        value: ${{ jobs.detect-changes.outputs.backend_tests }}
+      frontend:
+        description: Whether frontend files changed.
+        value: ${{ jobs.detect-changes.outputs.frontend }}
+      backend_any:
+        description: Whether any backend file changed.
+        value: ${{ jobs.detect-changes.outputs.backend_any }}
+      workflow_files:
+        description: Whether workflow files changed.
+        value: ${{ jobs.detect-changes.outputs.workflow_files }}
+      gateway:
+        description: Whether gateway service files changed.
+        value: ${{ jobs.detect-changes.outputs.gateway }}
+      all_in_one_assets:
+        description: Whether all-in-one deployment assets changed.
+        value: ${{ jobs.detect-changes.outputs.all_in_one_assets }}
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  detect-changes:
+    name: Detect changes
+    uses: ./.github/workflows/reusable-change-detection.yml
+
+  backend-quality:
+    name: Backend quality gate
+    needs: detect-changes
+    if: needs.detect-changes.outputs.backend_any == 'true' || needs.detect-changes.outputs.workflow_files == 'true'
+    uses: ./.github/workflows/reusable-go-backend.yml
+    with:
+      command: |
+        go vet ./...
+        go build ./...
+      timeout_minutes: 20
+
+  unit-adapter:
+    name: Unit tests - adapter
+    needs: detect-changes
+    if: needs.detect-changes.outputs.adapter == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.workflow_files == 'true'
+    uses: ./.github/workflows/reusable-go-backend.yml
+    with:
+      command: go test ./services/adapter/tests/unit/... -count=1 -v -timeout 60s
+
+  unit-orchestrator:
+    name: Unit tests - orchestrator
+    needs: detect-changes
+    if: needs.detect-changes.outputs.orchestrator == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.workflow_files == 'true'
+    uses: ./.github/workflows/reusable-go-backend.yml
+    with:
+      command: go test ./services/orchestrator/tests/unit/... -count=1 -v -timeout 60s
+
+  unit-shardmap:
+    name: Unit tests - shardmap
+    needs: detect-changes
+    if: needs.detect-changes.outputs.shardmap == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.workflow_files == 'true'
+    uses: ./.github/workflows/reusable-go-backend.yml
+    with:
+      command: go test ./services/shardmap/tests/unit/... -count=1 -v -timeout 60s
+
+  unit-sharding:
+    name: Unit tests - sharding
+    needs: detect-changes
+    if: needs.detect-changes.outputs.sharding == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.workflow_files == 'true'
+    uses: ./.github/workflows/reusable-go-backend.yml
+    with:
+      command: go test ./services/sharding/tests/unit/... -count=1 -v -timeout 60s
+
+  integration-contracts:
+    name: Integration contracts
+    needs: detect-changes
+    if: needs.detect-changes.outputs.adapter == 'true' || needs.detect-changes.outputs.orchestrator == 'true' || needs.detect-changes.outputs.shardmap == 'true' || needs.detect-changes.outputs.sharding == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.backend_tests == 'true' || needs.detect-changes.outputs.workflow_files == 'true'
+    uses: ./.github/workflows/reusable-go-backend.yml
+    with:
+      command: go test ./tests/integration/... -count=1 -v -timeout 120s
+      timeout_minutes: 20
+
+  e2e-backend:
+    name: E2E backend tests
+    needs: detect-changes
+    if: needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.backend_tests == 'true' || needs.detect-changes.outputs.workflow_files == 'true'
+    uses: ./.github/workflows/reusable-go-backend.yml
+    with:
+      command: go test -tags e2e ./tests/e2e/... -count=1 -v -timeout 300s
+      timeout_minutes: 30
+
+  frontend-quality:
+    name: Frontend lint and build
+    needs: detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true' || needs.detect-changes.outputs.workflow_files == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Build
+        run: bun run build
+
+  ci-summary:
+    name: CI summary
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - detect-changes
+      - backend-quality
+      - unit-adapter
+      - unit-orchestrator
+      - unit-shardmap
+      - unit-sharding
+      - integration-contracts
+      - e2e-backend
+      - frontend-quality
+    steps:
+      - name: Check job results
+        run: |
+          if [ "${{ needs.backend-quality.result }}" = "failure" ] || \
+             [ "${{ needs.unit-adapter.result }}" = "failure" ] || \
+             [ "${{ needs.unit-orchestrator.result }}" = "failure" ] || \
+             [ "${{ needs.unit-shardmap.result }}" = "failure" ] || \
+             [ "${{ needs.unit-sharding.result }}" = "failure" ] || \
+             [ "${{ needs.integration-contracts.result }}" = "failure" ] || \
+             [ "${{ needs.e2e-backend.result }}" = "failure" ] || \
+             [ "${{ needs.frontend-quality.result }}" = "failure" ]; then
+            echo "One or more CI jobs failed."
+            exit 1
+          fi
+
+          if [ "${{ needs.backend-quality.result }}" = "cancelled" ] || \
+             [ "${{ needs.unit-adapter.result }}" = "cancelled" ] || \
+             [ "${{ needs.unit-orchestrator.result }}" = "cancelled" ] || \
+             [ "${{ needs.unit-shardmap.result }}" = "cancelled" ] || \
+             [ "${{ needs.unit-sharding.result }}" = "cancelled" ] || \
+             [ "${{ needs.integration-contracts.result }}" = "cancelled" ] || \
+             [ "${{ needs.e2e-backend.result }}" = "cancelled" ] || \
+             [ "${{ needs.frontend-quality.result }}" = "cancelled" ]; then
+            echo "One or more CI jobs were cancelled."
+            exit 1
+          fi
+
+          echo "CI completed successfully."

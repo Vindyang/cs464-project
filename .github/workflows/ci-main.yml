@@ -1,15 +1,15 @@
-name: CI - Main
+name: CI/CD - Main
 
 on:
   push:
-    branches: [main, microservices]
+    branches: [main]
     paths:
       - 'backend/**'
       - 'frontend/**'
       - 'deploy/**'
       - '.github/workflows/**'
   pull_request:
-    branches: [main, microservices]
+    branches: [main]
     paths:
       - 'backend/**'
       - 'frontend/**'
@@ -43,7 +43,7 @@ jobs:
             checkout_ref="${{ github.event.pull_request.head.sha }}"
           fi
 
-          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_name }}" = "main" ]; then
+          if [ "${{ github.event_name }}" = "push" ]; then
             deploy_enabled=true
             push_images=true
           fi
@@ -53,143 +53,14 @@ jobs:
           echo "image_tag=$image_tag" >> "$GITHUB_OUTPUT"
           echo "checkout_ref=$checkout_ref" >> "$GITHUB_OUTPUT"
 
-  detect-changes:
-    name: Detect changes
-    uses: ./.github/workflows/reusable-change-detection.yml
-
-  backend-quality:
-    name: Backend quality gate
-    needs: detect-changes
-    if: needs.detect-changes.outputs.backend_any == 'true' || needs.detect-changes.outputs.workflow_files == 'true'
-    uses: ./.github/workflows/reusable-go-backend.yml
-    with:
-      command: |
-        go vet ./...
-        go build ./...
-      timeout_minutes: 20
-
-  unit-adapter:
-    name: Unit tests - adapter
-    needs: detect-changes
-    if: needs.detect-changes.outputs.adapter == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.workflow_files == 'true'
-    uses: ./.github/workflows/reusable-go-backend.yml
-    with:
-      command: go test ./services/adapter/tests/unit/... -count=1 -v -timeout 60s
-
-  unit-orchestrator:
-    name: Unit tests - orchestrator
-    needs: detect-changes
-    if: needs.detect-changes.outputs.orchestrator == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.workflow_files == 'true'
-    uses: ./.github/workflows/reusable-go-backend.yml
-    with:
-      command: go test ./services/orchestrator/tests/unit/... -count=1 -v -timeout 60s
-
-  unit-shardmap:
-    name: Unit tests - shardmap
-    needs: detect-changes
-    if: needs.detect-changes.outputs.shardmap == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.workflow_files == 'true'
-    uses: ./.github/workflows/reusable-go-backend.yml
-    with:
-      command: go test ./services/shardmap/tests/unit/... -count=1 -v -timeout 60s
-
-  unit-sharding:
-    name: Unit tests - sharding
-    needs: detect-changes
-    if: needs.detect-changes.outputs.sharding == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.workflow_files == 'true'
-    uses: ./.github/workflows/reusable-go-backend.yml
-    with:
-      command: go test ./services/sharding/tests/unit/... -count=1 -v -timeout 60s
-
-  integration-contracts:
-    name: Integration contracts
-    needs: detect-changes
-    if: needs.detect-changes.outputs.adapter == 'true' || needs.detect-changes.outputs.orchestrator == 'true' || needs.detect-changes.outputs.shardmap == 'true' || needs.detect-changes.outputs.sharding == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.backend_tests == 'true' || needs.detect-changes.outputs.workflow_files == 'true'
-    uses: ./.github/workflows/reusable-go-backend.yml
-    with:
-      command: go test ./tests/integration/... -count=1 -v -timeout 120s
-      timeout_minutes: 20
-
-  e2e-backend:
-    name: E2E backend tests
-    needs: detect-changes
-    if: needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.backend_tests == 'true' || needs.detect-changes.outputs.workflow_files == 'true'
-    uses: ./.github/workflows/reusable-go-backend.yml
-    with:
-      command: go test -tags e2e ./tests/e2e/... -count=1 -v -timeout 300s
-      timeout_minutes: 30
-
-  frontend-quality:
-    name: Frontend lint and build
-    needs: detect-changes
-    if: needs.detect-changes.outputs.frontend == 'true' || needs.detect-changes.outputs.workflow_files == 'true'
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./frontend
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Lint
-        run: bun run lint
-
-      - name: Build
-        run: bun run build
-
-  ci-summary:
-    name: CI summary
-    runs-on: ubuntu-latest
-    if: always()
-    needs:
-      - pipeline-policy
-      - detect-changes
-      - backend-quality
-      - unit-adapter
-      - unit-orchestrator
-      - unit-shardmap
-      - unit-sharding
-      - integration-contracts
-      - e2e-backend
-      - frontend-quality
-    steps:
-      - name: Check job results
-        run: |
-          if [ "${{ needs.backend-quality.result }}" = "failure" ] || \
-             [ "${{ needs.unit-adapter.result }}" = "failure" ] || \
-             [ "${{ needs.unit-orchestrator.result }}" = "failure" ] || \
-             [ "${{ needs.unit-shardmap.result }}" = "failure" ] || \
-             [ "${{ needs.unit-sharding.result }}" = "failure" ] || \
-             [ "${{ needs.integration-contracts.result }}" = "failure" ] || \
-             [ "${{ needs.e2e-backend.result }}" = "failure" ] || \
-             [ "${{ needs.frontend-quality.result }}" = "failure" ]; then
-            echo "One or more CI jobs failed."
-            exit 1
-          fi
-
-          if [ "${{ needs.backend-quality.result }}" = "cancelled" ] || \
-             [ "${{ needs.unit-adapter.result }}" = "cancelled" ] || \
-             [ "${{ needs.unit-orchestrator.result }}" = "cancelled" ] || \
-             [ "${{ needs.unit-shardmap.result }}" = "cancelled" ] || \
-             [ "${{ needs.unit-sharding.result }}" = "cancelled" ] || \
-             [ "${{ needs.integration-contracts.result }}" = "cancelled" ] || \
-             [ "${{ needs.e2e-backend.result }}" = "cancelled" ] || \
-             [ "${{ needs.frontend-quality.result }}" = "cancelled" ]; then
-            echo "One or more CI jobs were cancelled."
-            exit 1
-          fi
-
-          echo "CI main completed successfully."
+  ci:
+    name: CI
+    uses: ./.github/workflows/reusable-ci.yml
 
   deploy-adapter:
     name: Deploy adapter image
-    needs: [pipeline-policy, detect-changes, ci-summary]
-    if: always() && needs.ci-summary.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.detect-changes.outputs.adapter == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.workflow_files == 'true')
+    needs: [pipeline-policy, ci]
+    if: always() && needs.ci.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.ci.outputs.adapter == 'true' || needs.ci.outputs.shared == 'true' || needs.ci.outputs.workflow_files == 'true')
     uses: ./.github/workflows/reusable-docker-build-push.yml
     secrets: inherit
     with:
@@ -202,8 +73,8 @@ jobs:
 
   deploy-orchestrator:
     name: Deploy orchestrator image
-    needs: [pipeline-policy, detect-changes, ci-summary]
-    if: always() && needs.ci-summary.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.detect-changes.outputs.orchestrator == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.workflow_files == 'true')
+    needs: [pipeline-policy, ci]
+    if: always() && needs.ci.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.ci.outputs.orchestrator == 'true' || needs.ci.outputs.shared == 'true' || needs.ci.outputs.workflow_files == 'true')
     uses: ./.github/workflows/reusable-docker-build-push.yml
     secrets: inherit
     with:
@@ -216,8 +87,8 @@ jobs:
 
   deploy-shardmap:
     name: Deploy shardmap image
-    needs: [pipeline-policy, detect-changes, ci-summary]
-    if: always() && needs.ci-summary.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.detect-changes.outputs.shardmap == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.workflow_files == 'true')
+    needs: [pipeline-policy, ci]
+    if: always() && needs.ci.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.ci.outputs.shardmap == 'true' || needs.ci.outputs.shared == 'true' || needs.ci.outputs.workflow_files == 'true')
     uses: ./.github/workflows/reusable-docker-build-push.yml
     secrets: inherit
     with:
@@ -230,8 +101,8 @@ jobs:
 
   deploy-sharding:
     name: Deploy sharding image
-    needs: [pipeline-policy, detect-changes, ci-summary]
-    if: always() && needs.ci-summary.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.detect-changes.outputs.sharding == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.workflow_files == 'true')
+    needs: [pipeline-policy, ci]
+    if: always() && needs.ci.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.ci.outputs.sharding == 'true' || needs.ci.outputs.shared == 'true' || needs.ci.outputs.workflow_files == 'true')
     uses: ./.github/workflows/reusable-docker-build-push.yml
     secrets: inherit
     with:
@@ -244,8 +115,8 @@ jobs:
 
   deploy-gateway:
     name: Deploy gateway image
-    needs: [pipeline-policy, detect-changes, ci-summary]
-    if: always() && needs.ci-summary.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.detect-changes.outputs.gateway == 'true' || needs.detect-changes.outputs.workflow_files == 'true')
+    needs: [pipeline-policy, ci]
+    if: always() && needs.ci.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.ci.outputs.gateway == 'true' || needs.ci.outputs.workflow_files == 'true')
     uses: ./.github/workflows/reusable-docker-build-push.yml
     secrets: inherit
     with:
@@ -258,8 +129,8 @@ jobs:
 
   deploy-frontend:
     name: Deploy frontend image
-    needs: [pipeline-policy, detect-changes, ci-summary]
-    if: always() && needs.ci-summary.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.detect-changes.outputs.frontend == 'true' || needs.detect-changes.outputs.workflow_files == 'true')
+    needs: [pipeline-policy, ci]
+    if: always() && needs.ci.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.ci.outputs.frontend == 'true' || needs.ci.outputs.workflow_files == 'true')
     uses: ./.github/workflows/reusable-docker-build-push.yml
     secrets: inherit
     with:
@@ -274,8 +145,8 @@ jobs:
 
   deploy-all-in-one:
     name: Deploy all-in-one image
-    needs: [pipeline-policy, detect-changes, ci-summary]
-    if: always() && needs.ci-summary.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.detect-changes.outputs.backend_any == 'true' || needs.detect-changes.outputs.frontend == 'true' || needs.detect-changes.outputs.all_in_one_assets == 'true' || needs.detect-changes.outputs.workflow_files == 'true')
+    needs: [pipeline-policy, ci]
+    if: always() && needs.ci.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.ci.outputs.backend_any == 'true' || needs.ci.outputs.frontend == 'true' || needs.ci.outputs.all_in_one_assets == 'true' || needs.ci.outputs.workflow_files == 'true')
     uses: ./.github/workflows/reusable-docker-build-push.yml
     secrets: inherit
     with:
