@@ -1,6 +1,7 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { HealthPollingController } from "@/components/health-polling-controller";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { getProviders } from "@/lib/api/providers";
 import { getFiles } from "@/lib/api/files";
 
@@ -38,7 +39,9 @@ export default async function DashboardLayout({
             Omnishard
           </span>
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto p-6">{children}</div>
+        <TooltipProvider>
+          <div className="min-h-0 flex-1 overflow-y-auto p-6">{children}</div>
+        </TooltipProvider>
       </SidebarInset>
     </SidebarProvider>
   );

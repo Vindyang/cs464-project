@@ -1,4 +1,6 @@
 import { getDashboardData } from "./componentsAction/actions";
+
+export const dynamic = 'force-dynamic';
 import { cn, formatBytes, formatDateTime, formatRelativeTime, roundHealthPercent } from "@/lib/utils";
 import { getCredentialStatus } from "@/lib/api/credentials";
 import Link from "next/link";
@@ -20,7 +22,9 @@ export default async function DashboardPage() {
   const activeProviders = providers.filter(
     (p) => p.status === "active" || p.status === "connected"
   );
-  const degradedFiles = files.filter((f) => f.status === "DEGRADED");
+  const atRiskFiles = files.filter((f) => f.status === "DEGRADED" || f.status === "CORRUPTED");
+  const degradedFiles = atRiskFiles.filter((f) => f.status === "DEGRADED");
+  const corruptedFiles = atRiskFiles.filter((f) => f.status === "CORRUPTED");
   const latestHealthRefreshAt = [...files]
     .map((file) => file.last_health_refresh_at)
     .filter((value): value is string => Boolean(value))
@@ -85,13 +89,16 @@ export default async function DashboardPage() {
         </section>
       )}
 
-      {degradedFiles.length > 0 && (
+      {atRiskFiles.length > 0 && (
         <section className="border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
           <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-amber-700 dark:text-amber-300">
             Action Needed
           </p>
           <p className="mt-1">
-            {degradedFiles.length} file{degradedFiles.length === 1 ? " is" : "s are"} degraded. Review missing shards and refresh health from the files view after provider recovery.
+            {degradedFiles.length > 0 && `${degradedFiles.length} file${degradedFiles.length === 1 ? " is" : "s are"} degraded (recoverable).`}
+            {degradedFiles.length > 0 && corruptedFiles.length > 0 && " "}
+            {corruptedFiles.length > 0 && `${corruptedFiles.length} file${corruptedFiles.length === 1 ? " is" : "s are"} corrupted and cannot be recovered.`}
+            {" "}Review shards and refresh health from the files view after provider recovery.
           </p>
         </section>
       )}
@@ -115,7 +122,7 @@ export default async function DashboardPage() {
         <StatCard
           label="Total Files"
           value={String(files.length)}
-          sub={`${degradedFiles.length} degraded`}
+          sub={`${degradedFiles.length} degraded · ${corruptedFiles.length} corrupted`}
         />
         <StatCard
           label="Shard Health"
@@ -234,7 +241,8 @@ export default async function DashboardPage() {
             <ul className="divide-y divide-neutral-200 dark:divide-neutral-800">
               {recentFiles.map((f) => {
                 const pct = roundHealthPercent(f.health_status?.health_percent, 100);
-                const isDegraded = f.status === "DEGRADED";
+                const isCorrupted = f.status === "CORRUPTED";
+                const isAtRisk = f.status === "DEGRADED" || f.status === "CORRUPTED";
                 const dateLabel = recentFileDateFormatter.format(new Date(f.created_at));
                 return (
                   <li key={f.file_id}>
@@ -245,7 +253,7 @@ export default async function DashboardPage() {
                       <div
                         className={cn(
                           "mt-1.5 w-1.5 h-1.5 shrink-0",
-                          isDegraded ? "bg-neutral-300 dark:bg-amber-400" : "bg-neutral-900 dark:bg-sky-400"
+                          isCorrupted ? "bg-red-500 dark:bg-red-400" : isAtRisk ? "bg-neutral-300 dark:bg-amber-400" : "bg-neutral-900 dark:bg-sky-400"
                         )}
                       />
                       <div className="min-w-0 flex-1">
@@ -265,10 +273,10 @@ export default async function DashboardPage() {
                         <div
                           className={cn(
                             "mt-0.5 font-mono text-[11px] font-medium uppercase tracking-wider",
-                            isDegraded ? "text-amber-700" : "text-emerald-700 dark:text-emerald-300"
+                            isCorrupted ? "text-red-700 dark:text-red-400" : isAtRisk ? "text-amber-700" : "text-emerald-700 dark:text-emerald-300"
                           )}
                         >
-                          {f.status === "UPLOADED" ? "OK" : f.status === "DEGRADED" ? "RISK" : f.status}
+                          {f.status === "UPLOADED" ? "OK" : f.status === "DEGRADED" ? "RISK" : f.status === "CORRUPTED" ? "CRITICAL" : f.status}
                         </div>
                       </div>
                     </Link>
@@ -281,15 +289,15 @@ export default async function DashboardPage() {
       </div>
 
       {/* ── Files at Risk (conditional) ── */}
-      {degradedFiles.length > 0 && (
+      {atRiskFiles.length > 0 && (
         <DashCard>
           <SectionHeader
-            label={`Files at Risk — ${degradedFiles.length} degraded`}
+            label={`Files at Risk — ${atRiskFiles.length} at risk`}
             href="/files"
             linkLabel="View all"
           />
           <div className="mt-2 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-            {degradedFiles.map((f) => {
+            {atRiskFiles.map((f) => {
               const pct = roundHealthPercent(f.health_status?.health_percent, 0);
               const recoverable = f.health_status?.recoverable ?? false;
               return (

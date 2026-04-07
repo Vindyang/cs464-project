@@ -9,16 +9,14 @@ import { cn, formatBytes, formatUtcDate, formatUtcDateTime } from "@/lib/utils";
 import { toast } from "sonner";
 
 import { DownloadFileButton } from "./DownloadFileButton";
+import { StatusBadgeWithTooltip } from "@/components/files/StatusBadgeWithTooltip";
 
 interface FilesTableClientProps {
   initialFiles: FileMetadata[];
 }
 
-function renderFileStatus(status: string) {
-  return status === "DEGRADED" ? "UNHEALTHY" : status;
-}
-
 function getHealthTone(file: FileMetadata) {
+  if (file.status === "CORRUPTED") return "critical";
   const missingShards = file.health_status?.missing_shards ?? 0;
   const corruptedShards = file.health_status?.corrupted_shards ?? 0;
   if (missingShards > 0 || corruptedShards > 0 || file.status === "DEGRADED") {
@@ -75,6 +73,7 @@ export function FilesTableClient({ initialFiles }: FilesTableClientProps) {
                 className={cn(
                   "grid grid-cols-[1.8fr_0.8fr_0.9fr_1.1fr_1fr_0.9fr] items-center gap-4 px-5 py-3",
                   tone === "risk" && "bg-amber-50/70 dark:bg-amber-950/20",
+                  tone === "critical" && "bg-red-50/70 dark:bg-red-950/20",
                 )}
               >
                 <Link
@@ -87,16 +86,7 @@ export function FilesTableClient({ initialFiles }: FilesTableClientProps) {
                   {formatBytes(file.original_size ?? 0)}
                 </span>
                 <div className="space-y-1">
-                  <span
-                    className={cn(
-                      "inline-flex border px-2 py-1 font-mono text-[11px] uppercase tracking-wider",
-                      tone === "healthy"
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
-                        : "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300",
-                    )}
-                  >
-                    {renderFileStatus(file.status)}
-                  </span>
+                  <StatusBadgeWithTooltip status={file.status} healthStatus={file.health_status} />
                   <div className="font-mono text-[11px] text-neutral-500 dark:text-neutral-400">
                     {healthPercent}% healthy
                     {(file.health_status?.missing_shards ?? 0) > 0 && ` · ${file.health_status?.missing_shards} missing`}
