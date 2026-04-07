@@ -47,10 +47,10 @@ export function Sidebar({
         {/* Logo */}
         <div className="mb-6 px-5">
           <div className="flex items-center gap-2">
-            <div className="flex h-5 w-5 items-center justify-center border-2 border-black">
-              <div className="h-1.5 w-1.5 bg-black" />
+            <div className="flex h-5 w-5 items-center justify-center border-2 border-black dark:border-neutral-100 transition-colors">
+              <div className="h-1.5 w-1.5 bg-black dark:bg-neutral-100 transition-colors" />
             </div>
-            <span className="font-mono text-xs font-bold tracking-widest uppercase">
+            <span className="font-mono text-xs font-bold tracking-widest uppercase text-neutral-900 dark:text-neutral-100 transition-colors">
               Omnishard
             </span>
           </div>
