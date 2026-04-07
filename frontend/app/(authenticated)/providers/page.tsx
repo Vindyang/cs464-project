@@ -3,6 +3,8 @@ import { getProviders } from "@/lib/api/providers";
 import { ProvidersClient } from "./componentsAction/ProvidersClient";
 import { Suspense } from "react";
 
+export const dynamic = 'force-dynamic';
+
 export default async function ProvidersPage() {
   const [providers, credentials] = await Promise.all([
     getProviders().catch(() => []),

@@ -1,6 +1,8 @@
 import { SettingsClient } from "./componentsAction/SettingsClient";
 import { getSettings } from "@/lib/api/settings";
 
+export const dynamic = 'force-dynamic';
+
 export default async function SettingsPage() {
   const initialSettings = await getSettings().catch(() => ({
     redundancy: "(6,4)" as const,

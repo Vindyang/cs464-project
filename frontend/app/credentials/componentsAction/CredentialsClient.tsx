@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, Trash2 } from "lucide-react";
 import {
 	Dialog,
 	DialogContent,
@@ -301,9 +301,16 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
 													type="button"
 													onClick={() => toggleReveal(credential.provider_id)}
 													disabled={isRevealing}
-													className="font-mono text-[11px] uppercase tracking-wider text-neutral-500 transition-colors hover:text-black disabled:cursor-wait disabled:opacity-60 dark:text-neutral-400 dark:hover:text-white"
+													aria-label={isRevealed ? "Hide credential" : "Reveal credential"}
+													className="text-neutral-500 transition-colors hover:text-black disabled:cursor-wait disabled:opacity-60 dark:text-neutral-400 dark:hover:text-white"
 												>
-													{isRevealing ? "Loading..." : isRevealed ? "Hide" : "Reveal"}
+													{isRevealing ? (
+														<Loader2 className="h-4 w-4 animate-spin" />
+													) : isRevealed ? (
+														<EyeOff className="h-4 w-4" />
+													) : (
+														<Eye className="h-4 w-4" />
+													)}
 												</button>
 												<button
 													onClick={() => setPendingDeleteId(credential.provider_id)}

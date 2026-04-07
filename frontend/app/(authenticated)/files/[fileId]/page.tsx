@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getFileById, getFileHistory, getFileShards } from "@/lib/api/files";
+
+export const dynamic = 'force-dynamic';
 import { formatBytes, formatDateTime, formatRelativeTime, roundHealthPercent } from "@/lib/utils";
 import { FileHealthRefreshButton } from "../componentsAction/FileHealthRefreshButton";
 import { DownloadFileButton } from "../componentsAction/DownloadFileButton";
+import { StatusBadgeWithTooltip } from "@/components/files/StatusBadgeWithTooltip";
 
 export default async function FileDetailPage({
 	params,
@@ -62,15 +65,20 @@ export default async function FileDetailPage({
 			</div>
 
 			{(missingShards > 0 || corruptedShards > 0) && (
-				<section className="border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
-					<p className="font-mono text-[11px] uppercase tracking-[0.1em] text-amber-700 dark:text-amber-300">
-						File Health Warning
+				<section className={`border px-4 py-3 text-sm ${file.status === "CORRUPTED" ? "border-red-200 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200" : "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"}`}>
+					<p className={`font-mono text-[11px] uppercase tracking-[0.1em] ${file.status === "CORRUPTED" ? "text-red-700 dark:text-red-300" : "text-amber-700 dark:text-amber-300"}`}>
+						{file.status === "CORRUPTED" ? "File Unrecoverable" : "File Health Warning"}
 					</p>
 					<p className="mt-1">
-						{missingShards > 0 ? `${missingShards} shard${missingShards === 1 ? " is" : "s are"} missing.` : ""}
-						{missingShards > 0 && corruptedShards > 0 ? " " : ""}
-						{corruptedShards > 0 ? `${corruptedShards} shard${corruptedShards === 1 ? " is" : "s are"} corrupted.` : ""}
-						{" "}Recovery health is currently {healthPercent}%.
+						{file.status === "CORRUPTED"
+							? `This file cannot be recovered. ${missingShards + corruptedShards} shard${missingShards + corruptedShards === 1 ? " has" : "s have"} been lost, dropping below the recovery threshold of ${file.k} healthy shards.`
+							: <>
+								{missingShards > 0 ? `${missingShards} shard${missingShards === 1 ? " is" : "s are"} missing.` : ""}
+								{missingShards > 0 && corruptedShards > 0 ? " " : ""}
+								{corruptedShards > 0 ? `${corruptedShards} shard${corruptedShards === 1 ? " is" : "s are"} corrupted.` : ""}
+								{" "}Recovery health is currently {healthPercent}%.
+							</>
+						}
 					</p>
 				</section>
 			)}
@@ -83,7 +91,10 @@ export default async function FileDetailPage({
 					<dl className="space-y-2">
 						<MetaRow label="File ID" value={file.file_id} />
 						<MetaRow label="Size" value={formatBytes(file.original_size ?? 0)} />
-						<MetaRow label="Status" value={file.status} />
+						<div className="grid grid-cols-[90px_1fr] gap-2">
+						<dt className="font-mono text-[11px] uppercase tracking-wider text-neutral-400 dark:text-neutral-500">Status</dt>
+						<dd><StatusBadgeWithTooltip status={file.status} healthStatus={file.health_status} /></dd>
+					</div>
 						<MetaRow label="Chunks" value={String(file.total_chunks)} />
 						<MetaRow label="Scheme" value={`(${file.n},${file.k})`} />
 						<MetaRow label="Shard Size" value={formatBytes(file.shard_size ?? 0)} />
