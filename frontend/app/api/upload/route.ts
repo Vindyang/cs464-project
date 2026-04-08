@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, UPLOAD_LIMIT_LABEL } from "@/lib/upload-limit";
 
 const GATEWAY_URL = process.env.GATEWAY_URL || "http://localhost:8084";
 
@@ -11,6 +12,17 @@ export async function POST(request: Request) {
 
     if (!(file instanceof File)) {
       return NextResponse.json({ error: "Missing file field" }, { status: 400 });
+    }
+
+    if (file.size > MAX_UPLOAD_BYTES) {
+      return NextResponse.json(
+        {
+          error: "Upload limit exceeded",
+          details: `Maximum upload size is ${UPLOAD_LIMIT_LABEL}.`,
+          max_upload_mb: MAX_UPLOAD_MB,
+        },
+        { status: 413 }
+      );
     }
 
     const upstreamForm = new FormData();
