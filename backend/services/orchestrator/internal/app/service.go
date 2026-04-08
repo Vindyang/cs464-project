@@ -544,7 +544,7 @@ func (s *Service) DownloadFile(ctx context.Context, fileID string) (*types.Downl
 func (s *Service) downloadFileInternal(ctx context.Context, fileID string) (*types.DownloadResp, error) {
 	shardMap, err := s.shardMap.GetShardMap(ctx, fileID)
 	if err != nil {
-		return nil, fmt.Errorf("file not found: %w", err)
+		return nil, fmt.Errorf("failed to retrieve shard map: %w", err)
 	}
 
 	healthyShards := countHealthyShards(shardMap.Shards)

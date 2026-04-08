@@ -108,7 +108,7 @@ func (h *ShardingHandler) Shard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.K <= 0 || req.N <= 0 || req.K > req.N {
-		httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid erasure coding parameters: K must be > 0 and K <= N"})
+		httpx.WriteErrorWithCode(w, http.StatusBadRequest, "invalid erasure coding parameters: K must be > 0 and K <= N", "INVALID_ERASURE_PARAMS", nil)
 		return
 	}
 
@@ -119,7 +119,7 @@ func (h *ShardingHandler) Shard(w http.ResponseWriter, r *http.Request) {
 
 	shards, err := h.service.EncodeChunk(req.FileData, req.K, req.N)
 	if err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, "failed to shard data", err)
+		httpx.WriteErrorWithCode(w, http.StatusInternalServerError, "failed to shard data", "SHARD_ENCODE_FAILED", err)
 		return
 	}
 
@@ -169,7 +169,7 @@ func (h *ShardingHandler) Reconstruct(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.K <= 0 || req.N <= 0 || req.K > req.N {
-		httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid erasure coding parameters: K must be > 0 and K <= N"})
+		httpx.WriteErrorWithCode(w, http.StatusBadRequest, "invalid erasure coding parameters: K must be > 0 and K <= N", "INVALID_ERASURE_PARAMS", nil)
 		return
 	}
 
@@ -213,7 +213,7 @@ func (h *ShardingHandler) Reconstruct(w http.ResponseWriter, r *http.Request) {
 
 	reconstructed, err := h.service.DecodeChunk(shards, req.K, req.N)
 	if err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, "failed to reconstruct data", err)
+		httpx.WriteErrorWithCode(w, http.StatusInternalServerError, "failed to reconstruct data", "SHARD_DECODE_FAILED", err)
 		return
 	}
 

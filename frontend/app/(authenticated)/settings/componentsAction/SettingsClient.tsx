@@ -20,6 +20,7 @@ import {
 	saveSettings,
 } from "@/lib/api/settings";
 import { toast } from "sonner";
+import { helpToast } from "@/lib/help/help-toast";
 
 const RESET_ACTIONS: Record<ResetScope, { title: string; description: string; confirmLabel: string }> = {
 	files: {
@@ -63,7 +64,7 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
 			toast.success("Preferences saved")
 			router.refresh()
 		} catch {
-			toast.error("Failed to save")
+			helpToast({ error: "Failed to save settings", code: "UNKNOWN_ERROR" })
 		} finally {
 			setSaving(false)
 		}
@@ -91,7 +92,7 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
 
 			setPendingResetScope(null)
 		} catch {
-			toast.error("Failed to delete stored data")
+			helpToast({ error: "Failed to delete stored data", code: "UNKNOWN_ERROR" })
 		} finally {
 			setResetting(false)
 		}

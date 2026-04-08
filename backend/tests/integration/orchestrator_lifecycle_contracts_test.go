@@ -314,8 +314,8 @@ func TestOrchestratorDownloadLogsFailureEvent(t *testing.T) {
 	if downloadLogEvent.Status != "failed" {
 		t.Errorf("expected status 'failed', got %q", downloadLogEvent.Status)
 	}
-	if !strings.Contains(downloadLogEvent.ErrorMsg, "file not found") {
-		t.Errorf("expected error_msg to contain 'file not found', got %q", downloadLogEvent.ErrorMsg)
+	if !strings.Contains(downloadLogEvent.ErrorMsg, "failed to retrieve shard map") {
+		t.Errorf("expected error_msg to contain 'failed to retrieve shard map', got %q", downloadLogEvent.ErrorMsg)
 	}
 	t.Logf("✓ Download failure lifecycle event logged: status=%s error=%q", downloadLogEvent.Status, downloadLogEvent.ErrorMsg)
 }
