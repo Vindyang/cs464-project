@@ -1,5 +1,3 @@
-export const dynamic = 'force-dynamic'
-
 import { registry } from "@/lib/help/error-registry"
 
 export const metadata = {
@@ -12,7 +10,7 @@ export default function HelpPage() {
   const entries = Object.values(registry)
 
   return (
-    <div className="max-w-3xl space-y-10">
+    <div className="space-y-10">
       {/* Header */}
       <div className="border-b pb-4">
         <p className="mb-0.5 font-mono text-[11px] uppercase tracking-[0.15em] text-neutral-400">
@@ -30,17 +28,20 @@ export default function HelpPage() {
         aria-label="Error code index"
         className="border border-neutral-200 bg-neutral-50 px-5 py-4 dark:border-neutral-800 dark:bg-neutral-900/60"
       >
-        <p className="mb-3 font-mono text-[11px] uppercase tracking-[0.1em] text-neutral-500">
+        <p className="mb-4 font-mono text-[11px] uppercase tracking-[0.1em] text-neutral-500">
           Error Codes
         </p>
-        <ul className="flex flex-wrap gap-2">
+        <ul className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {entries.map((e) => (
             <li key={e.code}>
               <a
                 href={`#${e.docsAnchor}`}
-                className="font-mono text-[11px] uppercase tracking-wider text-sky-700 underline underline-offset-2 hover:text-sky-900 dark:text-sky-400 dark:hover:text-sky-200"
+                className="group flex items-center gap-2 transition-colors"
               >
-                {e.code}
+                <div className="h-1 w-1 bg-neutral-300 transition-colors group-hover:bg-sky-500 dark:bg-neutral-700 dark:group-hover:bg-sky-400" />
+                <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-neutral-600 group-hover:text-neutral-950 dark:text-neutral-400 dark:group-hover:text-neutral-100">
+                  {e.code}
+                </span>
               </a>
             </li>
           ))}

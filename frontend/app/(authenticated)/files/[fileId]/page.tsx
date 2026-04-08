@@ -66,20 +66,34 @@ export default async function FileDetailPage({
 
 			{(missingShards > 0 || corruptedShards > 0) && (
 				<section className={`border px-4 py-3 text-sm ${file.status === "CORRUPTED" ? "border-red-200 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200" : "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"}`}>
-					<p className={`font-mono text-[11px] uppercase tracking-[0.1em] ${file.status === "CORRUPTED" ? "text-red-700 dark:text-red-300" : "text-amber-700 dark:text-amber-300"}`}>
-						{file.status === "CORRUPTED" ? "File Unrecoverable" : "File Health Warning"}
-					</p>
-					<p className="mt-1">
-						{file.status === "CORRUPTED"
-							? `This file cannot be recovered. ${missingShards + corruptedShards} shard${missingShards + corruptedShards === 1 ? " has" : "s have"} been lost, dropping below the recovery threshold of ${file.k} healthy shards.`
-							: <>
-								{missingShards > 0 ? `${missingShards} shard${missingShards === 1 ? " is" : "s are"} missing.` : ""}
-								{missingShards > 0 && corruptedShards > 0 ? " " : ""}
-								{corruptedShards > 0 ? `${corruptedShards} shard${corruptedShards === 1 ? " is" : "s are"} corrupted.` : ""}
-								{" "}Recovery health is currently {healthPercent}%.
-							</>
-						}
-					</p>
+					<div className="flex flex-wrap items-start justify-between gap-3">
+						<div>
+							<p className={`font-mono text-[11px] uppercase tracking-[0.1em] ${file.status === "CORRUPTED" ? "text-red-700 dark:text-red-300" : "text-amber-700 dark:text-amber-300"}`}>
+								{file.status === "CORRUPTED" ? "File Unrecoverable" : "File Health Warning"}
+							</p>
+							<p className="mt-1">
+								{file.status === "CORRUPTED"
+									? `This file cannot be recovered. ${missingShards + corruptedShards} shard${missingShards + corruptedShards === 1 ? " has" : "s have"} been lost, dropping below the recovery threshold of ${file.k} healthy shards.`
+									: <>
+										{missingShards > 0 ? `${missingShards} shard${missingShards === 1 ? " is" : "s are"} missing.` : ""}
+										{missingShards > 0 && corruptedShards > 0 ? " " : ""}
+										{corruptedShards > 0 ? `${corruptedShards} shard${corruptedShards === 1 ? " is" : "s are"} corrupted.` : ""}
+										{" "}Recovery health is currently {healthPercent}%.
+									</>
+								}
+							</p>
+						</div>
+						<Link
+							href={file.status === "CORRUPTED" ? "/help#shard-not-recoverable" : "/help#shard-decode-failed"}
+							className={`shrink-0 self-center border px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider transition-colors ${
+								file.status === "CORRUPTED"
+									? "border-red-300 text-red-700 hover:bg-red-700 hover:text-white dark:border-red-700 dark:text-red-300 dark:hover:bg-red-800 dark:hover:text-red-100"
+									: "border-amber-300 text-amber-700 hover:bg-amber-700 hover:text-white dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-800 dark:hover:text-amber-100"
+							}`}
+						>
+							View Help →
+						</Link>
+					</div>
 				</section>
 			)}
 
