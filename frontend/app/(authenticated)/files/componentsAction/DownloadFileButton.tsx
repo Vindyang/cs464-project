@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Download, Loader2 } from "lucide-react";
-import { toast } from "sonner";
 import { helpToast } from "@/lib/help/help-toast";
 
 import type { FileHealthStatus } from "@/lib/api/files";

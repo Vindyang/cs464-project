@@ -187,8 +187,8 @@ export function ProvidersUploadFilesModal({
         await refreshUploadHistory();
         onUploadSuccess?.(file.name);
         toast.success(`Uploaded ${file.name}`);
-      } catch (err: any) {
-        if (err.name === "AbortError") {
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === "AbortError") {
           toast.info("Upload sequence cancelled");
           break;
         } else {
@@ -319,7 +319,7 @@ export function ProvidersUploadFilesModal({
                     <p className="mt-1 font-mono text-[12px] font-medium text-neutral-500 dark:text-neutral-400">
                       Multiple files supported
                     </p>
-                    {selectedFile && selectedFile.size > MAX_UPLOAD_BYTES ? (
+                    {selectedFiles.some(f => f.size > MAX_UPLOAD_BYTES) ? (
                       <p className="mt-1 font-mono text-[11px] text-red-600">
                         File exceeds upload limit of {UPLOAD_LIMIT_LABEL}.
                       </p>

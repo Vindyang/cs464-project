@@ -54,8 +54,8 @@ export function FileUploadModal({
         setFiles([]);
         setEncrypt(true);
         onOpenChange(false);
-      } catch (err: any) {
-        if (err.name !== "AbortError") {
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name !== "AbortError") {
           // Parent handles user-facing errors; keep modal open for retry.
         }
       } finally {

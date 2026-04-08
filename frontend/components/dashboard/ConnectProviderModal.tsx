@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { getGDriveAuthorizeURL } from "@/lib/api/providers";
-import { toast } from "sonner";
 import { helpToast } from "@/lib/help/help-toast";
 
 interface ConnectProviderModalProps {

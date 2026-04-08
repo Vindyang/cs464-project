@@ -215,12 +215,20 @@ func TestOrchestratorUploadRollsBackSuccessfulShardsOnPartialUploadFailure(t *te
 	orchestratorURL, shutdown := helpers.StartOrchestrator(t, adapterServer.URL, shardMapServer.URL, shardingServer.URL)
 	defer shutdown()
 
-	resp := helpers.UploadFile(t, orchestratorURL, []byte("rollback-check"))
-	if resp.Status != "failed" {
-		t.Fatalf("expected failed upload status, got: %+v", resp)
+	httpResp, body := helpers.UploadFileRaw(t, orchestratorURL, []byte("rollback-check"))
+	defer httpResp.Body.Close()
+
+	if httpResp.StatusCode != http.StatusInternalServerError {
+		t.Fatalf("expected status %d, got %d body=%s", http.StatusInternalServerError, httpResp.StatusCode, string(body))
 	}
-	if !strings.Contains(resp.Error, "only 5/6 shards succeeded") {
-		t.Fatalf("expected partial-upload failure message, got: %q", resp.Error)
+
+	payload := map[string]string{}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		t.Fatalf("failed to parse error response: %v body=%s", err, string(body))
+	}
+
+	if !strings.Contains(payload["error"], "only 5/6 shards succeeded") {
+		t.Fatalf("expected partial-upload failure message, got: %q", payload["error"])
 	}
 
 	adapterState.Lock()
@@ -335,12 +343,20 @@ func TestOrchestratorUploadRollsBackWhenShardRecordFails(t *testing.T) {
 	orchestratorURL, shutdown := helpers.StartOrchestrator(t, adapterServer.URL, shardMapServer.URL, shardingServer.URL)
 	defer shutdown()
 
-	resp := helpers.UploadFile(t, orchestratorURL, []byte("record-failure-rollback"))
-	if resp.Status != "failed" {
-		t.Fatalf("expected failed upload status, got: %+v", resp)
+	httpResp, body := helpers.UploadFileRaw(t, orchestratorURL, []byte("record-failure-rollback"))
+	defer httpResp.Body.Close()
+
+	if httpResp.StatusCode != http.StatusInternalServerError {
+		t.Fatalf("expected status %d, got %d body=%s", http.StatusInternalServerError, httpResp.StatusCode, string(body))
 	}
-	if !strings.Contains(resp.Error, "failed to record shards") {
-		t.Fatalf("expected record failure in error message, got: %q", resp.Error)
+
+	payload := map[string]string{}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		t.Fatalf("failed to parse error response: %v body=%s", err, string(body))
+	}
+
+	if !strings.Contains(payload["error"], "failed to record shards") {
+		t.Fatalf("expected record failure in error message, got: %q", payload["error"])
 	}
 
 	adapterState.Lock()

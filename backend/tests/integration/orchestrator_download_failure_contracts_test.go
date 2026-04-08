@@ -50,7 +50,7 @@ func TestOrchestratorDownloadFailsWhenShardMapLookupErrors(t *testing.T) {
 	if payload["error"] != "Failed to download file" {
 		t.Fatalf("unexpected error message: %q", payload["error"])
 	}
-	if !strings.Contains(payload["details"], "file not found") {
+	if !strings.Contains(payload["details"], "failed to retrieve shard map") {
 		t.Fatalf("expected details to contain shard map lookup failure, got: %q", payload["details"])
 	}
 }
