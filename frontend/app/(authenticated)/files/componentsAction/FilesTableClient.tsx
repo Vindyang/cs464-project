@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Eye, Loader2, Trash2 } from "lucide-react";
+import { Eye, Loader2, Trash2, Upload, FileUp } from "lucide-react";
 import { deleteFile, FileMetadata } from "@/lib/api/files";
 import { cn, formatBytes, formatUtcDate, formatUtcDateTime } from "@/lib/utils";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ import { helpToast } from "@/lib/help/help-toast";
 
 import { DownloadFileButton } from "./DownloadFileButton";
 import { StatusBadgeWithTooltip } from "@/components/files/StatusBadgeWithTooltip";
+import { ProvidersUploadFilesModal } from "@/components/dashboard/ProvidersUploadFilesModal";
 
 interface FilesTableClientProps {
   initialFiles: FileMetadata[];
@@ -30,6 +31,7 @@ export function FilesTableClient({ initialFiles }: FilesTableClientProps) {
   const router = useRouter();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [fileToDelete, setFileToDelete] = useState<FileMetadata | null>(null);
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
 
   async function confirmDelete() {
     if (!fileToDelete) return;
@@ -58,8 +60,22 @@ export function FilesTableClient({ initialFiles }: FilesTableClientProps) {
         </div>
 
         {initialFiles.length === 0 ? (
-          <div className="px-5 py-10 text-center font-mono text-sm text-neutral-400">
-            No files uploaded yet.
+          <div className="flex flex-col items-center justify-center p-12 text-center border-b border-neutral-200 dark:border-neutral-800">
+            <div className="mb-4 flex h-14 w-14 items-center justify-center border border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900/60">
+              <FileUp className="h-6 w-6 text-neutral-400" />
+            </div>
+            <h3 className="mb-1.5 text-base font-semibold text-neutral-900 dark:text-neutral-100">No files uploaded yet</h3>
+            <p className="mb-6 font-mono text-[13px] text-neutral-500 max-w-sm">
+              Upload files to securely shard and encrypt them across your connected providers.
+            </p>
+            <button
+              type="button"
+              onClick={() => setUploadModalOpen(true)}
+              className="flex items-center gap-2 border border-sky-600 bg-sky-600 px-4 py-2 font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-white transition-colors hover:bg-sky-700"
+            >
+              <Upload className="h-3.5 w-3.5" />
+              <span>Upload File</span>
+            </button>
           </div>
         ) : (
           <div className="divide-y">
@@ -173,6 +189,12 @@ export function FilesTableClient({ initialFiles }: FilesTableClientProps) {
           </div>
         </div>
       )}
+
+      <ProvidersUploadFilesModal
+        open={uploadModalOpen}
+        onOpenChange={setUploadModalOpen}
+        onUploadSuccess={() => router.refresh()}
+      />
     </>
   );
 }

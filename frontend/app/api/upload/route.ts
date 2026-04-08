@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 
 const GATEWAY_URL = process.env.GATEWAY_URL || "http://localhost:8084";
 
@@ -25,6 +26,10 @@ export async function POST(request: Request) {
     });
 
     const data = await upstreamRes.json().catch(() => ({}));
+    if (upstreamRes.ok) {
+      revalidatePath("/files");
+      revalidatePath("/dashboard");
+    }
     return NextResponse.json(data, { status: upstreamRes.status });
   } catch (error) {
     return NextResponse.json(
