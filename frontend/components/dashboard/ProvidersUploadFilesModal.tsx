@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { Upload, X } from "lucide-react";
+import { Upload, X, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { helpToast } from "@/lib/help/help-toast";
 import { cn } from "@/lib/utils";
@@ -59,9 +59,11 @@ export function ProvidersUploadFilesModal({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const uploadDialogTitleId = useId();
   const uploadDialogDescriptionId = useId();
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [currentFileIndex, setCurrentFileIndex] = useState<number>(0);
   const [dragActive, setDragActive] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedBytes, setUploadedBytes] = useState(0);
@@ -100,7 +102,14 @@ export function ProvidersUploadFilesModal({
   }, []);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+      setIsUploading(false);
+      setUploadedBytes(0);
+      setSelectedFiles([]);
+      setCurrentFileIndex(0);
+      return;
+    }
     closeButtonRef.current?.focus();
     refreshUploadHistory();
     loadUploadDefaults();
@@ -111,11 +120,11 @@ export function ProvidersUploadFilesModal({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open, onOpenChange]);
 
-  const activeTransfer = selectedFile
+  const activeTransfer = selectedFiles[currentFileIndex]
     ? {
-        filename: selectedFile.name,
-        total: selectedFile.size,
-        uploaded: Math.min(uploadedBytes, selectedFile.size),
+        filename: selectedFiles[currentFileIndex].name,
+        total: selectedFiles[currentFileIndex].size,
+        uploaded: Math.min(uploadedBytes, selectedFiles[currentFileIndex].size),
       }
     : null;
 
@@ -126,10 +135,10 @@ export function ProvidersUploadFilesModal({
   const pickFile = () => fileInputRef.current?.click();
 
   const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      setUploadedBytes(0);
+    if (e.target.files && e.target.files.length > 0) {
+      const newFiles = Array.from(e.target.files);
+      setSelectedFiles((prev) => [...prev, ...newFiles]);
+      e.target.value = "";
     }
   };
 
@@ -137,44 +146,64 @@ export function ProvidersUploadFilesModal({
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      setUploadedBytes(0);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const newFiles = Array.from(e.dataTransfer.files);
+      setSelectedFiles((prev) => [...prev, ...newFiles]);
     }
   };
 
-  const startUpload = async () => {
-    if (!selectedFile || isUploading) return;
+  const removeFile = (index: number) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+  };
 
-    const { k, n } = parseRedundancyPreset(selectedRedundancy)
+  const startUpload = async () => {
+    if (selectedFiles.length === 0 || isUploading) return;
+
+    const { k, n } = parseRedundancyPreset(selectedRedundancy);
 
     setIsUploading(true);
-    setUploadedBytes(0);
 
-    progressTimer.current = setInterval(() => {
-      setUploadedBytes((prev) => {
-        const cap = Math.floor(selectedFile.size * 0.92);
-        const next = prev + Math.max(Math.floor(selectedFile.size / 20), 64 * 1024);
-        return Math.min(next, cap);
-      });
-    }, 220);
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
 
-    try {
-      await uploadFile(selectedFile, k, n);
-      setUploadedBytes(selectedFile.size);
-      await refreshUploadHistory();
-      onUploadSuccess?.(selectedFile.name);
-      toast.success(`Uploaded ${selectedFile.name}`);
-      setSelectedFile(null);
-      setTimeout(() => onOpenChange(false), 300);
-    } catch (err) {
-      helpToast(err);
-    } finally {
-      setIsUploading(false);
-      if (progressTimer.current) clearInterval(progressTimer.current);
-      progressTimer.current = null;
+    for (let i = 0; i < selectedFiles.length; i++) {
+      if (abortController.signal.aborted) break;
+      setCurrentFileIndex(i);
+      setUploadedBytes(0);
+      const file = selectedFiles[i];
+
+      progressTimer.current = setInterval(() => {
+        setUploadedBytes((prev) => {
+          const cap = Math.floor(file.size * 0.92);
+          const next = prev + Math.max(Math.floor(file.size / 20), 64 * 1024);
+          return Math.min(next, cap);
+        });
+      }, 220);
+
+      try {
+        await uploadFile(file, k, n, abortController.signal);
+        setUploadedBytes(file.size);
+        await refreshUploadHistory();
+        onUploadSuccess?.(file.name);
+        toast.success(`Uploaded ${file.name}`);
+      } catch (err: any) {
+        if (err.name === "AbortError") {
+          toast.info("Upload sequence cancelled");
+          break;
+        } else {
+          helpToast(err);
+        }
+      } finally {
+        if (progressTimer.current) clearInterval(progressTimer.current);
+        progressTimer.current = null;
+      }
     }
+
+    setIsUploading(false);
+    abortControllerRef.current = null;
+    setSelectedFiles([]);
+    setCurrentFileIndex(0);
+    setTimeout(() => onOpenChange(false), 300);
   };
 
   if (!open) return null;
@@ -219,17 +248,23 @@ export function ProvidersUploadFilesModal({
                   <label className="block font-mono text-[11px] uppercase tracking-[0.1em] text-neutral-500 dark:text-neutral-400">
                     Reed-Solomon Preset
                   </label>
-                  <select
-                    value={selectedRedundancy}
-                    onChange={(event) => setSelectedRedundancy(event.target.value as RedundancyPreset)}
-                    className="w-full border border-neutral-200 bg-white px-3 py-2 font-mono text-sm text-neutral-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100"
-                  >
-                    {REDUNDANCY_PRESETS.map((preset) => (
-                      <option key={preset.val} value={preset.val}>
-                        {preset.label} · {preset.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative w-full">
+                    <select
+                      value={selectedRedundancy}
+                      onChange={(event) => setSelectedRedundancy(event.target.value as RedundancyPreset)}
+                      style={{ appearance: "none", WebkitAppearance: "none", backgroundImage: "none" }}
+                      className="w-full border border-neutral-200 bg-white pl-3 pr-10 py-2 font-mono text-sm text-neutral-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100"
+                    >
+                      {REDUNDANCY_PRESETS.map((preset) => (
+                        <option key={preset.val} value={preset.val}>
+                          {preset.label} · {preset.name}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                      <ChevronDown className="h-4 w-4 text-neutral-500 dark:text-neutral-400" />
+                    </div>
+                  </div>
                   <div className="font-mono text-[11px] text-neutral-500 dark:text-neutral-400">
                     {loadingSettings ? "Loading defaults..." : `Default from settings: ${defaultRedundancy}`}
                   </div>
@@ -242,7 +277,7 @@ export function ProvidersUploadFilesModal({
                 </div>
               </div>
 
-              <input ref={fileInputRef} type="file" className="hidden" onChange={onInputChange} />
+              <input ref={fileInputRef} type="file" multiple className="hidden" onChange={onInputChange} />
               <div
                 role="button"
                 tabIndex={0}
@@ -263,26 +298,51 @@ export function ProvidersUploadFilesModal({
                   setDragActive(false);
                 }}
                 className={cn(
-                  "mt-4 grid min-h-[180px] place-items-center border border-dashed px-4 py-8 text-center transition-colors sm:min-h-[220px]",
+                  "mt-4 grid min-h-[140px] place-items-center border border-dashed px-4 py-6 text-center transition-colors sm:min-h-[160px]",
                   dragActive
                     ? "border-sky-500 bg-sky-50 dark:bg-sky-950/20"
                     : "border-neutral-300 dark:border-neutral-700",
                 )}
               >
-                <div className="space-y-3">
+                <div className="space-y-3 pointer-events-none">
                   <div className="mx-auto grid h-10 w-10 place-items-center border border-neutral-300 text-neutral-500 dark:border-neutral-700 dark:text-neutral-400">
                     <Upload className="h-5 w-5" />
                   </div>
                   <div>
                     <p className="max-w-full truncate font-mono text-sm text-neutral-700 dark:text-neutral-200">
-                      {selectedFile ? selectedFile.name : "Click or drag a file to upload"}
+                      Click or drag files to upload
                     </p>
                     <p className="mt-1 font-mono text-[12px] font-medium text-neutral-500 dark:text-neutral-400">
-                      {selectedFile ? formatBytes(selectedFile.size) : "Responsive modal, tuned for smaller laptop screens"}
+                      Multiple files supported
                     </p>
                   </div>
                 </div>
               </div>
+
+              {selectedFiles.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-neutral-500 dark:text-neutral-400">
+                    Selected Files ({selectedFiles.length})
+                  </p>
+                  <div className="max-h-[140px] overflow-y-auto space-y-1.5 pr-1">
+                    {selectedFiles.map((f, i) => (
+                      <div key={i} className="flex items-center justify-between border border-neutral-200 bg-neutral-50 p-2 dark:border-neutral-800 dark:bg-neutral-900/50">
+                        <div className="min-w-0 pr-4">
+                           <p className="truncate font-mono text-sm dark:text-neutral-200">{f.name}</p>
+                           <p className="font-mono text-[10px] text-neutral-500">{formatBytes(f.size)}</p>
+                        </div>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); removeFile(i); }}
+                          disabled={isUploading}
+                          className="shrink-0 text-neutral-400 hover:text-red-500 disabled:opacity-50"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="border border-neutral-200 p-4 dark:border-neutral-800 dark:bg-neutral-950 sm:p-5">
@@ -363,18 +423,29 @@ export function ProvidersUploadFilesModal({
               </p>
             )}
 
-            <button
-              onClick={startUpload}
-              disabled={!selectedFile || isUploading}
-              className={cn(
-                "mt-auto w-full border px-4 py-2.5 font-mono text-[12px] transition-colors",
-                !selectedFile || isUploading
-                  ? "cursor-not-allowed border-neutral-200 text-neutral-300 dark:border-neutral-800 dark:text-neutral-600"
-                  : "bg-blue-600 text-white hover:bg-blue-700 border-blue-600"
-              )}
-            >
-              {isUploading ? "Uploading..." : "Start All Uploads"}
-            </button>
+            {isUploading ? (
+              <button
+                onClick={() => {
+                  if (abortControllerRef.current) abortControllerRef.current.abort();
+                }}
+                className="mt-auto w-full border px-4 py-2.5 font-mono text-[12px] transition-colors border-red-600 bg-red-600 text-white hover:bg-red-700 dark:border-red-600 dark:bg-red-600 dark:text-white dark:hover:bg-red-700"
+              >
+                Cancel Upload
+              </button>
+            ) : (
+              <button
+                onClick={startUpload}
+                disabled={selectedFiles.length === 0}
+                className={cn(
+                  "mt-auto w-full border px-4 py-2.5 font-mono text-[12px] transition-colors",
+                  selectedFiles.length === 0
+                    ? "cursor-not-allowed border-neutral-200 text-neutral-300 dark:border-neutral-800 dark:text-neutral-600"
+                    : "bg-blue-600 text-white hover:bg-blue-700 border-blue-600"
+                )}
+              >
+                Start All Uploads
+              </button>
+            )}
           </div>
         </div>
       </div>

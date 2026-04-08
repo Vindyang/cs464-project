@@ -132,7 +132,7 @@ export async function deleteFile(fileId: string, deleteShards = false): Promise<
   if (!res.ok) throw new Error("Failed to delete file");
 }
 
-export async function uploadFile(file: File, k = 4, n = 6): Promise<UploadFileResult> {
+export async function uploadFile(file: File, k = 4, n = 6, signal?: AbortSignal): Promise<UploadFileResult> {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("k", String(k));
@@ -141,6 +141,7 @@ export async function uploadFile(file: File, k = 4, n = 6): Promise<UploadFileRe
   const res = await fetch("/api/upload", {
     method: "POST",
     body: formData,
+    signal,
   });
 
   const data = await res.json().catch(() => null);
