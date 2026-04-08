@@ -7,6 +7,7 @@ import { helpToast } from "@/lib/help/help-toast";
 import { cn } from "@/lib/utils";
 import { FileMetadata, getFiles, uploadFile } from "@/lib/api/files";
 import { getSettings, parseRedundancyPreset, REDUNDANCY_PRESETS, RedundancyPreset } from "@/lib/api/settings";
+import { MAX_UPLOAD_BYTES, UPLOAD_LIMIT_LABEL } from "@/lib/upload-limit";
 
 interface UploadHistoryItem {
   id: string;
@@ -243,6 +244,9 @@ export function ProvidersUploadFilesModal({
                   <p id={uploadDialogDescriptionId} className="font-mono text-[12px] font-medium leading-relaxed text-neutral-600 dark:text-neutral-300">
                     Files are sharded before upload. The Reed-Solomon preset defaults from Settings, but you can override it for this upload.
                   </p>
+                  <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.08em] text-neutral-500 dark:text-neutral-400">
+                    Maximum upload size: {UPLOAD_LIMIT_LABEL} per file.
+                  </p>
                 </div>
                 <div className="min-w-[220px] max-w-full space-y-2">
                   <label className="block font-mono text-[11px] uppercase tracking-[0.1em] text-neutral-500 dark:text-neutral-400">
@@ -315,6 +319,11 @@ export function ProvidersUploadFilesModal({
                     <p className="mt-1 font-mono text-[12px] font-medium text-neutral-500 dark:text-neutral-400">
                       Multiple files supported
                     </p>
+                    {selectedFile && selectedFile.size > MAX_UPLOAD_BYTES ? (
+                      <p className="mt-1 font-mono text-[11px] text-red-600">
+                        File exceeds upload limit of {UPLOAD_LIMIT_LABEL}.
+                      </p>
+                    ) : null}
                   </div>
                 </div>
               </div>

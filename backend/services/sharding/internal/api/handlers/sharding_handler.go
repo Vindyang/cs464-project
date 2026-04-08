@@ -97,7 +97,7 @@ func (h *ShardingHandler) Shard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req shardRequest
-	if err := httpx.DecodeJSON(r, &req, 20<<20); err != nil {
+	if err := httpx.DecodeJSON(r, &req, 0); err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, "Invalid request body", err)
 		return
 	}
@@ -158,7 +158,7 @@ func (h *ShardingHandler) Reconstruct(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req reconstructRequest
-	if err := httpx.DecodeJSON(r, &req, 20<<20); err != nil {
+	if err := httpx.DecodeJSON(r, &req, 0); err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, "Invalid request body", err)
 		return
 	}

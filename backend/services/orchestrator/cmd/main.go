@@ -22,6 +22,11 @@ import (
 // CD testing again
 // CI testing
 
+const (
+	defaultMaxUploadMB      int64 = 30
+	uploadBodyOverheadBytes int64 = 2 << 20
+)
+
 func main() {
 	// Load service URLs from env
 	adapterURL := os.Getenv("ADAPTER_URL")
@@ -43,6 +48,8 @@ func main() {
 	if port == "" {
 		port = "8082"
 	}
+
+	maxUploadBytes := resolveMaxUploadBytes()
 
 	// Initialize clients and service
 	adapter := adapterclient.NewClient(adapterURL, nil)
@@ -146,9 +153,28 @@ func main() {
 			return
 		}
 
+		r.Body = http.MaxBytesReader(w, r.Body, maxUploadBytes+uploadBodyOverheadBytes)
+
 		fileName, fileData, k, n, err := parseUploadMultipart(r)
 		if err != nil {
+			if strings.Contains(strings.ToLower(err.Error()), "request body too large") {
+				httpx.WriteJSON(w, http.StatusRequestEntityTooLarge, map[string]any{
+					"error":         "Upload limit exceeded",
+					"details":       fmt.Sprintf("Maximum upload size is %d MB", maxUploadBytes/(1<<20)),
+					"max_upload_mb": maxUploadBytes / (1 << 20),
+				})
+				return
+			}
 			httpx.WriteError(w, http.StatusBadRequest, "Invalid upload payload", err)
+			return
+		}
+
+		if int64(len(fileData)) > maxUploadBytes {
+			httpx.WriteJSON(w, http.StatusRequestEntityTooLarge, map[string]any{
+				"error":         "Upload limit exceeded",
+				"details":       fmt.Sprintf("Maximum upload size is %d MB", maxUploadBytes/(1<<20)),
+				"max_upload_mb": maxUploadBytes / (1 << 20),
+			})
 			return
 		}
 
@@ -354,4 +380,19 @@ func parseUploadMultipart(r *http.Request) (fileName string, fileData []byte, k 
 	}
 
 	return fileName, fileData, parsedK, parsedN, nil
+}
+
+func resolveMaxUploadBytes() int64 {
+	raw := strings.TrimSpace(os.Getenv("ORCHESTRATOR_MAX_UPLOAD_MB"))
+	if raw == "" {
+		return defaultMaxUploadMB << 20
+	}
+
+	mb, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || mb <= 0 {
+		log.Printf("invalid ORCHESTRATOR_MAX_UPLOAD_MB=%q, using default %dMB", raw, defaultMaxUploadMB)
+		return defaultMaxUploadMB << 20
+	}
+
+	return mb << 20
 }
