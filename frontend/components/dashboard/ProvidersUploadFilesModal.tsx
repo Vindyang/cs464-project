@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Upload, X } from "lucide-react";
 import { toast } from "sonner";
+import { helpToast } from "@/lib/help/help-toast";
 import { cn } from "@/lib/utils";
 import { FileMetadata, getFiles, uploadFile } from "@/lib/api/files";
 import { getSettings, parseRedundancyPreset, REDUNDANCY_PRESETS, RedundancyPreset } from "@/lib/api/settings";
@@ -168,8 +169,7 @@ export function ProvidersUploadFilesModal({
       setSelectedFile(null);
       setTimeout(() => onOpenChange(false), 300);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to upload file";
-      toast.error(message);
+      helpToast(err);
     } finally {
       setIsUploading(false);
       if (progressTimer.current) clearInterval(progressTimer.current);

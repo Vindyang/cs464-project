@@ -154,10 +154,14 @@ func main() {
 
 		resp, err := service.UploadRawFile(r.Context(), fileName, fileData, k, n)
 		if err != nil {
-			httpx.WriteError(w, http.StatusInternalServerError, "Failed to upload file", err)
+			httpx.WriteErrorWithCode(w, http.StatusInternalServerError, "Failed to upload file", httpx.ClassifyUploadError(err.Error()), err)
 			return
 		}
 
+		if resp.Status == "failed" {
+			httpx.WriteErrorWithCode(w, http.StatusInternalServerError, resp.Error, httpx.ClassifyUploadError(resp.Error), nil)
+			return
+		}
 		httpx.WriteJSON(w, http.StatusCreated, resp)
 	})
 
@@ -182,7 +186,7 @@ func main() {
 
 		summary, err := service.RefreshAllFileHealth(r.Context())
 		if err != nil {
-			httpx.WriteError(w, http.StatusInternalServerError, "Failed to refresh file health", err)
+			httpx.WriteErrorWithCode(w, http.StatusInternalServerError, "Failed to refresh file health", "HEALTH_REFRESH_FAILED", err)
 			return
 		}
 
@@ -200,7 +204,7 @@ func main() {
 		if (path == "health/refresh" || path == "health/refresh/") && r.Method == http.MethodPost {
 			summary, err := service.RefreshAllFileHealth(r.Context())
 			if err != nil {
-				httpx.WriteError(w, http.StatusInternalServerError, "Failed to refresh file health", err)
+				httpx.WriteErrorWithCode(w, http.StatusInternalServerError, "Failed to refresh file health", "HEALTH_REFRESH_FAILED", err)
 				return
 			}
 			httpx.WriteJSON(w, http.StatusOK, summary)
@@ -234,7 +238,7 @@ func main() {
 		if r.Method == http.MethodPost && len(parts) == 3 && parts[1] == "health" && parts[2] == "refresh" {
 			summary, err := service.RefreshFileHealth(r.Context(), fileID)
 			if err != nil {
-				httpx.WriteError(w, http.StatusInternalServerError, "Failed to refresh file health", err)
+				httpx.WriteErrorWithCode(w, http.StatusInternalServerError, "Failed to refresh file health", "HEALTH_REFRESH_FAILED", err)
 				return
 			}
 			httpx.WriteJSON(w, http.StatusOK, summary)
@@ -257,11 +261,11 @@ func main() {
 			if err != nil {
 				var recoverabilityErr *app.RecoverabilityError
 				if errors.As(err, &recoverabilityErr) {
-					httpx.WriteError(w, http.StatusConflict, "File cannot be reconstructed", err)
-				} else if strings.Contains(err.Error(), "404") {
-					httpx.WriteError(w, http.StatusNotFound, "File not found", err)
+					httpx.WriteErrorWithCode(w, http.StatusConflict, "File cannot be reconstructed", "SHARD_NOT_RECOVERABLE", err)
+				} else if strings.Contains(err.Error(), "404") || strings.Contains(err.Error(), "not found") {
+					httpx.WriteErrorWithCode(w, http.StatusNotFound, "File not found", "FILE_NOT_FOUND", err)
 				} else {
-					httpx.WriteError(w, http.StatusInternalServerError, "Failed to download file", err)
+					httpx.WriteErrorWithCode(w, http.StatusInternalServerError, "Failed to download file", "UNKNOWN_ERROR", err)
 				}
 				return
 			}
@@ -293,6 +297,7 @@ func main() {
 		log.Fatalf("failed to start server: %v\n", err)
 	}
 }
+
 
 func parseUploadMultipart(r *http.Request) (fileName string, fileData []byte, k int, n int, err error) {
 	reader, err := r.MultipartReader()

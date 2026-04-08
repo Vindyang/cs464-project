@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Database,
   FolderOpen,
+  HelpCircle,
   History,
   KeyRound,
   LayoutDashboard,
@@ -35,6 +36,7 @@ const navItems = [
   { title: "Providers", href: "/providers", icon: Database },
   { title: "Credentials", href: "/credentials", icon: KeyRound },
   { title: "Settings", href: "/settings", icon: Settings },
+  { title: "Help", href: "/help", icon: HelpCircle },
 ];
 
 function formatBytes(bytes: number): string {

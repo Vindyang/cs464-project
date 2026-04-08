@@ -7,6 +7,7 @@ import { Eye, Loader2, Trash2 } from "lucide-react";
 import { deleteFile, FileMetadata } from "@/lib/api/files";
 import { cn, formatBytes, formatUtcDate, formatUtcDateTime } from "@/lib/utils";
 import { toast } from "sonner";
+import { helpToast } from "@/lib/help/help-toast";
 
 import { DownloadFileButton } from "./DownloadFileButton";
 import { StatusBadgeWithTooltip } from "@/components/files/StatusBadgeWithTooltip";
@@ -39,8 +40,7 @@ export function FilesTableClient({ initialFiles }: FilesTableClientProps) {
       setFileToDelete(null);
       router.refresh();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to delete file";
-      toast.error(message);
+      helpToast(error);
     } finally {
       setDeletingId(null);
     }

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { helpToast } from "@/lib/help/help-toast";
 
 import type { FileHealthStatus } from "@/lib/api/files";
 
@@ -60,7 +61,10 @@ export function DownloadFileButton({
     if (downloading) return;
 
     if (healthStatus && healthStatus.recoverable === false) {
-      toast.error(buildRecoverabilityMessage(fileName, healthStatus.healthy_shards, requiredShards));
+      helpToast({
+        error: buildRecoverabilityMessage(fileName, healthStatus.healthy_shards, requiredShards),
+        code: "SHARD_NOT_RECOVERABLE",
+      });
       return;
     }
 
@@ -73,15 +77,15 @@ export function DownloadFileButton({
 
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
-        throw new Error(payload?.details || payload?.error || `Failed to download ${fileName}`);
+        helpToast(payload);
+        return;
       }
 
       const blob = await response.blob();
       const resolvedName = extractFilename(response.headers.get("Content-Disposition"), fileName);
       triggerBrowserDownload(blob, resolvedName);
     } catch (error) {
-      const message = error instanceof Error ? error.message : `Failed to download ${fileName}`;
-      toast.error(message);
+      helpToast(error);
     } finally {
       setDownloading(false);
     }

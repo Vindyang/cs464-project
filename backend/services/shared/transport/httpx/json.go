@@ -20,3 +20,16 @@ func WriteError(w http.ResponseWriter, status int, message string, err error) {
 	}
 	WriteJSON(w, status, payload)
 }
+
+// WriteErrorWithCode writes a stable JSON error shape with an optional machine-readable code.
+// The code is omitted if empty.
+func WriteErrorWithCode(w http.ResponseWriter, status int, message string, code string, err error) {
+	payload := map[string]string{"error": message}
+	if code != "" {
+		payload["code"] = code
+	}
+	if err != nil {
+		payload["details"] = err.Error()
+	}
+	WriteJSON(w, status, payload)
+}

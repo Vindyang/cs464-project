@@ -6,6 +6,7 @@ import { type FileMetadata } from "@/lib/api/files";
 import { formatUtcDateTime } from "@/lib/utils";
 import { FilesTableClient } from "./FilesTableClient";
 import { toast } from "sonner";
+import { helpToast } from "@/lib/help/help-toast";
 
 interface FilesPageClientProps {
   initialFiles: FileMetadata[];
@@ -41,15 +42,15 @@ export function FilesPageClient({ initialFiles }: FilesPageClientProps) {
       const res = await fetch("/api/files/health/refresh", { method: "POST" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(data?.details || data?.message || data?.error || "Failed to refresh health");
+        helpToast(data);
+        return;
       }
       const filesScanned = data?.files_scanned ?? 0;
       const skipped = data?.skipped_errors ?? 0;
       toast.success(`All files refreshed (${filesScanned} files, ${skipped} skipped)`);
       router.refresh();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to refresh health";
-      toast.error(message);
+      helpToast(error);
     } finally {
       setRefreshingAll(false);
     }

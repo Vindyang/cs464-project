@@ -61,10 +61,7 @@ func (h *ShardMapHandler) handleFileRoutes(w http.ResponseWriter, r *http.Reques
 		}
 		refreshedAt := time.Now().UTC()
 		if err := h.service.UpdateFileHealthRefresh(fileID, refreshedAt); err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{
-				"error":   "Failed to update health refresh time",
-				"details": err.Error(),
-			})
+			writeError(w, http.StatusInternalServerError, "Failed to update health refresh time", "HEALTH_REFRESH_FAILED", err.Error())
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]string{
@@ -82,10 +79,7 @@ func (h *ShardMapHandler) handleFileRoutes(w http.ResponseWriter, r *http.Reques
 	if r.Method == http.MethodGet {
 		file, err := h.service.GetFileMetadata(fileID)
 		if err != nil {
-			writeJSON(w, http.StatusNotFound, map[string]string{
-				"error":   "File not found",
-				"details": err.Error(),
-			})
+			writeError(w, http.StatusNotFound, "File not found", "FILE_NOT_FOUND", err.Error())
 			return
 		}
 		writeJSON(w, http.StatusOK, file)
@@ -93,10 +87,7 @@ func (h *ShardMapHandler) handleFileRoutes(w http.ResponseWriter, r *http.Reques
 	}
 
 	if err := h.service.DeleteFile(fileID); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{
-			"error":   "Failed to delete file",
-			"details": err.Error(),
-		})
+		writeError(w, http.StatusInternalServerError, "Failed to delete file", "UNKNOWN_ERROR", err.Error())
 		return
 	}
 
@@ -167,10 +158,7 @@ func (h *ShardMapHandler) RegisterFile(w http.ResponseWriter, r *http.Request) {
 	// Call service
 	resp, err := h.service.RegisterFile(&req)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{
-			"error":   "Failed to register file",
-			"details": err.Error(),
-		})
+		writeError(w, http.StatusInternalServerError, "Failed to register file", "UPLOAD_PIPELINE_ERROR", err.Error())
 		return
 	}
 
@@ -258,10 +246,7 @@ func (h *ShardMapHandler) RecordShards(w http.ResponseWriter, r *http.Request) {
 	// Call service
 	resp, err := h.service.RecordShards(&req)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{
-			"error":   "Failed to record shards",
-			"details": err.Error(),
-		})
+		writeError(w, http.StatusInternalServerError, "Failed to record shards", "UPLOAD_PIPELINE_ERROR", err.Error())
 		return
 	}
 
@@ -291,10 +276,7 @@ func (h *ShardMapHandler) GetShardMap(w http.ResponseWriter, r *http.Request) {
 	// Call service
 	resp, err := h.service.GetShardMap(fileID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, map[string]string{
-			"error":   "File not found",
-			"details": err.Error(),
-		})
+		writeError(w, http.StatusNotFound, "File not found", "FILE_NOT_FOUND", err.Error())
 		return
 	}
 
@@ -319,10 +301,7 @@ func (h *ShardMapHandler) GetShardByID(w http.ResponseWriter, r *http.Request) {
 	// Call service
 	resp, err := h.service.GetShardByID(shardID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, map[string]string{
-			"error":   "Shard not found",
-			"details": err.Error(),
-		})
+		writeError(w, http.StatusNotFound, "Shard not found", "FILE_NOT_FOUND", err.Error())
 		return
 	}
 
@@ -372,10 +351,7 @@ func (h *ShardMapHandler) MarkShardStatus(w http.ResponseWriter, r *http.Request
 
 	// Call service
 	if err := h.service.MarkShardStatus(shardID, &req); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{
-			"error":   "Failed to update shard status",
-			"details": err.Error(),
-		})
+		writeError(w, http.StatusInternalServerError, "Failed to update shard status", "UNKNOWN_ERROR", err.Error())
 		return
 	}
 
@@ -395,10 +371,7 @@ func (h *ShardMapHandler) ListFiles(w http.ResponseWriter, r *http.Request) {
 
 	files, err := h.service.ListFiles()
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{
-			"error":   "Failed to list files",
-			"details": err.Error(),
-		})
+		writeError(w, http.StatusInternalServerError, "Failed to list files", "UNKNOWN_ERROR", err.Error())
 		return
 	}
 
@@ -410,4 +383,16 @@ func writeJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(data)
+}
+
+// writeError writes a stable JSON error shape with an optional machine-readable code.
+func writeError(w http.ResponseWriter, status int, message, code, details string) {
+	payload := map[string]string{"error": message}
+	if code != "" {
+		payload["code"] = code
+	}
+	if details != "" {
+		payload["details"] = details
+	}
+	writeJSON(w, status, payload)
 }

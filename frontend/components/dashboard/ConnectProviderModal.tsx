@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { getGDriveAuthorizeURL } from "@/lib/api/providers";
 import { toast } from "sonner";
+import { helpToast } from "@/lib/help/help-toast";
 
 interface ConnectProviderModalProps {
   open: boolean;
@@ -42,7 +43,7 @@ export function ConnectProviderModal({ open, onClose }: ConnectProviderModalProp
       const { authURL } = await getGDriveAuthorizeURL();
       window.location.assign(authURL);
     } catch {
-      toast.error("Failed to start Google Drive connection");
+      helpToast({ error: "Failed to start Google Drive connection", code: "PROVIDER_AUTH_EXPIRED" });
       setLoading(null);
     }
   };

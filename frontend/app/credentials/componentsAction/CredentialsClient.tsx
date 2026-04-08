@@ -23,6 +23,7 @@ import {
 } from "@/lib/api/credentials";
 import { formatUtcDateTime } from "@/lib/utils";
 import { toast } from "sonner";
+import { helpToast } from "@/lib/help/help-toast";
 
 const PROVIDERS = [
 	{ id: "googleDrive", label: "Google Drive" },
@@ -100,7 +101,7 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
 			toast.success(`${selectedName} credentials saved`)
 			router.refresh()
 		} catch {
-			toast.error("Failed to save credentials")
+			helpToast({ error: "Failed to save credentials", code: "UNKNOWN_ERROR" })
 		} finally {
 			setSaving(false)
 		}
@@ -122,7 +123,7 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
 			router.refresh()
 			setPendingDeleteId(null)
 		} catch {
-			toast.error("Failed to delete credentials")
+			helpToast({ error: "Failed to delete credentials", code: "UNKNOWN_ERROR" })
 		} finally {
 			setDeleting(false)
 		}
@@ -137,7 +138,7 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
 			}
 			router.push("/dashboard")
 		} catch {
-			toast.error("Unable to verify credentials status")
+			helpToast({ error: "Unable to verify credentials status", code: "UNKNOWN_ERROR" })
 		}
 	}
 
@@ -156,7 +157,7 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
 					[provider]: revealed,
 				}))
 			} catch {
-				toast.error("Failed to reveal credential secret")
+				helpToast({ error: "Failed to reveal credential secret", code: "UNKNOWN_ERROR" })
 				setRevealingId(null)
 				return
 			} finally {
