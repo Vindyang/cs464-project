@@ -1,6 +1,6 @@
 services:
   omnishard:
-    image: ${DOCKERHUB_NAMESPACE:?Set DOCKERHUB_NAMESPACE}/omnishard-all-in-one:${OMNISHARD_TAG:-latest}
+    image: ${IMAGE_NAMESPACE:?Set IMAGE_NAMESPACE}/omnishard-all-in-one:${OMNISHARD_TAG:-latest}
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_API_URL: "http://localhost:8080"
