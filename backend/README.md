@@ -205,12 +205,12 @@ Then run:
 docker compose up -d
 ```
 
-The official release assets are generated during the formal GitHub Release flow, hardcode Docker Hub namespace `nebula67`, and pin a semver image tag.
+The official release assets are generated during the formal GitHub Release flow, pin the GHCR namespace for this repository, and pin a semver image tag.
 
 If you are testing from the repository checkout instead, use the repo-local manifests and set:
 
 ```powershell
-$env:DOCKERHUB_NAMESPACE = "nebula67"
+$env:IMAGE_NAMESPACE = "ghcr.io/vindyang"
 $env:OMNISHARD_TAG = "<release-tag-or-commit-sha>"
 ```
 
@@ -302,7 +302,7 @@ Internal service endpoints:
 - Gateway intentionally does not add authentication yet.
 - OAuth endpoints remain owned by `adapter`.
 
-## Docker Hub CD for Individual Services
+## GHCR CD for Individual Services
 
 This backend is published through GitHub Actions in two distinct modes.
 
@@ -320,19 +320,18 @@ Manual image-only republish:
 
 Per-service repositories:
 
-- `nebula67/omnishard-adapter`
-- `nebula67/omnishard-shardmap`
-- `nebula67/omnishard-sharding`
-- `nebula67/omnishard-orchestrator`
-- `nebula67/omnishard-gateway`
+- `ghcr.io/vindyang/omnishard-adapter`
+- `ghcr.io/vindyang/omnishard-shardmap`
+- `ghcr.io/vindyang/omnishard-sharding`
+- `ghcr.io/vindyang/omnishard-orchestrator`
+- `ghcr.io/vindyang/omnishard-gateway`
 
 GitHub repository setup required:
 
-- Secret: `DOCKERHUB_USERNAME`
-- Secret: `DOCKERHUB_TOKEN`
+- No extra registry secret is required when publishing from GitHub Actions; workflows use the built-in `GITHUB_TOKEN` for GHCR.
 
 How it behaves:
 
-- `ci-main.yml` publishes changed images on push to `main` using `latest` plus full commit SHA tags.
+- `ci-main.yml` publishes changed images to GHCR on push to `main` using `latest` plus full commit SHA tags.
 - `microservices` runs CI only and does not publish images.
-- `release-github-oss.yml` takes an exact commit SHA plus a semver tag, pushes release-tagged images to `nebula67`, creates the GitHub Release, and uploads `docker-compose.full-microservices.yml` plus `docker-compose.single-image-microservices.yml` as official release assets.
+- `release-github-oss.yml` takes an exact commit SHA plus a semver tag, pushes release-tagged images to GHCR, creates the GitHub Release, and uploads `docker-compose.full-microservices.yml` plus `docker-compose.single-image-microservices.yml` as official release assets.

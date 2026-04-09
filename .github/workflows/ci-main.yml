@@ -18,6 +18,7 @@ on:
 
 permissions:
   contents: read
+  packages: write
   pull-requests: read
 
 jobs:
@@ -29,6 +30,7 @@ jobs:
       push_images: ${{ steps.policy.outputs.push_images }}
       image_tag: ${{ steps.policy.outputs.image_tag }}
       checkout_ref: ${{ steps.policy.outputs.checkout_ref }}
+      image_namespace: ${{ steps.policy.outputs.image_namespace }}
     steps:
       - name: Resolve branch policy
         id: policy
@@ -37,6 +39,7 @@ jobs:
           push_images=false
           image_tag="${{ github.sha }}"
           checkout_ref="${{ github.sha }}"
+          image_namespace="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}"
 
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             image_tag="${{ github.event.pull_request.head.sha }}"
@@ -52,6 +55,7 @@ jobs:
           echo "push_images=$push_images" >> "$GITHUB_OUTPUT"
           echo "image_tag=$image_tag" >> "$GITHUB_OUTPUT"
           echo "checkout_ref=$checkout_ref" >> "$GITHUB_OUTPUT"
+          echo "image_namespace=$image_namespace" >> "$GITHUB_OUTPUT"
 
   ci:
     name: CI
@@ -64,7 +68,7 @@ jobs:
     uses: ./.github/workflows/reusable-docker-build-push.yml
     secrets: inherit
     with:
-      image_name: ${{ vars.DOCKERHUB_NAMESPACE }}/omnishard-adapter
+      image_name: ${{ needs.pipeline-policy.outputs.image_namespace }}/omnishard-adapter
       context: ./backend
       dockerfile: ./backend/services/adapter/Dockerfile
       image_tag: ${{ needs.pipeline-policy.outputs.image_tag }}
@@ -78,7 +82,7 @@ jobs:
     uses: ./.github/workflows/reusable-docker-build-push.yml
     secrets: inherit
     with:
-      image_name: ${{ vars.DOCKERHUB_NAMESPACE }}/omnishard-orchestrator
+      image_name: ${{ needs.pipeline-policy.outputs.image_namespace }}/omnishard-orchestrator
       context: ./backend
       dockerfile: ./backend/services/orchestrator/Dockerfile
       image_tag: ${{ needs.pipeline-policy.outputs.image_tag }}
@@ -92,7 +96,7 @@ jobs:
     uses: ./.github/workflows/reusable-docker-build-push.yml
     secrets: inherit
     with:
-      image_name: ${{ vars.DOCKERHUB_NAMESPACE }}/omnishard-shardmap
+      image_name: ${{ needs.pipeline-policy.outputs.image_namespace }}/omnishard-shardmap
       context: ./backend
       dockerfile: ./backend/services/shardmap/Dockerfile
       image_tag: ${{ needs.pipeline-policy.outputs.image_tag }}
@@ -106,7 +110,7 @@ jobs:
     uses: ./.github/workflows/reusable-docker-build-push.yml
     secrets: inherit
     with:
-      image_name: ${{ vars.DOCKERHUB_NAMESPACE }}/omnishard-sharding
+      image_name: ${{ needs.pipeline-policy.outputs.image_namespace }}/omnishard-sharding
       context: ./backend
       dockerfile: ./backend/services/sharding/Dockerfile
       image_tag: ${{ needs.pipeline-policy.outputs.image_tag }}
@@ -120,7 +124,7 @@ jobs:
     uses: ./.github/workflows/reusable-docker-build-push.yml
     secrets: inherit
     with:
-      image_name: ${{ vars.DOCKERHUB_NAMESPACE }}/omnishard-gateway
+      image_name: ${{ needs.pipeline-policy.outputs.image_namespace }}/omnishard-gateway
       context: ./backend
       dockerfile: ./backend/services/gateway/Dockerfile
       image_tag: ${{ needs.pipeline-policy.outputs.image_tag }}
@@ -134,7 +138,7 @@ jobs:
     uses: ./.github/workflows/reusable-docker-build-push.yml
     secrets: inherit
     with:
-      image_name: ${{ vars.DOCKERHUB_NAMESPACE }}/omnishard-frontend
+      image_name: ${{ needs.pipeline-policy.outputs.image_namespace }}/omnishard-frontend
       context: ./frontend
       dockerfile: ./frontend/Dockerfile
       image_tag: ${{ needs.pipeline-policy.outputs.image_tag }}
@@ -150,7 +154,7 @@ jobs:
     uses: ./.github/workflows/reusable-docker-build-push.yml
     secrets: inherit
     with:
-      image_name: ${{ vars.DOCKERHUB_NAMESPACE }}/omnishard-all-in-one
+      image_name: ${{ needs.pipeline-policy.outputs.image_namespace }}/omnishard-all-in-one
       context: .
       dockerfile: ./deploy/images/all-in-one/Dockerfile
       image_tag: ${{ needs.pipeline-policy.outputs.image_tag }}

@@ -669,7 +669,7 @@ Use this when you want to test a release manifest without building from source.
 Prepare the image source:
 
 ```powershell
-$env:DOCKERHUB_NAMESPACE = "nebula67"
+$env:IMAGE_NAMESPACE = "ghcr.io/vindyang"
 $env:OMNISHARD_TAG = "<release-tag-or-commit-sha>"
 ```
 
@@ -738,7 +738,7 @@ Stop it:
 docker compose down
 ```
 
-Official release assets already pin the `nebula67` Docker Hub namespace and a semver image tag.
+Official release assets pin the GHCR namespace for this repository and a semver image tag.
 
 ### Release packaging assets
 
@@ -824,7 +824,7 @@ What it does:
 - runs integration contract tests
 - runs E2E backend tests
 - runs frontend lint and build
-- publishes changed images on pushes to `main`
+- publishes changed images to GHCR on pushes to `main`
 
 Branch behavior:
 
@@ -843,7 +843,7 @@ What it does:
 - accepts an exact `commit_sha`
 - accepts a semver `release_tag` such as `v1.2.3`
 - validates the tag and commit
-- builds and pushes release-tagged images for all services
+- builds and pushes release-tagged images for all services to GHCR
 - renders official release compose assets
 - creates a GitHub Release and uploads the generated compose files
 
@@ -860,24 +860,23 @@ What it does:
 
 ### Published image names
 
-- `nebula67/omnishard-adapter`
-- `nebula67/omnishard-shardmap`
-- `nebula67/omnishard-sharding`
-- `nebula67/omnishard-orchestrator`
-- `nebula67/omnishard-gateway`
-- `nebula67/omnishard-frontend`
-- `nebula67/omnishard-all-in-one`
+- `ghcr.io/vindyang/omnishard-adapter`
+- `ghcr.io/vindyang/omnishard-shardmap`
+- `ghcr.io/vindyang/omnishard-sharding`
+- `ghcr.io/vindyang/omnishard-orchestrator`
+- `ghcr.io/vindyang/omnishard-gateway`
+- `ghcr.io/vindyang/omnishard-frontend`
+- `ghcr.io/vindyang/omnishard-all-in-one`
 
-### Required GitHub secrets and variables
+### Required GitHub configuration
 
-Required repository secrets:
+Required for GitHub-hosted publishing workflows:
 
-- `DOCKERHUB_USERNAME`
-- `DOCKERHUB_TOKEN`
+- no extra registry secret is required; workflows publish to GHCR using the built-in `GITHUB_TOKEN`
 
-Required repository variable:
+Required for local repo-based release manifests:
 
-- `DOCKERHUB_NAMESPACE`
+- `IMAGE_NAMESPACE`, for example `ghcr.io/vindyang`
 
 ## Useful Commands
 

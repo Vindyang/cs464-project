@@ -14,15 +14,22 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
   validate-release:
     name: Validate release inputs
     runs-on: ubuntu-latest
+    outputs:
+      image_namespace: ${{ steps.namespace.outputs.image_namespace }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Resolve image namespace
+        id: namespace
+        run: echo "image_namespace=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
 
       - name: Validate semver tag and commit
         env:
@@ -51,32 +58,32 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image_name: nebula67/omnishard-adapter
+          - image_name: omnishard-adapter
             context: ./backend
             dockerfile: ./backend/services/adapter/Dockerfile
             build_args: ''
-          - image_name: nebula67/omnishard-shardmap
+          - image_name: omnishard-shardmap
             context: ./backend
             dockerfile: ./backend/services/shardmap/Dockerfile
             build_args: ''
-          - image_name: nebula67/omnishard-sharding
+          - image_name: omnishard-sharding
             context: ./backend
             dockerfile: ./backend/services/sharding/Dockerfile
             build_args: ''
-          - image_name: nebula67/omnishard-orchestrator
+          - image_name: omnishard-orchestrator
             context: ./backend
             dockerfile: ./backend/services/orchestrator/Dockerfile
             build_args: ''
-          - image_name: nebula67/omnishard-gateway
+          - image_name: omnishard-gateway
             context: ./backend
             dockerfile: ./backend/services/gateway/Dockerfile
             build_args: ''
-          - image_name: nebula67/omnishard-frontend
+          - image_name: omnishard-frontend
             context: ./frontend
             dockerfile: ./frontend/Dockerfile
             build_args: |
               NEXT_PUBLIC_API_URL=http://localhost:8080
-          - image_name: nebula67/omnishard-all-in-one
+          - image_name: omnishard-all-in-one
             context: .
             dockerfile: ./deploy/images/all-in-one/Dockerfile
             build_args: |
@@ -84,7 +91,7 @@ jobs:
     uses: ./.github/workflows/reusable-docker-build-push.yml
     secrets: inherit
     with:
-      image_name: ${{ matrix.image_name }}
+      image_name: ${{ needs.validate-release.outputs.image_namespace }}/${{ matrix.image_name }}
       context: ${{ matrix.context }}
       dockerfile: ${{ matrix.dockerfile }}
       image_tag: ${{ inputs.release_tag }}
@@ -106,7 +113,7 @@ jobs:
       - name: Render official release assets
         run: |
           chmod +x ./deploy/release-assets/scripts/render-release-assets.sh
-          ./deploy/release-assets/scripts/render-release-assets.sh "${{ inputs.release_tag }}" ./deploy/release-assets/dist
+          ./deploy/release-assets/scripts/render-release-assets.sh "${{ inputs.release_tag }}" ./deploy/release-assets/dist "${{ needs.validate-release.outputs.image_namespace }}"
 
       - uses: actions/upload-artifact@v4
         with:

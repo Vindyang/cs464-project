@@ -30,7 +30,7 @@ on:
         default: ''
         type: string
       push_image:
-        description: Whether to push the image to Docker Hub.
+        description: Whether to push the image to the container registry.
         required: false
         default: false
         type: boolean
@@ -47,6 +47,7 @@ on:
 
 permissions:
   contents: read
+  packages: write
 
 jobs:
   build:
@@ -74,8 +75,9 @@ jobs:
       - uses: docker/login-action@v3
         if: inputs.push_image
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: docker/build-push-action@v6
         with:
@@ -84,3 +86,6 @@ jobs:
           push: ${{ inputs.push_image }}
           build-args: ${{ inputs.build_args }}
           tags: ${{ steps.tags.outputs.tags }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ inputs.checkout_ref != '' && inputs.checkout_ref || github.sha }}
