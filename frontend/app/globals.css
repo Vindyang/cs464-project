@@ -173,6 +173,14 @@
     background-image:
       linear-gradient(to bottom right, color-mix(in srgb, var(--background) 92%, var(--status-info-bg) 8%), var(--background));
   }
+
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
 }
 
 @layer utilities {
