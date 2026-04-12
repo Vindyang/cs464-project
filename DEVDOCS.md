@@ -193,23 +193,66 @@ To log in to AWS Console as this IAM user:
 - Google Cloud Console: https://console.cloud.google.com/
 - OAuth Credentials page: https://console.cloud.google.com/apis/credentials
 
-#### Fields in UI
+#### Step 1: Create or Select a Project
 
+1. Open [Google Cloud Console](https://console.cloud.google.com/)
+2. Click the **Project selector** (top left)
+3. Click **New Project**
+4. Enter a project name (e.g., `omnishard-gdrive`)
+5. Click **Create**
+6. Wait for the project to be created, then select it
+
+#### Step 2: Enable Google Drive API
+
+1. Go to your project → Click **APIs & Services** (left sidebar)
+2. Click **Enabled APIs & services**
+3. Click **Enable APIs and Services** (top button)
+4. Search for **Google Drive API**
+5. Click on it and click **Enable**
+
+#### Step 3: Configure OAuth Consent Screen
+
+1. Go to **APIs & Services** → **OAuth consent screen** (left sidebar)
+2. Select **External** (or **Internal** if within an organization)
+3. Click **Create**
+4. Fill in the required fields:
+   - **App name:** `omnishard-gdrive`
+   - **User support email:** Your email
+   - **Developer contact information:** Your email
+5. Click **Save and Continue**
+6. Click **Save and Continue** → **Back to Dashboard**
+
+#### Step 4: Create OAuth Client ID
+
+1. Go to **APIs & Services** → **Credentials** (left sidebar)
+2. Click **Create Credentials** (top button)
+3. Select **OAuth Client ID**
+4. Choose **Web application**
+5. Enter a name (e.g., `omnishard-gdrive-client`)
+6. Under **Authorized redirect URIs**, click **Add URI**
+7. Enter the redirect URI:
+http://localhost:8080/api/oauth/gdrive/callback
+8. Click **Create**
+
+#### Step 5: Copy Your Credentials
+
+A popup will appear with your credentials. **⚠️ Copy both immediately:**
 - **Client ID**
 - **Client Secret**
-- **Redirect URI** (must match exactly):  
-  `http://localhost:8080/api/oauth/gdrive/callback`
 
-#### How to obtain
+#### Step 6: Fill in Your Credentials
 
-1. Create/select a project in Google Cloud.
-2. Enable **Google Drive API**.
-3. Configure **OAuth consent screen**.
-4. Create **OAuth Client ID** (Web application).
-5. Add redirect URI exactly:  
-   `http://localhost:8080/api/oauth/gdrive/callback`
-6. Copy Client ID + Client Secret into Omnishard Credentials UI.
-7. Connect provider from **Providers** page.
+Enter the values in the credentials page:
+- **Client ID:** Your Client ID from Step 5
+- **Client Secret:** Your Client Secret from Step 5
+- **Redirect URI:** `http://localhost:8080/api/oauth/gdrive/callback`
+
+#### Step 7: Connect Provider
+
+1. Navigate to the **Providers** page
+2. Find **Google Drive** and click **Connect**
+3. Authorize the application when prompted
+4. You're all set!
 
 ---
 
