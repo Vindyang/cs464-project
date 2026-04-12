@@ -27,6 +27,7 @@ const NAV_ITEMS = [
   { href: "/files", label: "Files" },
   { href: "/providers", label: "Providers" },
   { href: "/settings", label: "Settings" },
+  { href: "/quick-start", label: "Quick Start" },
 ];
 
 export function Sidebar({
@@ -59,7 +60,7 @@ export function Sidebar({
         {/* Upload Button */}
         <div className="mb-6 px-5">
           <Button
-            className="w-full font-mono text-[11px] tracking-wider"
+            className="w-full cursor-pointer font-mono text-[11px] tracking-wider"
             onClick={onUploadClick}
           >
             + UPLOAD FILE
@@ -145,7 +146,7 @@ function NavItem({
     <Link
       href={href}
       className={cn(
-        "block px-3 py-2 font-mono text-[11px] uppercase tracking-wider transition-colors",
+        "block cursor-pointer px-3 py-2 font-mono text-[11px] uppercase tracking-wider transition-colors",
         isActive
           ? "bg-black text-white"
           : "text-neutral-500 hover:bg-neutral-100 hover:text-black",

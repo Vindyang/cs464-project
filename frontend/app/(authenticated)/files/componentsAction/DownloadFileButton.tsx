@@ -108,7 +108,7 @@ export function DownloadFileButton({
       type="button"
       onClick={handleDownload}
       disabled={downloading}
-      className="inline-flex h-8 w-8 items-center justify-center border border-transparent text-neutral-500 transition-colors hover:border-neutral-200 hover:text-black disabled:cursor-not-allowed disabled:opacity-50"
+      className="inline-flex h-8 w-8 items-center justify-center border border-transparent text-neutral-500 transition-colors hover:border-neutral-200 hover:text-black dark:hover:border-neutral-700 dark:hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
       aria-label={`Download ${fileName}`}
       title={downloading ? "Downloading..." : "Download"}
     >

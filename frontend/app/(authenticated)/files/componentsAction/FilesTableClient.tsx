@@ -203,7 +203,7 @@ export function FilesTableClient({ initialFiles }: FilesTableClientProps) {
                 <div className="flex items-center gap-1">
                   <Link
                     href={`/files/${file.file_id}`}
-                    className="inline-flex h-8 w-8 items-center justify-center border border-transparent text-neutral-500 transition-colors hover:border-neutral-200 hover:text-black dark:hover:border-neutral-700 dark:hover:text-white"
+                    className="inline-flex h-8 w-8 cursor-pointer items-center justify-center border border-transparent text-neutral-500 transition-colors hover:border-neutral-200 hover:text-black dark:hover:border-neutral-700 dark:hover:text-white"
                     aria-label={`View details for ${file.original_name}`}
                     title="Details"
                   >
