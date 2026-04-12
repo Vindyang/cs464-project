@@ -96,29 +96,82 @@ Provider credentials/tokens are configured directly in the frontend:
 
 ### AWS S3
 
-**Official setup links**
+#### Step 1: Create an IAM User
 
-- IAM Console: https://console.aws.amazon.com/iam/
-- S3 Console: https://s3.console.aws.amazon.com/s3/home
+1. Open [IAM Console](https://console.aws.amazon.com/iam/)
+2. Click **Users** → **Create user**
+3. Enter a username (e.g., `omnishard-app`)
+4. Click **Next**
 
-#### Fields in UI
+#### Step 2: Attach S3 Permissions
 
-- **Access Key ID**
-- **Secret Access Key**
-- **Region**
+1. Click **Attach policies directly**
+2. Click **Create policy**
+3. Paste this JSON:
+```json
+   {
+   "Version": "2012-10-17",
+   "Statement": [
+      {
+         "Effect": "Allow",
+         "Action": [
+         "s3:ListAllMyBuckets"
+         ],
+         "Resource": "arn:aws:s3:::*"
+      },
+      {
+         "Effect": "Allow",
+         "Action": [
+         "s3:ListBucket",
+         "s3:GetObject",
+         "s3:PutObject",
+         "s3:DeleteObject"
+         ],
+         "Resource": [
+         "arn:aws:s3:::omnishard-*",
+         "arn:aws:s3:::omnishard-*/*"
+         ]
+      }
+   ]
+   }
+```
+4. Click **Next** → Enter a policy name (e.g., `omnishard-policy`)
+5. Click **Create policy** → attach it to your user
+6. Search for your policy name (`omnishard-policy`) in the policy search
+7. Click **Entities attached** → **Attach**
+8. Select your IAM user and confirm
 
-#### How to obtain
+#### Step 3: Create Access Keys
 
-1. Open IAM Console.
-2. Create/select an IAM user (or role for programmatic access).
-3. Grant least-privilege bucket/object permissions:
-   - `s3:ListBucket`
-   - `s3:GetObject`
-   - `s3:PutObject`
-   - `s3:DeleteObject` (if delete is enabled)
-4. Create access keys.
-5. Copy Access Key ID + Secret Access Key.
-6. Use your bucket region in **Region** (example: `ap-southeast-1`).
+1. Go to **Users** → Select your user
+2. Click **Security credentials** tab
+3. Scroll to **Access keys** → **Create access key**
+4. Select **Application running outside AWS**
+5. Click **Next** → **Create access key**
+6. **⚠️ Copy both keys immediately** (AWS only shows them once):
+   - Access Key ID
+   - Secret Access Key
+
+#### Step 4: Fill in Your Credentials
+
+Enter the values in your application:
+- **Access Key ID:** Your Access Key ID from Step 3
+- **Secret Access Key:** Your Secret Access Key from Step 3
+- **Region:** Your bucket's region (example: `ap-southeast-1`)
+
+#### Step 5: Enable Console Access (Optional)
+
+To log in to AWS Console as this IAM user:
+
+1. Go to **Users** → Select your user
+2. Click **Security credentials** tab
+3. Scroll to **Console sign-in credentials**
+4. Click **Create login password**
+5. Set a password and note it down
+6. You can now log in at https://console.aws.amazon.com with:
+   - **IAM user name:** `omnishard-app` (or your username)
+   - **Password:** The password you just created
+7. After login, navigate to [S3 Console](https://s3.console.aws.amazon.com/s3/home) to view your buckets
 
 ---
 
