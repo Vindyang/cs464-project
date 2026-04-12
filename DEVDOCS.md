@@ -96,6 +96,11 @@ Provider credentials/tokens are configured directly in the frontend:
 
 ### AWS S3
 
+**Official setup links**
+
+- IAM Console: https://console.aws.amazon.com/iam/
+- S3 Console: https://s3.console.aws.amazon.com/s3/home
+
 #### Step 1: Create an IAM User
 
 1. Open [IAM Console](https://console.aws.amazon.com/iam/)
@@ -154,12 +159,18 @@ Provider credentials/tokens are configured directly in the frontend:
 
 #### Step 4: Fill in Your Credentials
 
-Enter the values in your application:
+Enter the values in the credentials page:
 - **Access Key ID:** Your Access Key ID from Step 3
 - **Secret Access Key:** Your Secret Access Key from Step 3
 - **Region:** Your bucket's region (example: `ap-southeast-1`)
 
-#### Step 5: Enable Console Access (Optional)
+#### Step 5: Connect Provider
+
+1. Navigate to the **Providers** page
+2. Find **AWS S3** and click **Connect**
+3. You're all set!
+
+#### Step 6: Enable Console Access (Optional)
 
 To log in to AWS Console as this IAM user:
 
@@ -209,24 +220,48 @@ To log in to AWS Console as this IAM user:
 - Azure Portal: https://portal.azure.com/
 - App registrations: https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade
 
-#### Fields in UI
+#### Step 1: Register Application in Azure
 
-- **Client ID**
-- **Client Secret**
-- **Redirect URI** (must match exactly):  
-  `http://localhost:8080/api/oauth/onedrive/callback`
+1. Open [App registrations](https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade)
+2. Click **New registration**
+3. Enter an application name (e.g., `omnishard-onedrive`)
+4. Click **Register**
 
-#### How to obtain
+#### Step 2: Configure Redirect URI
 
-1. Open App registrations and create/select an app.
-2. Add redirect URI exactly:  
+1. Go to your app registration → **Authentication** (left sidebar)
+2. Click **Add a platform** → **Web**
+3. Enter the redirect URI:
    `http://localhost:8080/api/oauth/onedrive/callback`
-3. Create a client secret in **Certificates & secrets**.
-4. Copy:
-   - Application (client) ID
-   - Client secret **Value** (not Secret ID)
-5. Save in Omnishard Credentials UI.
-6. Connect provider from **Providers** page.
+4. Check **Access tokens** and **ID tokens**
+5. Click **Configure**
+
+#### Step 3: Create Client Secret
+
+1. Go to your app registration → **Certificates & secrets** (left sidebar)
+2. Click the **Client secrets** tab
+3. Click **New client secret**
+4. Click **Add**
+5. **Copy the secret value immediately** from the **Value** column (the long string)
+
+#### Step 4: Gather Credentials
+
+1. Go to your app registration → **Overview** (left sidebar)
+2. Copy the **Application (client) ID**
+3. From Step 3, you already have the **Client Secret**
+4. Your **Redirect URI** is: `http://localhost:8080/api/oauth/onedrive/callback`
+
+Enter these values in the credentials page:
+- **Client ID:** Your Application (client) ID
+- **Client Secret:** Your Secret Access Key from Step 3
+- **Redirect URI:** `http://localhost:8080/api/oauth/onedrive/callback`
+
+#### Step 5: Connect Provider
+
+1. Navigate to the **Providers** page
+2. Find **OneDrive** and click **Connect**
+3. Authorize the application when prompted
+4. You're all set!
 
 ---
 
