@@ -23,6 +23,31 @@ docker compose version
 
 ---
 
+## Two Ways to Run Omnishard
+
+Before you start: there are **2 supported ways** to run the app.
+
+1. **Clone + build from source (developer workflow)**  
+   This is the default workflow in this guide (the Quick Start section below).
+
+2. **Pull the latest published images from GitHub Packages (GHCR)**  
+   This skips local image builds and runs published container images.
+
+### Run from latest GHCR images
+
+Download the latest full-microservices release compose file:
+
+```bash
+curl -L -o [docker-compose.yml](http://_vscodecontentref_/0) https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.full-microservices.yml
+```
+
+Start the stack:
+```
+docker compose up -d
+```
+
+---
+
 ## Quick Start (Docker)
 
 From repo root (`cs464-project/`):
