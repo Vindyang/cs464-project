@@ -28,6 +28,11 @@ const credentialSteps = [
   "Go to Providers page and connect/authorize provider if required",
 ]
 
+const runModes = [
+  "Clone + build from source (developer workflow).",
+  "Pull the latest published images from GitHub Packages (GHCR).",
+]
+
 const setupSections = [
   {
     code: "QS-001",
@@ -47,6 +52,32 @@ const setupSections = [
   },
   {
     code: "QS-002",
+    title: "Two Ways to Run Omnishard",
+    sections: [
+      {
+        label: "Supported workflows",
+        type: "steps" as const,
+        items: runModes,
+      },
+      {
+        label: "Default for this guide",
+        type: "text" as const,
+        text: "This Quick Start uses the clone + build from source workflow by default.",
+      },
+      {
+        label: "Run from latest GHCR images",
+        type: "code" as const,
+        code: "curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.full-microservices.yml",
+      },
+      {
+        label: "Start stack from GHCR compose file",
+        type: "code" as const,
+        code: "docker compose up -d",
+      },
+    ],
+  },
+  {
+    code: "QS-003",
     title: "Quick Start (Docker)",
     sections: [
       {
@@ -71,7 +102,7 @@ const setupSections = [
     ],
   },
   {
-    code: "QS-003",
+    code: "QS-004",
     title: "Credential Configuration",
     sections: [
       {
@@ -87,7 +118,7 @@ const setupSections = [
     ],
   },
   {
-    code: "QS-004",
+    code: "QS-005",
     title: "Troubleshooting",
     sections: [
       {
