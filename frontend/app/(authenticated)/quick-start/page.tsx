@@ -75,6 +75,11 @@ const setupSections = [
     title: "Credential Configuration",
     sections: [
       {
+        label: "Provider setup docs",
+        type: "text" as const,
+        text: "Provider-specific setup links and credential instructions are shown on the Credentials page after you select a provider.",
+      },
+      {
         label: "Steps",
         type: "steps" as const,
         items: credentialSteps,
@@ -83,100 +88,6 @@ const setupSections = [
   },
   {
     code: "QS-004",
-    title: "AWS S3 Credentials",
-    sections: [
-      {
-        label: "Official setup links",
-        type: "links" as const,
-        items: [
-          "https://console.aws.amazon.com/iam/",
-          "https://s3.console.aws.amazon.com/s3/home",
-        ],
-      },
-      {
-        label: "Fields in UI",
-        type: "text" as const,
-        text: "Access Key ID, Secret Access Key, Region",
-      },
-      {
-        label: "How to obtain",
-        type: "steps" as const,
-        items: [
-          "Open IAM Console.",
-          "Create/select an IAM user (or role for programmatic access).",
-          "Grant least-privilege bucket/object permissions: `s3:ListBucket`, `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject` (if delete is enabled).",
-          "Create access keys.",
-          "Copy Access Key ID + Secret Access Key.",
-          "Use your bucket region in Region (example: `ap-southeast-1`).",
-        ],
-      },
-    ],
-  },
-  {
-    code: "QS-005",
-    title: "Google Drive OAuth",
-    sections: [
-      {
-        label: "Official setup links",
-        type: "links" as const,
-        items: [
-          "https://console.cloud.google.com/",
-          "https://console.cloud.google.com/apis/credentials",
-        ],
-      },
-      {
-        label: "Fields in UI",
-        type: "text" as const,
-        text: "Client ID, Client Secret, Redirect URI (`http://localhost:8080/api/oauth/gdrive/callback`)",
-      },
-      {
-        label: "How to obtain",
-        type: "steps" as const,
-        items: [
-          "Create/select a project in Google Cloud.",
-          "Enable Google Drive API.",
-          "Configure OAuth consent screen.",
-          "Create OAuth Client ID (Web application).",
-          "Add redirect URI exactly: `http://localhost:8080/api/oauth/gdrive/callback`.",
-          "Copy Client ID + Client Secret into Omnishard Credentials UI.",
-          "Connect provider from Providers page.",
-        ],
-      },
-    ],
-  },
-  {
-    code: "QS-006",
-    title: "Microsoft OneDrive OAuth",
-    sections: [
-      {
-        label: "Official setup links",
-        type: "links" as const,
-        items: [
-          "https://portal.azure.com/",
-          "https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade",
-        ],
-      },
-      {
-        label: "Fields in UI",
-        type: "text" as const,
-        text: "Client ID, Client Secret, Redirect URI (`http://localhost:8080/api/oauth/onedrive/callback`)",
-      },
-      {
-        label: "How to obtain",
-        type: "steps" as const,
-        items: [
-          "Open App registrations and create/select an app.",
-          "Add redirect URI exactly: `http://localhost:8080/api/oauth/onedrive/callback`.",
-          "Create a client secret in Certificates & secrets.",
-          "Copy Application (client) ID and client secret Value (not Secret ID).",
-          "Save in Omnishard Credentials UI.",
-          "Connect provider from Providers page.",
-        ],
-      },
-    ],
-  },
-  {
-    code: "QS-007",
     title: "Troubleshooting",
     sections: [
       {
@@ -250,27 +161,16 @@ export default function QuickStartPage() {
                       </p>
                     )}
 
-                    {(content.type === "list" || content.type === "links") && (
+                    {content.type === "list" && (
                       <ul className="space-y-2">
                         {content.items.map((item) => (
                           <li key={item} className="flex gap-3">
                             <span className="pt-0.5 font-mono text-[11px] text-neutral-400 dark:text-neutral-500">
                               •
                             </span>
-                            {content.type === "links" ? (
-                              <a
-                                href={item}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="font-mono text-sm leading-relaxed text-neutral-700 underline hover:text-neutral-950 dark:text-neutral-300 dark:hover:text-neutral-100"
-                              >
-                                {item}
-                              </a>
-                            ) : (
-                              <span className="font-mono text-sm leading-relaxed text-neutral-700 dark:text-neutral-300">
-                                {item}
-                              </span>
-                            )}
+                            <span className="font-mono text-sm leading-relaxed text-neutral-700 dark:text-neutral-300">
+                              {item}
+                            </span>
                           </li>
                         ))}
                       </ul>
