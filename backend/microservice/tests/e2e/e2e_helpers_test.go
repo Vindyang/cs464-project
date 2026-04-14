@@ -111,5 +111,5 @@ func e2eComposePath(t *testing.T) string {
 	if !ok {
 		t.Fatal("failed to resolve e2e helper path")
 	}
-	return filepath.Clean(filepath.Join(filepath.Dir(file), "../../../docker-compose.test.yml"))
+	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "docker-compose.test.yml"))
 }
