@@ -4,7 +4,6 @@ services:
     restart: unless-stopped
     environment:
       PORT: "8080"
-      MONOLITH_MOCK_MODE: "false"
       Omnishard_DB_PATH: "/app/data/Omnishard.db"
       Omnishard_SHARDMAP_DB_PATH: "/app/data/Omnishard-shardmap.db"
     volumes:

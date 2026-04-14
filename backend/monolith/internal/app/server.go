@@ -18,7 +18,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"github.com/vindyang/cs464-project/backend/monolith/internal/mock"
 	"github.com/vindyang/cs464-project/backend/monolith/internal/orchestrator"
 	"github.com/vindyang/cs464-project/backend/monolith/internal/sharding"
 	"github.com/vindyang/cs464-project/backend/monolith/internal/shardmap"
@@ -45,7 +44,6 @@ const (
 type Config struct {
 	StorePath    string
 	ShardMapPath string
-	MockMode     bool
 }
 
 type App struct {
@@ -86,7 +84,6 @@ func ConfigFromEnv() Config {
 	return Config{
 		StorePath:    storePath,
 		ShardMapPath: shardMapPath,
-		MockMode:     os.Getenv("MONOLITH_MOCK_MODE") == "true",
 	}
 }
 
@@ -110,21 +107,16 @@ func New(config Config) (*App, error) {
 	}
 
 	registry := sharedadapter.NewRegistry()
-	if config.MockMode {
-		registry.Register("mockLocal", mock.NewProvider())
-		log.Println("Monolith mock mode enabled: registered mockLocal provider")
-	} else {
-		if err := tryRestoreGDriveAdapter(store, registry); err != nil {
-			log.Printf("Google Drive adapter not restored: %v", err)
-		}
-		s3Handler := s3handler.New(store, registry)
-		if err := s3Handler.RestoreAdapter(); err != nil {
-			log.Printf("S3 adapter not restored: %v", err)
-		}
-		oneDriveHandler := onedrivehandler.New(store, registry)
-		if err := tryRestoreOneDriveAdapter(store, registry, oneDriveHandler); err != nil {
-			log.Printf("OneDrive adapter not restored: %v", err)
-		}
+	if err := tryRestoreGDriveAdapter(store, registry); err != nil {
+		log.Printf("Google Drive adapter not restored: %v", err)
+	}
+	s3Handler := s3handler.New(store, registry)
+	if err := s3Handler.RestoreAdapter(); err != nil {
+		log.Printf("S3 adapter not restored: %v", err)
+	}
+	oneDriveHandler := onedrivehandler.New(store, registry)
+	if err := tryRestoreOneDriveAdapter(store, registry, oneDriveHandler); err != nil {
+		log.Printf("OneDrive adapter not restored: %v", err)
 	}
 
 	fileRepo := shardmap.NewFileRepository(shardMapDB)
