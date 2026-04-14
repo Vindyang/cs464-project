@@ -1,6 +1,14 @@
-# CS464 Project
+# CS464 Project | Omnishard
+
+![Go](https://img.shields.io/badge/Go-00ADD8?style=for-the-badge&logo=go&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=for-the-badge&logo=github-actions&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)
 
 Omnishard is a distributed cloud storage platform that shards files with Reed-Solomon encoding, stores shard data across external cloud providers, tracks placement and lifecycle metadata, and reconstructs files from any viable shard subset during download.
+
+![Dashboard](docs/screens/dashboard.png)
 
 The repository currently supports two backend implementations behind the same frontend product surface:
 
@@ -29,6 +37,11 @@ Invoke-WebRequest https://github.com/Vindyang/cs464-project/releases/latest/down
 docker compose up -d
 ```
 
+```bash
+curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.full-microservices.yml
+docker compose up -d
+```
+
 Single-image microservices deployment:
 
 ```powershell
@@ -36,10 +49,20 @@ Invoke-WebRequest https://github.com/Vindyang/cs464-project/releases/latest/down
 docker compose up -d
 ```
 
+```bash
+curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.single-image-microservices.yml
+docker compose up -d
+```
+
 Frontend plus monolith deployment:
 
 ```powershell
 Invoke-WebRequest https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.single-image-monolith.yml -OutFile docker-compose.yml
+docker compose up -d
+```
+
+```bash
+curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.single-image-monolith.yml
 docker compose up -d
 ```
 

@@ -174,10 +174,20 @@ Invoke-WebRequest https://github.com/Vindyang/cs464-project/releases/latest/down
 docker compose up -d
 ```
 
+```bash
+curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.full-microservices.yml
+docker compose up -d
+```
+
 or
 
 ```powershell
 Invoke-WebRequest https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.single-image-microservices.yml -OutFile docker-compose.yml
+docker compose up -d
+```
+
+```bash
+curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.single-image-microservices.yml
 docker compose up -d
 ```
 

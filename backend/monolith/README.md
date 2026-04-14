@@ -144,6 +144,11 @@ Invoke-WebRequest https://github.com/Vindyang/cs464-project/releases/latest/down
 docker compose up -d
 ```
 
+```bash
+curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.single-image-monolith.yml
+docker compose up -d
+```
+
 ### Repo-local GHCR pull manifest
 
 From the repository root:
