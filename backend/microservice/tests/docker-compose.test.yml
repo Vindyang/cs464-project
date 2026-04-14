@@ -1,7 +1,7 @@
 services:
   adapter-test:
     build:
-      context: ./backend/microservice
+      context: ..
       dockerfile: services/adapter/Dockerfile
     restart: "no"
     environment:
@@ -22,7 +22,7 @@ services:
 
   shardmap-test:
     build:
-      context: ./backend/microservice
+      context: ..
       dockerfile: services/shardmap/Dockerfile
     restart: "no"
     environment:
@@ -41,7 +41,7 @@ services:
 
   sharding-test:
     build:
-      context: ./backend/microservice
+      context: ..
       dockerfile: services/sharding/Dockerfile
     restart: "no"
     environment:
@@ -57,7 +57,7 @@ services:
 
   orchestrator-test:
     build:
-      context: ./backend/microservice
+      context: ..
       dockerfile: services/orchestrator/Dockerfile
     restart: "no"
     environment:
@@ -83,7 +83,7 @@ services:
 
   gateway-test:
     build:
-      context: ./backend/microservice
+      context: ..
       dockerfile: services/gateway/Dockerfile
     restart: "no"
     environment:
