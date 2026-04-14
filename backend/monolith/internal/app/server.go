@@ -230,10 +230,13 @@ func (a *App) health(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (a *App) docs(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "application/yaml")
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(openAPISpec)
+func (a *App) docs(w http.ResponseWriter, r *http.Request) {
+	if strings.HasSuffix(r.URL.Path, "/openapi.yml") {
+		a.serveOpenAPISpec(w)
+		return
+	}
+
+	a.serveDocsIndex(w)
 }
 
 func (a *App) listProviders(w http.ResponseWriter, r *http.Request) {
