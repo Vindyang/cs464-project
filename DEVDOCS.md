@@ -33,6 +33,11 @@ Before you start: there are **2 supported ways** to run the app.
 2. **Pull the latest published images from GitHub Packages (GHCR)**  
    This skips local image builds and runs published container images.
 
+Current backend layout:
+
+- `backend/microservice` contains the active multi-service backend used by the existing compose and CI flows.
+- `backend/monolith` is the new single-process backend scaffold and is not wired into the runtime flows yet.
+
 ### Run from latest GHCR images
 
 Download the latest full-microservices release compose file:

@@ -1,0 +1,35 @@
+openapi: 3.0.3
+info:
+  title: Omnishard Monolith API
+  version: v1
+  description: Public API exposed by the monolith backend.
+servers:
+  - url: /api/v1
+paths:
+  /upload:
+    post:
+      summary: Upload a file to sharded storage
+  /download/{fileId}:
+    get:
+      summary: Download a reconstructed file
+  /history:
+    get:
+      summary: Get global lifecycle history across files
+  /history/{fileId}:
+    get:
+      summary: Get lifecycle history for a file
+  /files/{fileId}:
+    delete:
+      summary: Delete a file via orchestrator workflow
+  /files/{fileId}/health/refresh:
+    post:
+      summary: Refresh shard health for one file
+  /files/health/refresh:
+    post:
+      summary: Refresh shard health for all files
+  /providers:
+    get:
+      summary: List provider status from adapter-compatible routes
+  /health:
+    get:
+      summary: Aggregated backend service health

@@ -59,24 +59,28 @@ jobs:
       matrix:
         include:
           - image_name: omnishard-adapter
-            context: ./backend
-            dockerfile: ./backend/services/adapter/Dockerfile
+            context: ./backend/microservice
+            dockerfile: ./backend/microservice/services/adapter/Dockerfile
+            build_args: ''
+          - image_name: omnishard-monolith
+            context: ./backend/monolith
+            dockerfile: ./backend/monolith/Dockerfile
             build_args: ''
           - image_name: omnishard-shardmap
-            context: ./backend
-            dockerfile: ./backend/services/shardmap/Dockerfile
+            context: ./backend/microservice
+            dockerfile: ./backend/microservice/services/shardmap/Dockerfile
             build_args: ''
           - image_name: omnishard-sharding
-            context: ./backend
-            dockerfile: ./backend/services/sharding/Dockerfile
+            context: ./backend/microservice
+            dockerfile: ./backend/microservice/services/sharding/Dockerfile
             build_args: ''
           - image_name: omnishard-orchestrator
-            context: ./backend
-            dockerfile: ./backend/services/orchestrator/Dockerfile
+            context: ./backend/microservice
+            dockerfile: ./backend/microservice/services/orchestrator/Dockerfile
             build_args: ''
           - image_name: omnishard-gateway
-            context: ./backend
-            dockerfile: ./backend/services/gateway/Dockerfile
+            context: ./backend/microservice
+            dockerfile: ./backend/microservice/services/gateway/Dockerfile
             build_args: ''
           - image_name: omnishard-frontend
             context: ./frontend
@@ -121,6 +125,7 @@ jobs:
           path: |
             ./deploy/release-assets/dist/docker-compose.full-microservices.yml
             ./deploy/release-assets/dist/docker-compose.single-image-microservices.yml
+            ./deploy/release-assets/dist/docker-compose.single-image-monolith.yml
 
   create-github-release:
     name: Create GitHub release
@@ -141,3 +146,4 @@ jobs:
           files: |
             ./release-assets/docker-compose.full-microservices.yml
             ./release-assets/docker-compose.single-image-microservices.yml
+            ./release-assets/docker-compose.single-image-monolith.yml

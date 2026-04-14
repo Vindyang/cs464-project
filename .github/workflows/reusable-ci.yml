@@ -12,6 +12,9 @@ on:
       shardmap:
         description: Whether shardmap service files changed.
         value: ${{ jobs.detect-changes.outputs.shardmap }}
+      monolith:
+        description: Whether monolith backend files changed.
+        value: ${{ jobs.detect-changes.outputs.monolith }}
       sharding:
         description: Whether sharding service files changed.
         value: ${{ jobs.detect-changes.outputs.sharding }}
@@ -89,6 +92,15 @@ jobs:
     with:
       command: go test ./services/sharding/tests/unit/... -count=1 -v -timeout 60s
 
+  monolith-quality:
+    name: Monolith quality gate
+    needs: detect-changes
+    if: needs.detect-changes.outputs.monolith == 'true'
+    uses: ./.github/workflows/reusable-go-backend.yml
+    with:
+      working_directory: ./backend/monolith
+      command: go build ./...
+
   integration-contracts:
     name: Integration contracts
     needs: detect-changes
@@ -142,6 +154,7 @@ jobs:
       - unit-orchestrator
       - unit-shardmap
       - unit-sharding
+      - monolith-quality
       - integration-contracts
       - e2e-backend
       - frontend-quality
@@ -153,6 +166,7 @@ jobs:
              [ "${{ needs.unit-orchestrator.result }}" = "failure" ] || \
              [ "${{ needs.unit-shardmap.result }}" = "failure" ] || \
              [ "${{ needs.unit-sharding.result }}" = "failure" ] || \
+             [ "${{ needs.monolith-quality.result }}" = "failure" ] || \
              [ "${{ needs.integration-contracts.result }}" = "failure" ] || \
              [ "${{ needs.e2e-backend.result }}" = "failure" ] || \
              [ "${{ needs.frontend-quality.result }}" = "failure" ]; then
@@ -165,6 +179,7 @@ jobs:
              [ "${{ needs.unit-orchestrator.result }}" = "cancelled" ] || \
              [ "${{ needs.unit-shardmap.result }}" = "cancelled" ] || \
              [ "${{ needs.unit-sharding.result }}" = "cancelled" ] || \
+             [ "${{ needs.monolith-quality.result }}" = "cancelled" ] || \
              [ "${{ needs.integration-contracts.result }}" = "cancelled" ] || \
              [ "${{ needs.e2e-backend.result }}" = "cancelled" ] || \
              [ "${{ needs.frontend-quality.result }}" = "cancelled" ]; then

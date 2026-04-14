@@ -81,7 +81,7 @@ Download:
 
 ## Running Services
 
-Run Go services directly from `backend/`:
+Run Go services directly from `backend/microservice/`:
 
 ```powershell
 go run ./services/adapter/cmd/main.go

@@ -4,7 +4,7 @@
 
 ### Backend tests
 
-From `backend/`:
+From `backend/microservice/`:
 
 ```powershell
 go test ./...
@@ -21,7 +21,7 @@ bun run build
 
 ### PowerShell test runner
 
-The backend includes a grouped runner at `backend/tests/run-tests.ps1`.
+The microservice backend includes a grouped runner at `backend/microservice/tests/run-tests.ps1`.
 
 Examples:
 
@@ -36,17 +36,17 @@ Examples:
 
 Unit tests:
 
-- live under `backend/services/*/tests/unit/`
+- live under `backend/microservice/services/*/tests/unit/`
 - target isolated service logic
 
 Integration tests:
 
-- live under `backend/tests/integration/`
+- live under `backend/microservice/tests/integration/`
 - validate contracts between orchestrator and the supporting services using controlled test doubles
 
 E2E tests:
 
-- live under `backend/tests/e2e/`
+- live under `backend/microservice/tests/e2e/`
 - exercise the real Dockerized stack and end-to-end workflows
 
 ### Recommended smoke test after startup

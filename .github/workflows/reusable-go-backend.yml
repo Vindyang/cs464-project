@@ -15,7 +15,7 @@ on:
       working_directory:
         description: Working directory for the backend command.
         required: false
-        default: './backend'
+        default: './backend/microservice'
         type: string
       timeout_minutes:
         description: Job timeout in minutes.
@@ -40,7 +40,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: ~/.cache/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('backend/go.sum') }}
+          key: ${{ runner.os }}-go-${{ hashFiles(format('{0}/go.mod', inputs.working_directory), format('{0}/go.sum', inputs.working_directory)) }}
           restore-keys: |
             ${{ runner.os }}-go-
 

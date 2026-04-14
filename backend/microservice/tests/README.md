@@ -19,11 +19,11 @@ Unit tests are now colocated with each service under:
 
 - Go installed and available in PATH
 - PowerShell (Windows PowerShell or PowerShell 7)
-- Run commands from the backend folder
+- Run commands from `backend/microservice/`
 
 ## Run Tests
 
-From `backend/`:
+From `backend/microservice/`:
 
 ### Run all test suites
 

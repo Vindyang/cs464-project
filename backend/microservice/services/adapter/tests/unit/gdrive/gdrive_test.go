@@ -14,7 +14,7 @@ import (
 
 const driveScope = "https://www.googleapis.com/auth/drive.file"
 
-// TestMain loads backend/.env before any tests run so that GDRIVE_OAUTH_CREDENTIALS_FILE
+// TestMain loads backend/microservice/.env before any tests run so that GDRIVE_OAUTH_CREDENTIALS_FILE
 // and GDRIVE_FOLDER_ID are available without manually setting env vars.
 // Errors are silently ignored so tests still run when vars are set directly (e.g. CI).
 func TestMain(m *testing.M) {
@@ -23,7 +23,7 @@ func TestMain(m *testing.M) {
 }
 
 // TestGDriveIntegration runs only when real OAuth2 credentials are configured.
-// Set the following environment variables (or populate backend/.env) to run:
+// Set the following environment variables (or populate backend/microservice/.env) to run:
 //
 //	GDRIVE_OAUTH_CREDENTIALS_FILE=/path/to/oauth-credentials.json  (Web app type)
 //	GDRIVE_OAUTH_REDIRECT_URI=http://localhost:8080/api/oauth/gdrive/callback

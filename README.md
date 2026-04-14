@@ -4,6 +4,11 @@ Omnishard is a distributed cloud storage platform that shards files with Reed-So
 
 The stack consists of a Next.js frontend, Go backend services, SQLite metadata stores, and an NGINX gateway.
 
+Backend source layout:
+
+- `backend/microservice` contains the current multi-service backend implementation.
+- `backend/monolith` is the new monolith backend scaffold under active implementation.
+
 ## Run Omnishard
 
 ### Recommended: official OSS release assets
@@ -21,6 +26,13 @@ Single-image deployment:
 
 ```powershell
 wget -O docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.single-image-microservices.yml
+docker compose up -d
+```
+
+Frontend plus monolith backend deployment:
+
+```powershell
+wget -O docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.single-image-monolith.yml
 docker compose up -d
 ```
 
@@ -49,6 +61,12 @@ Start the full stack from the project root:
 
 ```powershell
 docker compose --profile full up -d --build
+```
+
+Start the existing frontend against the monolith backend from the project root:
+
+```powershell
+docker compose --profile monolith up -d --build monolith frontend-monolith
 ```
 
 Default endpoints:
@@ -90,10 +108,17 @@ Single-image manifest:
 docker compose -f deploy/compose/single-image-microservices.yml up -d
 ```
 
+Frontend plus monolith manifest:
+
+```powershell
+docker compose -f deploy/compose/single-image-monolith.yml up -d
+```
+
 ## Documentation
 
 Further reference:
 
+- [backend/README.md](backend/README.md) for the backend implementation layout and entrypoints.
 - [docs/architecture.md](docs/architecture.md) for architecture, service boundaries, request flows, and database schema.
 - [docs/cicd.md](docs/cicd.md) for testing workflows, CI/CD pipelines, and release process details.
 - [DEVDOCS.md](DEVDOCS.md) for contributor notes and operator setup details.
