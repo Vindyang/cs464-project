@@ -1,103 +1,108 @@
 # Testing and CI/CD
 
-## Testing
+## Local Validation
 
-### Backend tests
-
-From `backend/microservice/`:
-
-```powershell
-go test ./...
-```
-
-### Frontend checks
+### Frontend
 
 From `frontend/`:
 
 ```powershell
+bun install --frozen-lockfile
 bun run lint
 bun run build
 ```
 
-### PowerShell test runner
+### Microservice backend
 
-The microservice backend includes a grouped runner at `backend/microservice/tests/run-tests.ps1`.
-
-Examples:
+From `backend/microservice/`:
 
 ```powershell
-./tests/run-tests.ps1 -Type unit
-./tests/run-tests.ps1 -Type integration
-./tests/run-tests.ps1 -Type e2e
-./tests/run-tests.ps1 -Type all
+go test ./services/...
+.\tests\run-tests.ps1 -Type unit
+.\tests\run-tests.ps1 -Type integration
+.\tests\run-tests.ps1 -Type e2e
+.\tests\run-tests.ps1 -Type all
 ```
 
-### Test layers
+The grouped runner discovers:
 
-Unit tests:
+- unit tests under `services/*/tests/unit/`
+- integration tests under `tests/integration/`
+- e2e tests under `tests/e2e/`
 
-- live under `backend/microservice/services/*/tests/unit/`
-- target isolated service logic
+### Monolith backend
 
-Integration tests:
+From `backend/monolith/`:
 
-- live under `backend/microservice/tests/integration/`
-- validate contracts between orchestrator and the supporting services using controlled test doubles
+```powershell
+go test ./...
+go test ./tests/integration/... -count=1
+```
 
-E2E tests:
+### Source-build smoke test
 
-- live under `backend/microservice/tests/e2e/`
-- exercise the real Dockerized stack and end-to-end workflows
-
-### Recommended smoke test after startup
+Recommended manual smoke test after startup:
 
 1. Open `http://localhost:3000`.
 2. Configure at least one provider credential.
 3. Connect a provider.
 4. Upload a file.
 5. Download the same file.
-6. Check provider usage, file health, and history views.
+6. Check provider usage, file health, history, and docs views.
 
-## CI/CD
+## CI Pipelines
 
-### Main CI pipeline
+### Main CI and publish workflow
 
 Workflow:
 
 - `.github/workflows/ci-main.yml`
 
-What it does:
+This workflow triggers on pushes to `main` and pull requests targeting `main` when files under `backend/**`, `frontend/**`, `deploy/**`, or `.github/workflows/**` change.
 
-- triggers on pushes and pull requests affecting `backend/**`, `frontend/**`, `deploy/**`, or workflow files
-- resolves whether image deployment should be enabled
-- runs change detection to avoid unnecessary service jobs
-- runs backend quality gates with `go vet ./...` and `go build ./...`
-- runs service-scoped unit tests
-- runs integration contract tests
-- runs E2E backend tests
-- runs frontend lint and build
-- publishes changed images to GHCR on pushes to `main`
+It delegates most validation work to `.github/workflows/reusable-ci.yml`, which performs:
 
-Branch behavior:
+- change detection so unaffected jobs can be skipped
+- microservice backend quality gates with `go vet ./...` and `go build ./...`
+- service-scoped unit tests for adapter, orchestrator, shardmap, and sharding
+- microservice integration contract tests
+- microservice e2e backend tests
+- monolith quality gate with `go build ./...` in `backend/monolith`
+- frontend lint and production build
 
-- `main` push: CI plus image publishing
-- `microservices` push: CI only
-- pull request: CI only
+On pushes to `main`, successful CI also publishes changed images to GHCR.
 
-### Official release workflow
+Published image targets from this pipeline:
+
+- `omnishard-adapter`
+- `omnishard-shardmap`
+- `omnishard-sharding`
+- `omnishard-orchestrator`
+- `omnishard-gateway`
+- `omnishard-monolith`
+- `omnishard-frontend`
+- `omnishard-all-in-one`
+
+### Official GitHub OSS release workflow
 
 Workflow:
 
 - `.github/workflows/release-github-oss.yml`
 
-What it does:
+This manually triggered workflow:
 
 - accepts an exact `commit_sha`
 - accepts a semver `release_tag` such as `v1.2.3`
-- validates the tag and commit
-- builds and pushes release-tagged images for all services to GHCR
-- renders official release compose assets
-- creates a GitHub Release and uploads the generated compose files
+- validates the commit and tag inputs
+- builds and pushes release-tagged images to GHCR
+- renders the official release compose assets
+- creates the GitHub Release and uploads the generated compose files
+
+Official release assets produced by this workflow:
+
+- `docker-compose.full-microservices.yml`
+- `docker-compose.single-image-microservices.yml`
+- `docker-compose.single-image-monolith.yml`
 
 ### Manual image republish workflow
 
@@ -105,27 +110,36 @@ Workflow:
 
 - `.github/workflows/cd-dockerhub-force-deploy.yml`
 
-What it does:
+Despite the historical name, this workflow now targets GHCR. It can republish:
 
-- manually republishes the full microservices image set and or the all-in-one image
-- tags them with `latest` and the full commit SHA
+- the full microservices image set
+- the all-in-one microservices image
+- the monolith image
 
-### Published image names
+Those images are tagged with `latest` and the full commit SHA.
+
+## GHCR Naming And Pull-Only Manifests
+
+Published image names follow the pattern `ghcr.io/<owner>/<image>`.
+
+Current images:
 
 - `ghcr.io/vindyang/omnishard-adapter`
 - `ghcr.io/vindyang/omnishard-shardmap`
 - `ghcr.io/vindyang/omnishard-sharding`
 - `ghcr.io/vindyang/omnishard-orchestrator`
 - `ghcr.io/vindyang/omnishard-gateway`
+- `ghcr.io/vindyang/omnishard-monolith`
 - `ghcr.io/vindyang/omnishard-frontend`
 - `ghcr.io/vindyang/omnishard-all-in-one`
 
-### Required GitHub configuration
-
-Required for GitHub-hosted publishing workflows:
-
-- no extra registry secret is required; workflows publish to GHCR using the built-in `GITHUB_TOKEN`
-
-Required for local repo-based release manifests:
+Repo-local pull-only compose manifests live under `deploy/compose/` and require:
 
 - `IMAGE_NAMESPACE`, for example `ghcr.io/vindyang`
+- `OMNISHARD_TAG`, for example `v1.2.3` or a full commit SHA
+
+## Notes
+
+- The root `docker-compose.yml` is the build-from-source developer compose file and should not be overwritten for normal repo development.
+- Monolith integration tests exist under `backend/monolith/tests/integration`, but CI currently enforces a monolith build gate rather than a dedicated monolith test job.
+- No extra registry secret is required for the GitHub-hosted publishing workflows; GHCR publishing uses the built-in `GITHUB_TOKEN`.

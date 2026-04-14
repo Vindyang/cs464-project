@@ -1,107 +1,143 @@
-# Omnishard Backend
+# Omnishard Microservice Backend
 
-Omnishard is organized as independently deployable Go services with strict ownership boundaries.
-The orchestrator is the workflow owner and coordinates sharding, storage, and shard metadata.
-The gateway is the public API entrypoint and enforces endpoint/versioning standards.
+This directory contains the split-service Omnishard backend. It is the service-oriented implementation used by the `full`, `backend`, `full-microservices`, and `single-image-microservices` deployment flavors.
 
-## Current Architecture
+The microservice version keeps strict ownership boundaries between workflow orchestration, provider I/O, metadata persistence, erasure coding, and the public gateway.
 
-- `services/orchestrator`
-  - Public workflow entry/exit for upload and retrieval.
-  - Calls `sharding`, `adapter`, and `shardmap` through HTTP clients.
+## Directory Layout
 
-- `services/gateway`
-  - Public API boundary for external clients.
-  - Implemented with NGINX reverse proxy configuration.
-  - Exposes the standardized v1 contract and forwards to owner services.
-  - Adds standardized access logging and request-id propagation.
+- `services/adapter/`
+  - Provider connectivity, OAuth, credentials, settings, file metadata proxying, and shard I/O.
+- `services/shardmap/`
+  - File metadata, shard metadata, lifecycle history, and health state.
+- `services/sharding/`
+  - Reed-Solomon shard and reconstruct operations.
+- `services/orchestrator/`
+  - Upload, download, delete, and health-refresh workflow coordination.
+- `services/gateway/`
+  - NGINX public API boundary and OpenAPI docs surface.
+- `services/shared/`
+  - Cross-service DTOs, clients, transport helpers, persistence helpers, and provider abstractions.
+  - This area must remain utility-only. Service-owned business logic belongs in the owning service's `internal/` tree.
+- `tests/integration/`
+  - Contract tests across service boundaries.
+- `tests/e2e/`
+  - End-to-end backend tests.
+- `tests/run-tests.ps1`
+  - Grouped PowerShell test runner for unit, integration, and e2e suites.
 
-- `services/sharding`
-  - Owner of erasure coding operations.
-  - Provides `POST /api/sharding/shard` and `POST /api/sharding/reconstruct`.
+## Service Ownership
 
-- `services/adapter`
-  - Owner of provider connectivity and OAuth.
-  - Exposes shard-level I/O used by orchestrator.
+| Service | Port | Responsibility |
+| --- | --- | --- |
+| Adapter | `8080` | Provider connectivity, credentials, settings, shard I/O, metadata proxy endpoints |
+| Shardmap | `8081` | File metadata, shard metadata, lifecycle logs, shard health |
+| Orchestrator | `8082` | Workflow coordination for upload, download, delete, and health refresh |
+| Sharding | `8083` | Reed-Solomon shard and reconstruct operations |
+| Gateway | `8084` | Public API contract, route normalization, docs, and request logging |
 
-- `services/shardmap`
-  - Owner of shard metadata persistence and lookup.
+## Public And Internal APIs
 
-- `services/shared`
-  - Cross-service contracts, clients, and utilities only.
-  - No service-owned business logic.
+### Gateway public contract
 
-Legacy monolith code under top-level `internal/` has been removed.
+Canonical public endpoints:
 
-## End-to-End Workflow Ownership
-
-Upload workflow:
-
-1. Gateway receives the request on `/api/v1/upload`.
-2. Gateway forwards to orchestrator.
-3. Orchestrator receives file upload.
-4. Orchestrator calls sharding to split/encode shards.
-5. Orchestrator calls adapter to upload shards to providers.
-6. Orchestrator calls shardmap to register and record shard metadata.
-
-Download workflow:
-
-1. Gateway receives the request on `/api/v1/download/{fileId}`.
-2. Gateway forwards to orchestrator.
-3. Orchestrator requests shard locations from shardmap.
-4. Orchestrator downloads shards through adapter.
-5. Orchestrator calls sharding to reconstruct original data.
-6. Orchestrator returns file bytes to gateway, and gateway returns them to the caller.
-
-## Gateway API Contract (Public)
-
-Canonical versioned endpoints:
-
+- `GET /api/v1/docs`
+- `GET /api/v1/openapi.yml`
+- `GET /api/v1/health`
+- `GET /api/v1/providers`
 - `POST /api/v1/upload`
 - `GET /api/v1/download/{fileId}`
-- `GET /api/v1/providers`
-- `GET /api/v1/health`
-- `GET /api/v1/docs`
+- `GET /api/v1/history`
+- `GET /api/v1/history/{fileId}`
+- `POST /api/v1/files/health/refresh`
+- `POST /api/v1/files/{fileId}/health/refresh`
+- `DELETE /api/v1/files/{fileId}`
 
-Compatibility redirects exist for non-versioned forms:
+Compatibility redirects also exist for non-versioned paths such as `/upload`, `/download/{fileId}`, `/history`, `/providers`, and `/health`.
 
-- `/upload`
-- `/download/{fileId}`
-- `/providers`
-- `/health`
+### Adapter service endpoints
 
-## Service Ports (default local)
+Health and provider status:
 
-- Adapter: `:8080`
-- Shardmap: `:8081`
-- Orchestrator: `:8082`
-- Sharding: `:8083`
-- Gateway: `:8084`
+- `GET /health`
+- `GET /api/providers`
 
-## Environment Variables
+Google Drive OAuth:
 
-Common service URLs:
+- `GET /api/oauth/gdrive/authorize`
+- `GET /api/oauth/gdrive/callback`
+- `POST /api/oauth/gdrive/disconnect`
 
-- `ADAPTER_URL` default `http://localhost:8080`
-- `SHARDMAP_URL` default `http://localhost:8081`
-- `SHARDING_URL` default `http://localhost:8083`
-- `ORCHESTRATOR_URL` default `http://localhost:8082`
+OneDrive OAuth:
 
-Adapter local persistence:
+- `GET /api/oauth/onedrive/authorize`
+- `GET /api/oauth/onedrive/callback`
+- `POST /api/oauth/onedrive/disconnect`
 
-- `Omnishard_DB_PATH`
+AWS S3 management:
 
-Shardmap local persistence:
+- `POST /api/providers/awsS3/connect`
+- `POST /api/providers/awsS3/disconnect`
 
-- `Omnishard_SHARDMAP_DB_PATH`
+Credentials and settings:
 
-Testing-only environment file:
+- `GET /api/credentials/status`
+- `GET /api/credentials`
+- `PUT /api/credentials/{provider}`
+- `DELETE /api/credentials/{provider}`
+- `GET /api/credentials/{provider}/secret`
+- `GET /api/settings`
+- `PUT /api/settings`
+- `POST /api/settings/reset`
 
-- `backend/microservice/.env.example` exists only for manual integration tests.
-- Backend service code should not depend on `.env` for credentials.
-- Google Drive and S3 credentials are expected to be configured through the application and stored in the local SQLite store.
+Shard I/O and metadata proxy routes:
 
-## Run Locally
+- `POST /shards/upload`
+- `GET /shards/{remoteId}?provider={providerId}`
+- `DELETE /shards/{remoteId}?provider={providerId}`
+- `GET /api/v1/files`
+- `GET /api/v1/files/{fileId}`
+- `DELETE /api/v1/files/{fileId}`
+- `GET /api/v1/shards/file/{fileId}`
+
+### Shardmap service endpoints
+
+- `GET /health`
+- `POST /api/v1/shards/register`
+- `POST /api/v1/shards/record`
+- `GET /api/v1/shards/file/{fileId}`
+- `GET /api/v1/shards/{shardId}`
+- `PUT /api/v1/shards/{shardId}/status`
+- `GET /api/v1/files`
+- `GET /api/v1/files/{fileId}`
+- `DELETE /api/v1/files/{fileId}`
+- `POST /api/v1/files/{fileId}/health-refresh`
+- `POST /api/v1/lifecycle`
+- `GET /api/v1/lifecycle`
+- `DELETE /api/v1/lifecycle`
+- `GET /api/v1/lifecycle/{fileId}`
+
+### Orchestrator service endpoints
+
+- `GET /health`
+- `POST /api/orchestrator/upload`
+- `GET /api/orchestrator/files/{fileId}/download`
+- `GET /api/orchestrator/history`
+- `GET /api/orchestrator/files/{fileId}/history`
+- `POST /api/orchestrator/files/health/refresh`
+- `POST /api/orchestrator/files/{fileId}/health/refresh`
+- `DELETE /api/orchestrator/files/{fileId}`
+
+### Sharding service endpoints
+
+- `GET /api/sharding/health`
+- `POST /api/sharding/shard`
+- `POST /api/sharding/reconstruct`
+
+## Run This Version
+
+### Local process-by-process startup
 
 From `backend/microservice/`:
 
@@ -112,226 +148,110 @@ go run ./services/sharding/cmd/main.go
 go run ./services/orchestrator/cmd/main.go
 ```
 
-Gateway is provided by Docker (NGINX):
+Run the gateway from the repo root with Docker Compose:
 
 ```powershell
-docker compose --profile backend up --build gateway
+docker compose --profile backend up -d --build gateway
 ```
 
-## Run With Docker Compose
+### Local Docker Compose from source
 
-From project root:
+From the repository root:
 
 ```powershell
-docker compose --profile full up --build
+docker compose --profile full up -d --build
+docker compose --profile backend up -d --build
 ```
 
-This starts the full stack:
+The `full` profile starts the frontend and all backend services. The `backend` profile starts the backend services only.
 
-- Frontend: `http://localhost:3000`
-- Adapter API: `http://localhost:8080`
-- Shardmap API: `http://localhost:8081`
-- Orchestrator API: `http://localhost:8082`
-- Sharding API: `http://localhost:8083`
-- Gateway API: `http://localhost:8084`
+### Official GitHub OSS release assets
 
-For backend services only (no frontend):
+Download one of the published release assets, save it locally as `docker-compose.yml`, and start it:
 
 ```powershell
-docker compose --profile backend up --build
-```
-
-Stop and remove containers:
-
-```powershell
-docker compose --profile full down
-```
-
-For backend-only mode:
-
-```powershell
-docker compose --profile backend down
-```
-
-Stop and also remove local service data volumes:
-
-```powershell
-docker compose --profile full down -v
-```
-
-If you get container name conflicts from old runs, clean orphaned containers first:
-
-```powershell
-docker compose --profile full down --remove-orphans
-```
-
-Service endpoints:
-
-- Adapter: `http://localhost:8080`
-- Shardmap: `http://localhost:8081`
-- Orchestrator: `http://localhost:8082`
-- Sharding/Reconstruction: `http://localhost:8083`
-- Gateway: `http://localhost:8084`
-
-Internal service DNS used in Docker network:
-
-- `http://adapter:8080`
-- `http://shardmap:8081`
-- `http://orchestrator:8082`
-- `http://sharding:8083`
-- `http://gateway:8084`
-
-## Release deployment flavors
-
-Two release-focused Docker Compose manifests now sit alongside the source-build developer workflow:
-
-- `deploy/compose/full-microservices.yml`
-  - Pulls published images for adapter, shardmap, sharding, orchestrator, gateway, and frontend.
-  - Best for debugging service boundaries while avoiding local builds.
-- `deploy/compose/single-image-microservices.yml`
-  - Pulls one published `omnishard-all-in-one` image.
-  - Runs adapter, shardmap, sharding, orchestrator, gateway, and frontend as separate internal processes in one container.
-
-For end users, the official deployment entrypoint is the GitHub Releases page rather than the repo checkout. Download the latest release asset you want and save it locally as `docker-compose.yml`:
-
-```powershell
-wget -O docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.full-microservices.yml
-wget -O docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.single-image-microservices.yml
-```
-
-Then run:
-
-```powershell
+Invoke-WebRequest https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.full-microservices.yml -OutFile docker-compose.yml
 docker compose up -d
 ```
 
-The official release assets are generated during the formal GitHub Release flow, pin the GHCR namespace for this repository, and pin a semver image tag.
+or
 
-If you are testing from the repository checkout instead, use the repo-local manifests and set:
+```powershell
+Invoke-WebRequest https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.single-image-microservices.yml -OutFile docker-compose.yml
+docker compose up -d
+```
+
+### Repo-local GHCR pull manifests
+
+From the repository root:
 
 ```powershell
 $env:IMAGE_NAMESPACE = "ghcr.io/vindyang"
 $env:OMNISHARD_TAG = "<release-tag-or-commit-sha>"
-```
-
-Run release flavor 1:
-
-```powershell
 docker compose -f deploy/compose/full-microservices.yml up -d
-```
-
-Run release flavor 2:
-
-```powershell
 docker compose -f deploy/compose/single-image-microservices.yml up -d
 ```
 
-Single-image public ports:
+## Environment Variables
 
-- Frontend: `http://localhost:3000`
-- Adapter/API surface: `http://localhost:8080`
+Common service URLs:
 
-The gateway remains internal to the all-in-one container on port `8084`.
+- `ADAPTER_URL`, default `http://localhost:8080`
+- `SHARDMAP_URL`, default `http://localhost:8081`
+- `SHARDING_URL`, default `http://localhost:8083`
+- `ORCHESTRATOR_URL`, default `http://localhost:8082`
+
+Persistence:
+
+- `Omnishard_DB_PATH` for adapter credentials, tokens, and settings
+- `Omnishard_SHARDMAP_DB_PATH` for shardmap metadata and lifecycle history
+
+Testing-only note:
+
+- `backend/microservice/.env.example` exists for manual integration flows only.
+- Backend services should not rely on `.env` for production credentials.
 
 ## Tests
 
-Service suite:
+Run all service package tests:
 
 ```powershell
 go test ./services/...
 ```
 
-Central test runner:
+Use the grouped test runner:
 
 ```powershell
 .\tests\run-tests.ps1 -Type unit
+.\tests\run-tests.ps1 -Type integration
+.\tests\run-tests.ps1 -Type e2e
 .\tests\run-tests.ps1 -Type all
 ```
 
-Integration contract suite:
+Current test layout:
 
-- `tests/integration/orchestrator_contract_test.go`
-  - Happy-path contract test: upload + download across mocked Adapter/ShardMap/Sharding.
-- `tests/integration/orchestrator_upload_failure_contracts_test.go`
-  - Upload failure-path contracts:
-    - shard-map register failure during upload returns orchestrator `500` with stable JSON error fields (`error`, `details`).
-    - malformed sharding shard response during upload returns orchestrator `500` with stable JSON error fields.
-    - partial adapter shard upload failure triggers rollback delete calls for successfully uploaded shards, and shard-map record is skipped.
-- `tests/integration/orchestrator_download_failure_contracts_test.go`
-  - Download failure-path contracts:
-    - shard-map lookup failure during download returns orchestrator `500` with stable JSON error fields (`error`, `details`).
-    - sharding reconstruct returning `500` returns orchestrator `500` with stable JSON error fields (`error`, `details`).
-    - sharding reconstruct returning malformed JSON payload returns orchestrator `500` with stable JSON error fields (`error`, `details`).
-- `tests/integration/integration_helpers_test.go`
-  - Shared integration helpers for orchestrator startup, upload request helpers, health waiting, and dynamic port allocation.
+- Unit tests live under `services/*/tests/unit/`.
+- Integration contract tests live under `tests/integration/`.
+- E2E tests live under `tests/e2e/`.
 
-## Service Contract Notes (important)
+Important contract checks preserved by the integration suite:
 
-To keep orchestrator <-> service integration stable, preserve these contracts:
+- Shardmap register requests must send positive `original_size`.
+- Recorded shard `type` values must be uppercase `DATA` or `PARITY`.
+- Sharding endpoints remain `/api/sharding/shard` and `/api/sharding/reconstruct`.
 
-- Orchestrator -> ShardMap
-  - Register request must send positive `original_size`.
-  - Record request shard `type` must be uppercase `DATA` / `PARITY`.
+## References
 
-- Orchestrator -> Sharding
-  - Endpoints are `/api/sharding/shard` and `/api/sharding/reconstruct`.
-  - Shard request payload uses `fileId`, `fileData`, `n`, `k`.
-  - Shard response parsing should support `shardData` (with legacy `shard_data` fallback).
+- [../../docs/backend-microservice.md](../../docs/backend-microservice.md) for the deeper microservice architecture walkthrough.
+- [../../docs/architecture.md](../../docs/architecture.md) for the cross-repo backend comparison.
+- [../../docs/cicd.md](../../docs/cicd.md) for CI/CD and release details.
 
-## Key Entry Endpoints
-
-- Gateway upload: `POST /api/v1/upload`
-- Gateway download: `GET /api/v1/download/{fileId}`
-- Gateway providers: `GET /api/v1/providers`
-- Gateway health: `GET /api/v1/health`
-- Gateway docs: `GET /api/v1/docs`
-
-Internal service endpoints:
-
-- Orchestrator health: `GET /health`
-- Orchestrator upload: `POST /api/orchestrator/upload`
-- Orchestrator download: `GET /api/orchestrator/files/{fileId}/download`
-- Adapter providers: `GET /api/providers`
-- Adapter shard upload: `POST /shards/upload`
-- Adapter shard download/delete: `GET|DELETE /shards/{remoteId}`
-- Shardmap register/record/query: `/api/v1/shards/*`
-- Sharding operations: `/api/sharding/shard`, `/api/sharding/reconstruct`
-
-## Notes
-
-- Gateway intentionally does not add authentication yet.
-- OAuth endpoints remain owned by `adapter`.
-
-## GHCR CD for Individual Services
-
-This backend is published through GitHub Actions in two distinct modes.
-
-Continuous publishing from `main`:
-
-- `.github/workflows/ci-main.yml`
-
-Official GitHub Release publication:
-
-- `.github/workflows/release-github-oss.yml`
-
-Manual image-only republish:
-
-- `.github/workflows/cd-dockerhub-force-deploy.yml`
-
-Per-service repositories:
+Published GHCR images for this backend flavor:
 
 - `ghcr.io/vindyang/omnishard-adapter`
 - `ghcr.io/vindyang/omnishard-shardmap`
 - `ghcr.io/vindyang/omnishard-sharding`
 - `ghcr.io/vindyang/omnishard-orchestrator`
 - `ghcr.io/vindyang/omnishard-gateway`
-
-GitHub repository setup required:
-
-- No extra registry secret is required when publishing from GitHub Actions; workflows use the built-in `GITHUB_TOKEN` for GHCR.
-
-How it behaves:
-
-- `ci-main.yml` publishes changed images to GHCR on push to `main` using `latest` plus full commit SHA tags.
-- `microservices` runs CI only and does not publish images.
-- `release-github-oss.yml` takes an exact commit SHA plus a semver tag, pushes release-tagged images to GHCR, creates the GitHub Release, and uploads `docker-compose.full-microservices.yml` plus `docker-compose.single-image-microservices.yml` as official release assets.
+- `ghcr.io/vindyang/omnishard-frontend`
+- `ghcr.io/vindyang/omnishard-all-in-one`

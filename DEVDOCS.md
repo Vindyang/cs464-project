@@ -35,19 +35,22 @@ Before you start: there are **2 supported ways** to run the app.
 
 Current backend layout:
 
-- `backend/microservice` contains the active multi-service backend used by the existing compose and CI flows.
-- `backend/monolith` is the new single-process backend scaffold and is not wired into the runtime flows yet.
+- `backend/microservice` contains the split-service backend used by the `full`, `backend`, `full-microservices`, and `single-image-microservices` deployment flavors.
+- `backend/monolith` contains the standalone single-process backend used by the `monolith` and `single-image-monolith` deployment flavors.
 
 ### Run from latest GHCR images
 
-Download the latest full-microservices release compose file:
+Download one of the official release assets:
 
 ```bash
-curl -L -o [docker-compose.yml](http://_vscodecontentref_/0) https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.full-microservices.yml
+curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.full-microservices.yml
+curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.single-image-microservices.yml
+curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.single-image-monolith.yml
 ```
 
-Start the stack:
-```
+Start the selected stack:
+
+```bash
 docker compose up -d
 ```
 
@@ -59,6 +62,12 @@ From repo root (`cs464-project/`):
 
 ```bash
 docker compose --profile full up -d --build
+```
+
+Run the monolith flavor from source instead:
+
+```bash
+docker compose --profile monolith up -d --build monolith frontend-monolith
 ```
 
 Endpoints:
