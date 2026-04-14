@@ -1,8 +1,11 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { HealthPollingController } from "@/components/health-polling-controller";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { getProviders } from "@/lib/api/providers";
 import { getFiles } from "@/lib/api/files";
+
+export const dynamic = 'force-dynamic';
 
 export default async function DashboardLayout({
   children,
@@ -30,16 +33,18 @@ export default async function DashboardLayout({
         totalStorageUsedBytes={totalStorageUsedBytes}
         totalStorageTotalBytes={totalStorageTotalBytes}
       />
-      <SidebarInset className="min-h-0 overflow-hidden">
-        <header className="flex h-14 shrink-0 items-center gap-2.5 border-b px-4">
-          <SidebarTrigger className="-ml-1" />
-          <div className="h-5 w-px bg-neutral-200 dark:bg-neutral-800" />
-          <span className="font-mono text-[12px] font-medium uppercase tracking-widest text-neutral-500 dark:text-neutral-400">
-            Omnishard
-          </span>
-        </header>
-        <div className="min-h-0 flex-1 overflow-y-auto p-6">{children}</div>
-      </SidebarInset>
+      <TooltipProvider>
+        <SidebarInset className="flex h-full min-h-0 min-w-0 flex-col">
+          <header className="flex h-14 shrink-0 items-center gap-2.5 border-b px-4">
+            <SidebarTrigger className="-ml-1" />
+            <div className="h-5 w-px bg-neutral-200 dark:bg-neutral-800" />
+            <span className="font-mono text-[12px] font-medium uppercase tracking-widest text-neutral-500 dark:text-neutral-400">
+              Omnishard
+            </span>
+          </header>
+          <div className="h-0 min-h-0 flex-1 overflow-y-auto p-6">{children}</div>
+        </SidebarInset>
+      </TooltipProvider>
     </SidebarProvider>
   );
 }

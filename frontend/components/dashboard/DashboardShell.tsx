@@ -23,11 +23,21 @@ export function DashboardShell({
 }: DashboardShellProps) {
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
 
-  const handleUpload = (file: File, encrypt: boolean) => {
+  const handleUpload = async (file: File, encrypt: boolean, signal?: AbortSignal) => {
     console.log("Upload started:", file.name, "Encrypted:", encrypt);
-    setTimeout(() => {
-      setUploadModalOpen(false);
-    }, 1000);
+    return new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        setUploadModalOpen(false);
+        resolve();
+      }, 2000);
+
+      if (signal) {
+        signal.addEventListener("abort", () => {
+          clearTimeout(timer);
+          reject(new DOMException("Aborted", "AbortError"));
+        });
+      }
+    });
   };
 
   return (

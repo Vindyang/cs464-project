@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 
 const GATEWAY_URL = process.env.GATEWAY_URL || "http://localhost:8084";
 
@@ -22,11 +23,15 @@ export async function DELETE(
   });
 
   if (upstream.status === 204) {
+    revalidatePath("/files");
+    revalidatePath("/dashboard");
     return new NextResponse(null, { status: 204 });
   }
 
   const data = await upstream.json().catch(() => ({}));
   if (upstream.ok) {
+    revalidatePath("/files");
+    revalidatePath("/dashboard");
     return NextResponse.json(data, { status: upstream.status });
   }
 

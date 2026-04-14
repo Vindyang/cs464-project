@@ -415,6 +415,9 @@ func TestShardMapService_MarkShardStatusRecomputesFileStatusDegraded(t *testing.
 			updatedFileStatus = status
 			return nil
 		},
+		getByIDFn: func(id uuid.UUID) (*models.File, error) {
+			return &models.File{ID: fileID, K: 1}, nil
+		},
 	}
 	shardRepo := &mockShardRepo{
 		updateStatusFn: func(id uuid.UUID, status models.ShardStatus) error {
@@ -444,6 +447,52 @@ func TestShardMapService_MarkShardStatusRecomputesFileStatusDegraded(t *testing.
 
 	if updatedFileStatus != models.FileStatusDegraded {
 		t.Fatalf("expected file status DEGRADED, got %s", updatedFileStatus)
+	}
+}
+
+func TestShardMapService_MarkShardStatusRecomputesFileStatusCorrupted(t *testing.T) {
+	fileID := uuid.New()
+	shardID := uuid.New()
+
+	var updatedFileStatus models.FileStatus
+	fileRepo := &mockFileRepo{
+		updateStatusFn: func(id uuid.UUID, status models.FileStatus) error {
+			if id != fileID {
+				t.Fatalf("unexpected file id %s", id)
+			}
+			updatedFileStatus = status
+			return nil
+		},
+		getByIDFn: func(id uuid.UUID) (*models.File, error) {
+			return &models.File{ID: fileID, K: 4}, nil
+		},
+	}
+	shardRepo := &mockShardRepo{
+		updateStatusFn: func(id uuid.UUID, status models.ShardStatus) error {
+			return nil
+		},
+		getByIDFn: func(id uuid.UUID) (*models.Shard, error) {
+			return &models.Shard{ID: shardID, FileID: fileID}, nil
+		},
+		getByFileIDFn: func(id uuid.UUID) ([]*models.Shard, error) {
+			return []*models.Shard{
+				{ID: uuid.New(), FileID: fileID, Status: models.ShardStatusHealthy},
+				{ID: uuid.New(), FileID: fileID, Status: models.ShardStatusHealthy},
+				{ID: uuid.New(), FileID: fileID, Status: models.ShardStatusHealthy},
+				{ID: uuid.New(), FileID: fileID, Status: models.ShardStatusMissing},
+				{ID: uuid.New(), FileID: fileID, Status: models.ShardStatusMissing},
+				{ID: uuid.New(), FileID: fileID, Status: models.ShardStatusMissing},
+			}, nil
+		},
+	}
+
+	svc := app.NewShardMapService(fileRepo, shardRepo, &mockLifecycleRepo{})
+	if err := svc.MarkShardStatus(shardID, &dto.MarkShardStatusRequest{Status: "MISSING"}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if updatedFileStatus != models.FileStatusCorrupted {
+		t.Fatalf("expected file status CORRUPTED, got %s", updatedFileStatus)
 	}
 }
 

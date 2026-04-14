@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
+import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, UPLOAD_LIMIT_LABEL } from "@/lib/upload-limit";
 
 const GATEWAY_URL = process.env.GATEWAY_URL || "http://localhost:8084";
 
@@ -13,6 +15,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing file field" }, { status: 400 });
     }
 
+    if (file.size > MAX_UPLOAD_BYTES) {
+      return NextResponse.json(
+        {
+          error: "Upload limit exceeded",
+          details: `Maximum upload size is ${UPLOAD_LIMIT_LABEL}.`,
+          max_upload_mb: MAX_UPLOAD_MB,
+        },
+        { status: 413 }
+      );
+    }
+
     const upstreamForm = new FormData();
     upstreamForm.append("file", file, file.name);
     upstreamForm.append("k", k);
@@ -25,11 +38,16 @@ export async function POST(request: Request) {
     });
 
     const data = await upstreamRes.json().catch(() => ({}));
+    if (upstreamRes.ok) {
+      revalidatePath("/files");
+      revalidatePath("/dashboard");
+    }
     return NextResponse.json(data, { status: upstreamRes.status });
   } catch (error) {
     return NextResponse.json(
       {
         error: "Failed to upload file",
+        code: "UNKNOWN_ERROR",
         details: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }

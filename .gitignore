@@ -68,6 +68,7 @@ skills-lock.json
 
 # Go binaries
 backend/bin/
+backend/.cache
 *.exe
 *.out
 *.all

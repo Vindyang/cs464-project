@@ -1,6 +1,6 @@
 services:
   adapter:
-    image: ${DOCKERHUB_NAMESPACE:?Set DOCKERHUB_NAMESPACE}/omnishard-adapter:${OMNISHARD_TAG:-latest}
+    image: ${IMAGE_NAMESPACE:?Set IMAGE_NAMESPACE}/omnishard-adapter:${OMNISHARD_TAG:-latest}
     restart: unless-stopped
     environment:
       PORT: "8080"
@@ -12,7 +12,7 @@ services:
       - "8080:8080"
 
   shardmap:
-    image: ${DOCKERHUB_NAMESPACE:?Set DOCKERHUB_NAMESPACE}/omnishard-shardmap:${OMNISHARD_TAG:-latest}
+    image: ${IMAGE_NAMESPACE:?Set IMAGE_NAMESPACE}/omnishard-shardmap:${OMNISHARD_TAG:-latest}
     restart: unless-stopped
     environment:
       PORT: "8081"
@@ -23,7 +23,7 @@ services:
       - "8081:8081"
 
   sharding:
-    image: ${DOCKERHUB_NAMESPACE:?Set DOCKERHUB_NAMESPACE}/omnishard-sharding:${OMNISHARD_TAG:-latest}
+    image: ${IMAGE_NAMESPACE:?Set IMAGE_NAMESPACE}/omnishard-sharding:${OMNISHARD_TAG:-latest}
     restart: unless-stopped
     environment:
       PORT: "8083"
@@ -31,7 +31,7 @@ services:
       - "8083:8083"
 
   orchestrator:
-    image: ${DOCKERHUB_NAMESPACE:?Set DOCKERHUB_NAMESPACE}/omnishard-orchestrator:${OMNISHARD_TAG:-latest}
+    image: ${IMAGE_NAMESPACE:?Set IMAGE_NAMESPACE}/omnishard-orchestrator:${OMNISHARD_TAG:-latest}
     restart: unless-stopped
     environment:
       PORT: "8082"
@@ -49,7 +49,7 @@ services:
       - "8082:8082"
 
   gateway:
-    image: ${DOCKERHUB_NAMESPACE:?Set DOCKERHUB_NAMESPACE}/omnishard-gateway:${OMNISHARD_TAG:-latest}
+    image: ${IMAGE_NAMESPACE:?Set IMAGE_NAMESPACE}/omnishard-gateway:${OMNISHARD_TAG:-latest}
     restart: unless-stopped
     environment:
       ORCHESTRATOR_URL: "http://orchestrator:8082"
@@ -67,7 +67,7 @@ services:
       - "8084:8084"
 
   frontend:
-    image: ${DOCKERHUB_NAMESPACE:?Set DOCKERHUB_NAMESPACE}/omnishard-frontend:${OMNISHARD_TAG:-latest}
+    image: ${IMAGE_NAMESPACE:?Set IMAGE_NAMESPACE}/omnishard-frontend:${OMNISHARD_TAG:-latest}
     restart: unless-stopped
     environment:
       PORT: "3000"

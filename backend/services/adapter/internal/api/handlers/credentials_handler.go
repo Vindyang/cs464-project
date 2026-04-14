@@ -42,7 +42,7 @@ func (h *CredentialsHandler) collection(w http.ResponseWriter, r *http.Request) 
 
 	records, err := h.store.ListCredentials()
 	if err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, "failed to list credentials", err)
+		httpx.WriteErrorWithCode(w, http.StatusInternalServerError, "failed to list credentials", "UNKNOWN_ERROR", err)
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, records)
@@ -57,7 +57,7 @@ func (h *CredentialsHandler) status(w http.ResponseWriter, r *http.Request) {
 
 	records, err := h.store.ListCredentials()
 	if err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, "failed to list credentials status", err)
+		httpx.WriteErrorWithCode(w, http.StatusInternalServerError, "failed to list credentials status", "UNKNOWN_ERROR", err)
 		return
 	}
 
@@ -125,11 +125,11 @@ func (h *CredentialsHandler) get(w http.ResponseWriter, id string) {
 
 	clientID, _, redirectURI, err := h.store.LoadCredentials(id)
 	if errors.Is(err, db.ErrNotFound) {
-		httpx.WriteError(w, http.StatusNotFound, "no credentials configured for provider", nil)
+		httpx.WriteErrorWithCode(w, http.StatusNotFound, "no credentials configured for provider", "PROVIDER_NOT_FOUND", nil)
 		return
 	}
 	if err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, "failed to load credentials", err)
+		httpx.WriteErrorWithCode(w, http.StatusInternalServerError, "failed to load credentials", "UNKNOWN_ERROR", err)
 		return
 	}
 
@@ -150,11 +150,11 @@ func (h *CredentialsHandler) getSecret(w http.ResponseWriter, id string) {
 
 	clientID, clientSecret, redirectURI, err := h.store.LoadCredentials(id)
 	if errors.Is(err, db.ErrNotFound) {
-		httpx.WriteError(w, http.StatusNotFound, "no credentials configured for provider", nil)
+		httpx.WriteErrorWithCode(w, http.StatusNotFound, "no credentials configured for provider", "PROVIDER_NOT_FOUND", nil)
 		return
 	}
 	if err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, "failed to load credentials", err)
+		httpx.WriteErrorWithCode(w, http.StatusInternalServerError, "failed to load credentials", "UNKNOWN_ERROR", err)
 		return
 	}
 
@@ -198,7 +198,7 @@ func (h *CredentialsHandler) upsert(w http.ResponseWriter, r *http.Request, id s
 	}
 
 	if err := h.store.UpsertCredentials(id, body.ClientID, body.ClientSecret, body.RedirectURI); err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, "failed to save credentials", err)
+		httpx.WriteErrorWithCode(w, http.StatusInternalServerError, "failed to save credentials", "UNKNOWN_ERROR", err)
 		return
 	}
 
@@ -216,7 +216,7 @@ func (h *CredentialsHandler) delete(w http.ResponseWriter, id string) {
 	}
 
 	if err := h.deleteProviderData(id); err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, "failed to delete credentials", err)
+		httpx.WriteErrorWithCode(w, http.StatusInternalServerError, "failed to delete credentials", "UNKNOWN_ERROR", err)
 		return
 	}
 

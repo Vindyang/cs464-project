@@ -10,10 +10,11 @@ import (
 type FileStatus string
 
 const (
-	FileStatusPending  FileStatus = "PENDING"
-	FileStatusUploaded FileStatus = "UPLOADED"
-	FileStatusDegraded FileStatus = "DEGRADED"
-	FileStatusDeleted  FileStatus = "DELETED"
+	FileStatusPending   FileStatus = "PENDING"
+	FileStatusUploaded  FileStatus = "UPLOADED"
+	FileStatusDegraded  FileStatus = "DEGRADED"
+	FileStatusCorrupted FileStatus = "CORRUPTED"
+	FileStatusDeleted   FileStatus = "DELETED"
 )
 
 // ShardStatus represents the health status of an individual shard

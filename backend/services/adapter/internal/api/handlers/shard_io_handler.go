@@ -60,7 +60,7 @@ func (h *ShardIOHandler) UploadShard(w http.ResponseWriter, r *http.Request) {
 	payloadReader := bytes.NewReader(payload)
 	remoteID, err := provider.UploadShard(r.Context(), parseFileID(shardID), parseShardIndex(shardID), payloadReader)
 	if err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, "Failed to upload shard", err)
+		httpx.WriteErrorWithCode(w, http.StatusInternalServerError, "Failed to upload shard", httpx.ClassifyProviderError(err.Error()), err)
 		return
 	}
 
@@ -155,10 +155,10 @@ func (h *ShardIOHandler) downloadShard(w http.ResponseWriter, r *http.Request, r
 			strings.Contains(lowerErr, "not found") ||
 			strings.Contains(lowerErr, "no such key") ||
 			strings.Contains(lowerErr, "404") {
-			httpx.WriteError(w, http.StatusNotFound, "Shard not found", err)
+			httpx.WriteErrorWithCode(w, http.StatusNotFound, "Shard not found", "FILE_NOT_FOUND", err)
 			return
 		}
-		httpx.WriteError(w, http.StatusInternalServerError, "Failed to download shard", err)
+		httpx.WriteErrorWithCode(w, http.StatusInternalServerError, "Failed to download shard", httpx.ClassifyProviderError(err.Error()), err)
 		return
 	}
 	defer reader.Close()

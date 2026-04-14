@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ProviderMetadata, getProviders, disconnectGDrive, getGDriveAuthorizeURL, connectS3, disconnectS3, getOneDriveAuthorizeURL, disconnectOneDrive } from "@/lib/api/providers";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { helpToast } from "@/lib/help/help-toast";
 import { ProvidersUploadFilesModal } from "@/components/dashboard/ProvidersUploadFilesModal";
 
 const CONNECT_OPTIONS = [
@@ -63,7 +64,10 @@ export function ProvidersClient({
       router.replace("/providers");
       refresh();
     } else if (error) {
-      toast.error(PROVIDER_CONNECT_ERRORS[error] ?? "Failed to connect provider. Please try again.");
+      helpToast({
+        error: PROVIDER_CONNECT_ERRORS[error] ?? "Failed to connect provider. Please try again.",
+        code: error === "credentials_missing" ? "PROVIDER_NOT_FOUND" : "PROVIDER_AUTH_EXPIRED",
+      });
       router.replace("/providers");
     } else if (upload === "1") {
       setUploadModalOpen(true);
@@ -78,9 +82,10 @@ export function ProvidersClient({
 
   const handleConnect = async (providerId: string) => {
     if (!configuredCredentialProviders.includes(providerId)) {
-      toast.error(
-        `Missing stored credentials for ${PROVIDER_LABELS[providerId] ?? providerId}. Add them on the Credentials page before connecting.`,
-      );
+      helpToast({
+        error: `Missing stored credentials for ${PROVIDER_LABELS[providerId] ?? providerId}. Add them on the Credentials page before connecting.`,
+        code: "PROVIDER_NOT_FOUND",
+      });
       return;
     }
 
@@ -90,7 +95,7 @@ export function ProvidersClient({
         const { authURL } = await getGDriveAuthorizeURL();
         window.location.assign(authURL);
       } catch {
-        toast.error("Failed to start Google Drive connection");
+        helpToast({ error: "Failed to start Google Drive connection", code: "PROVIDER_AUTH_EXPIRED" });
         setConnecting(null);
       }
     } else if (providerId === "awsS3") {
@@ -99,7 +104,7 @@ export function ProvidersClient({
         toast.success("AWS S3 connected successfully");
         refresh();
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to connect S3");
+        helpToast(err instanceof Error ? { error: err.message, code: "PROVIDER_AUTH_EXPIRED" } : { error: "Failed to connect S3", code: "PROVIDER_AUTH_EXPIRED" });
       } finally {
         setConnecting(null);
       }
@@ -108,7 +113,7 @@ export function ProvidersClient({
         const { authURL } = await getOneDriveAuthorizeURL();
         window.location.assign(authURL);
       } catch {
-        toast.error("Failed to start OneDrive connection");
+        helpToast({ error: "Failed to start OneDrive connection", code: "PROVIDER_AUTH_EXPIRED" });
         setConnecting(null);
       }
     } else {
@@ -129,7 +134,7 @@ export function ProvidersClient({
             toast.success("Provider disconnected");
             refresh();
           } catch {
-            toast.error("Failed to disconnect provider");
+            helpToast({ error: "Failed to disconnect provider", code: "UNKNOWN_ERROR" });
           }
         },
       },

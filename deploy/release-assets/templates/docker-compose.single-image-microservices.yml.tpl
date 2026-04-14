@@ -1,6 +1,6 @@
 services:
   omnishard:
-    image: nebula67/omnishard-all-in-one:__OMNISHARD_TAG__
+    image: __IMAGE_NAMESPACE__/omnishard-all-in-one:__OMNISHARD_TAG__
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_API_URL: "http://localhost:8080"

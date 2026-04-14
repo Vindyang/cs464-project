@@ -12,6 +12,7 @@ import (
 	"github.com/vindyang/cs464-project/backend/services/sharding/internal/api/handlers"
 	"github.com/vindyang/cs464-project/backend/services/sharding/internal/app"
 )
+
 // CD testing again
 func main() {
 	port := os.Getenv("PORT")
@@ -28,8 +29,8 @@ func main() {
 	server := &http.Server{
 		Addr:         ":" + port,
 		Handler:      mux,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
+		ReadTimeout:  10 * time.Minute,
+		WriteTimeout: 10 * time.Minute,
 		IdleTimeout:  60 * time.Second,
 	}
 

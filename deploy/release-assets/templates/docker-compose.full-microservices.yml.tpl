@@ -1,6 +1,6 @@
 services:
   adapter:
-    image: nebula67/omnishard-adapter:__OMNISHARD_TAG__
+    image: __IMAGE_NAMESPACE__/omnishard-adapter:__OMNISHARD_TAG__
     restart: unless-stopped
     environment:
       PORT: "8080"
@@ -12,7 +12,7 @@ services:
       - "8080:8080"
 
   shardmap:
-    image: nebula67/omnishard-shardmap:__OMNISHARD_TAG__
+    image: __IMAGE_NAMESPACE__/omnishard-shardmap:__OMNISHARD_TAG__
     restart: unless-stopped
     environment:
       PORT: "8081"
@@ -23,7 +23,7 @@ services:
       - "8081:8081"
 
   sharding:
-    image: nebula67/omnishard-sharding:__OMNISHARD_TAG__
+    image: __IMAGE_NAMESPACE__/omnishard-sharding:__OMNISHARD_TAG__
     restart: unless-stopped
     environment:
       PORT: "8083"
@@ -31,7 +31,7 @@ services:
       - "8083:8083"
 
   orchestrator:
-    image: nebula67/omnishard-orchestrator:__OMNISHARD_TAG__
+    image: __IMAGE_NAMESPACE__/omnishard-orchestrator:__OMNISHARD_TAG__
     restart: unless-stopped
     environment:
       PORT: "8082"
@@ -49,7 +49,7 @@ services:
       - "8082:8082"
 
   gateway:
-    image: nebula67/omnishard-gateway:__OMNISHARD_TAG__
+    image: __IMAGE_NAMESPACE__/omnishard-gateway:__OMNISHARD_TAG__
     restart: unless-stopped
     environment:
       ORCHESTRATOR_URL: "http://orchestrator:8082"
@@ -67,7 +67,7 @@ services:
       - "8084:8084"
 
   frontend:
-    image: nebula67/omnishard-frontend:__OMNISHARD_TAG__
+    image: __IMAGE_NAMESPACE__/omnishard-frontend:__OMNISHARD_TAG__
     restart: unless-stopped
     environment:
       PORT: "3000"

@@ -1,4 +1,4 @@
-name: CD - Force Publish Release Images
+name: CD - Force Publish Registry Images
 
 on:
   workflow_dispatch:
@@ -16,12 +16,19 @@ on:
 
 permissions:
   contents: read
+  packages: write
 
 jobs:
   validate-inputs:
     name: Validate selections
     runs-on: ubuntu-latest
+    outputs:
+      image_namespace: ${{ steps.namespace.outputs.image_namespace }}
     steps:
+      - name: Resolve image namespace
+        id: namespace
+        run: echo "image_namespace=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
       - name: Require at least one release target
         run: |
           if [ "${{ inputs.deploy_full_microservices }}" != "true" ] && [ "${{ inputs.deploy_all_in_one }}" != "true" ]; then
@@ -65,7 +72,7 @@ jobs:
             build_args: |
               NEXT_PUBLIC_API_URL=http://localhost:8080
     env:
-      IMAGE_NAME: ${{ vars.DOCKERHUB_NAMESPACE }}/${{ matrix.image_name }}
+      IMAGE_NAME: ${{ needs.validate-inputs.outputs.image_namespace }}/${{ matrix.image_name }}
     steps:
       - uses: actions/checkout@v4
 
@@ -73,8 +80,9 @@ jobs:
 
       - uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: docker/metadata-action@v5
         id: meta
@@ -99,7 +107,7 @@ jobs:
     needs: validate-inputs
     if: inputs.deploy_all_in_one
     env:
-      IMAGE_NAME: ${{ vars.DOCKERHUB_NAMESPACE }}/omnishard-all-in-one
+      IMAGE_NAME: ${{ needs.validate-inputs.outputs.image_namespace }}/omnishard-all-in-one
     steps:
       - uses: actions/checkout@v4
 
@@ -107,8 +115,9 @@ jobs:
 
       - uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: docker/metadata-action@v5
         id: meta

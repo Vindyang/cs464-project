@@ -87,7 +87,7 @@ func (h *SettingsHandler) reset(w http.ResponseWriter, r *http.Request) {
 		}
 		fileSummary, err := h.fileResetter.DeleteAllFiles(r.Context(), deleteShards)
 		if err != nil {
-			httpx.WriteError(w, http.StatusInternalServerError, "failed to delete file data", err)
+			httpx.WriteErrorWithCode(w, http.StatusInternalServerError, "failed to delete file data", "UNKNOWN_ERROR", err)
 			return
 		}
 		response["file_summary"] = fileSummary
@@ -98,7 +98,7 @@ func (h *SettingsHandler) reset(w http.ResponseWriter, r *http.Request) {
 		}
 		credentialSummary, err := h.credentialResetter.DeleteAllCredentials()
 		if err != nil {
-			httpx.WriteError(w, http.StatusInternalServerError, "failed to delete credentials", err)
+			httpx.WriteErrorWithCode(w, http.StatusInternalServerError, "failed to delete credentials", "UNKNOWN_ERROR", err)
 			return
 		}
 		response["credential_summary"] = credentialSummary
@@ -109,17 +109,17 @@ func (h *SettingsHandler) reset(w http.ResponseWriter, r *http.Request) {
 		}
 		fileSummary, err := h.fileResetter.DeleteAllFiles(r.Context(), deleteShards)
 		if err != nil {
-			httpx.WriteError(w, http.StatusInternalServerError, "failed to delete file data", err)
+			httpx.WriteErrorWithCode(w, http.StatusInternalServerError, "failed to delete file data", "UNKNOWN_ERROR", err)
 			return
 		}
 		credentialSummary, err := h.credentialResetter.DeleteAllCredentials()
 		if err != nil {
-			httpx.WriteError(w, http.StatusInternalServerError, "failed to delete credentials", err)
+			httpx.WriteErrorWithCode(w, http.StatusInternalServerError, "failed to delete credentials", "UNKNOWN_ERROR", err)
 			return
 		}
 		deletedEvents, err := h.lifecycleResetter.DeleteAllHistory(r.Context())
 		if err != nil {
-			httpx.WriteError(w, http.StatusInternalServerError, "failed to delete lifecycle history", err)
+			httpx.WriteErrorWithCode(w, http.StatusInternalServerError, "failed to delete lifecycle history", "UNKNOWN_ERROR", err)
 			return
 		}
 		response["file_summary"] = fileSummary
@@ -138,19 +138,19 @@ func (h *SettingsHandler) get(w http.ResponseWriter, _ *http.Request) {
 	if errors.Is(err, db.ErrNotFound) {
 		redundancy = "(6,4)"
 	} else if err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, "failed to load settings", err)
+		httpx.WriteErrorWithCode(w, http.StatusInternalServerError, "failed to load settings", "UNKNOWN_ERROR", err)
 		return
 	}
 
 	encryptDefault, err := h.getBoolConfig("settings_encrypt_default", true)
 	if err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, "failed to load settings", err)
+		httpx.WriteErrorWithCode(w, http.StatusInternalServerError, "failed to load settings", "UNKNOWN_ERROR", err)
 		return
 	}
 
 	autoDelete, err := h.getBoolConfig("settings_auto_delete", false)
 	if err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, "failed to load settings", err)
+		httpx.WriteErrorWithCode(w, http.StatusInternalServerError, "failed to load settings", "UNKNOWN_ERROR", err)
 		return
 	}
 
@@ -182,15 +182,15 @@ func (h *SettingsHandler) put(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.store.SetConfig("settings_redundancy", body.Redundancy); err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, "failed to save settings", err)
+		httpx.WriteErrorWithCode(w, http.StatusInternalServerError, "failed to save settings", "UNKNOWN_ERROR", err)
 		return
 	}
 	if err := h.store.SetConfig("settings_encrypt_default", strconv.FormatBool(*body.EncryptDefault)); err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, "failed to save settings", err)
+		httpx.WriteErrorWithCode(w, http.StatusInternalServerError, "failed to save settings", "UNKNOWN_ERROR", err)
 		return
 	}
 	if err := h.store.SetConfig("settings_auto_delete", strconv.FormatBool(*body.AutoDelete)); err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, "failed to save settings", err)
+		httpx.WriteErrorWithCode(w, http.StatusInternalServerError, "failed to save settings", "UNKNOWN_ERROR", err)
 		return
 	}
 

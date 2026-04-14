@@ -409,11 +409,25 @@ func (s *shardMapService) MarkShardStatus(shardID uuid.UUID, req *dto.MarkShardS
 		return fmt.Errorf("failed to load file shards for status recompute: %w", err)
 	}
 
-	fileStatus := models.FileStatusUploaded
+	healthyCount := 0
 	for _, sh := range fileShards {
-		if sh.Status != models.ShardStatusHealthy {
+		if sh.Status == models.ShardStatusHealthy {
+			healthyCount++
+		}
+	}
+
+	var fileStatus models.FileStatus
+	if healthyCount == len(fileShards) {
+		fileStatus = models.FileStatusUploaded
+	} else {
+		file, err := s.fileRepo.GetByID(shard.FileID)
+		if err != nil {
+			return fmt.Errorf("failed to load file for erasure coding threshold: %w", err)
+		}
+		if healthyCount >= file.K {
 			fileStatus = models.FileStatusDegraded
-			break
+		} else {
+			fileStatus = models.FileStatusCorrupted
 		}
 	}
 

@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { helpToast } from "@/lib/help/help-toast";
 
 interface FileHealthRefreshButtonProps {
   fileId: string;
@@ -11,7 +11,6 @@ interface FileHealthRefreshButtonProps {
 }
 
 export function FileHealthRefreshButton({ fileId, fileName }: FileHealthRefreshButtonProps) {
-  const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
 
   async function refreshHealth() {
@@ -23,15 +22,15 @@ export function FileHealthRefreshButton({ fileId, fileName }: FileHealthRefreshB
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(data?.details || data?.message || data?.error || "Failed to refresh health");
+        helpToast(data);
+        return;
       }
       const missing = data?.marked_missing ?? 0;
       const skipped = data?.skipped_errors ?? 0;
       toast.success(`Health refreshed for ${fileName} (${missing} missing, ${skipped} skipped)`);
-      router.refresh();
+      window.location.reload();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to refresh health";
-      toast.error(message);
+      helpToast(error);
     } finally {
       setRefreshing(false);
     }

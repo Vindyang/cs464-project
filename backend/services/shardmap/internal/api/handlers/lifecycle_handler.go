@@ -35,10 +35,7 @@ func (h *LifecycleHandler) handleRoot(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		resp, err := h.service.GetAllHistory()
 		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{
-				"error":   "failed to get lifecycle history",
-				"details": err.Error(),
-			})
+			writeError(w, http.StatusInternalServerError, "failed to get lifecycle history", "UNKNOWN_ERROR", err.Error())
 			return
 		}
 		writeJSON(w, http.StatusOK, resp)
@@ -48,10 +45,7 @@ func (h *LifecycleHandler) handleRoot(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodDelete {
 		deleted, err := h.service.DeleteAllHistory()
 		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{
-				"error":   "failed to delete lifecycle history",
-				"details": err.Error(),
-			})
+			writeError(w, http.StatusInternalServerError, "failed to delete lifecycle history", "UNKNOWN_ERROR", err.Error())
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"deleted_events": deleted})
@@ -73,10 +67,7 @@ func (h *LifecycleHandler) handleRoot(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.service.RecordEvent(&event); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{
-			"error":   "failed to record lifecycle event",
-			"details": err.Error(),
-		})
+		writeError(w, http.StatusBadRequest, "failed to record lifecycle event", "UNKNOWN_ERROR", err.Error())
 		return
 	}
 
@@ -99,10 +90,7 @@ func (h *LifecycleHandler) handleHistory(w http.ResponseWriter, r *http.Request)
 
 	resp, err := h.service.GetFileHistory(fileID)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{
-			"error":   "failed to get file history",
-			"details": err.Error(),
-		})
+		writeError(w, http.StatusInternalServerError, "failed to get file history", "UNKNOWN_ERROR", err.Error())
 		return
 	}
 

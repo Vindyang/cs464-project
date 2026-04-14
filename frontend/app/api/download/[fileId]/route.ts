@@ -18,6 +18,7 @@ export async function GET(
     return Response.json(
       {
         error: data?.error || "Failed to download file",
+        code: data?.code || "UNKNOWN_ERROR",
         details: data?.details,
       },
       { status: upstream.status || 500 }

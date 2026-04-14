@@ -22,6 +22,11 @@ import (
 // CD testing again
 // CI testing
 
+const (
+	defaultMaxUploadMB      int64 = 30
+	uploadBodyOverheadBytes int64 = 2 << 20
+)
+
 func main() {
 	// Load service URLs from env
 	adapterURL := os.Getenv("ADAPTER_URL")
@@ -43,6 +48,8 @@ func main() {
 	if port == "" {
 		port = "8082"
 	}
+
+	maxUploadBytes := resolveMaxUploadBytes()
 
 	// Initialize clients and service
 	adapter := adapterclient.NewClient(adapterURL, nil)
@@ -146,18 +153,41 @@ func main() {
 			return
 		}
 
+		r.Body = http.MaxBytesReader(w, r.Body, maxUploadBytes+uploadBodyOverheadBytes)
+
 		fileName, fileData, k, n, err := parseUploadMultipart(r)
 		if err != nil {
+			if strings.Contains(strings.ToLower(err.Error()), "request body too large") {
+				httpx.WriteJSON(w, http.StatusRequestEntityTooLarge, map[string]any{
+					"error":         "Upload limit exceeded",
+					"details":       fmt.Sprintf("Maximum upload size is %d MB", maxUploadBytes/(1<<20)),
+					"max_upload_mb": maxUploadBytes / (1 << 20),
+				})
+				return
+			}
 			httpx.WriteError(w, http.StatusBadRequest, "Invalid upload payload", err)
+			return
+		}
+
+		if int64(len(fileData)) > maxUploadBytes {
+			httpx.WriteJSON(w, http.StatusRequestEntityTooLarge, map[string]any{
+				"error":         "Upload limit exceeded",
+				"details":       fmt.Sprintf("Maximum upload size is %d MB", maxUploadBytes/(1<<20)),
+				"max_upload_mb": maxUploadBytes / (1 << 20),
+			})
 			return
 		}
 
 		resp, err := service.UploadRawFile(r.Context(), fileName, fileData, k, n)
 		if err != nil {
-			httpx.WriteError(w, http.StatusInternalServerError, "Failed to upload file", err)
+			httpx.WriteErrorWithCode(w, http.StatusInternalServerError, "Failed to upload file", httpx.ClassifyUploadError(err.Error()), err)
 			return
 		}
 
+		if resp.Status == "failed" {
+			httpx.WriteErrorWithCode(w, http.StatusInternalServerError, resp.Error, httpx.ClassifyUploadError(resp.Error), nil)
+			return
+		}
 		httpx.WriteJSON(w, http.StatusCreated, resp)
 	})
 
@@ -182,7 +212,7 @@ func main() {
 
 		summary, err := service.RefreshAllFileHealth(r.Context())
 		if err != nil {
-			httpx.WriteError(w, http.StatusInternalServerError, "Failed to refresh file health", err)
+			httpx.WriteErrorWithCode(w, http.StatusInternalServerError, "Failed to refresh file health", "HEALTH_REFRESH_FAILED", err)
 			return
 		}
 
@@ -200,7 +230,7 @@ func main() {
 		if (path == "health/refresh" || path == "health/refresh/") && r.Method == http.MethodPost {
 			summary, err := service.RefreshAllFileHealth(r.Context())
 			if err != nil {
-				httpx.WriteError(w, http.StatusInternalServerError, "Failed to refresh file health", err)
+				httpx.WriteErrorWithCode(w, http.StatusInternalServerError, "Failed to refresh file health", "HEALTH_REFRESH_FAILED", err)
 				return
 			}
 			httpx.WriteJSON(w, http.StatusOK, summary)
@@ -234,7 +264,7 @@ func main() {
 		if r.Method == http.MethodPost && len(parts) == 3 && parts[1] == "health" && parts[2] == "refresh" {
 			summary, err := service.RefreshFileHealth(r.Context(), fileID)
 			if err != nil {
-				httpx.WriteError(w, http.StatusInternalServerError, "Failed to refresh file health", err)
+				httpx.WriteErrorWithCode(w, http.StatusInternalServerError, "Failed to refresh file health", "HEALTH_REFRESH_FAILED", err)
 				return
 			}
 			httpx.WriteJSON(w, http.StatusOK, summary)
@@ -257,11 +287,11 @@ func main() {
 			if err != nil {
 				var recoverabilityErr *app.RecoverabilityError
 				if errors.As(err, &recoverabilityErr) {
-					httpx.WriteError(w, http.StatusConflict, "File cannot be reconstructed", err)
-				} else if strings.Contains(err.Error(), "404") {
-					httpx.WriteError(w, http.StatusNotFound, "File not found", err)
+					httpx.WriteErrorWithCode(w, http.StatusConflict, "File cannot be reconstructed", "SHARD_NOT_RECOVERABLE", err)
+				} else if strings.Contains(err.Error(), "404") || strings.Contains(err.Error(), "not found") {
+					httpx.WriteErrorWithCode(w, http.StatusNotFound, "File not found", "FILE_NOT_FOUND", err)
 				} else {
-					httpx.WriteError(w, http.StatusInternalServerError, "Failed to download file", err)
+					httpx.WriteErrorWithCode(w, http.StatusInternalServerError, "Failed to download file", "UNKNOWN_ERROR", err)
 				}
 				return
 			}
@@ -293,6 +323,7 @@ func main() {
 		log.Fatalf("failed to start server: %v\n", err)
 	}
 }
+
 
 func parseUploadMultipart(r *http.Request) (fileName string, fileData []byte, k int, n int, err error) {
 	reader, err := r.MultipartReader()
@@ -349,4 +380,19 @@ func parseUploadMultipart(r *http.Request) (fileName string, fileData []byte, k 
 	}
 
 	return fileName, fileData, parsedK, parsedN, nil
+}
+
+func resolveMaxUploadBytes() int64 {
+	raw := strings.TrimSpace(os.Getenv("ORCHESTRATOR_MAX_UPLOAD_MB"))
+	if raw == "" {
+		return defaultMaxUploadMB << 20
+	}
+
+	mb, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || mb <= 0 {
+		log.Printf("invalid ORCHESTRATOR_MAX_UPLOAD_MB=%q, using default %dMB", raw, defaultMaxUploadMB)
+		return defaultMaxUploadMB << 20
+	}
+
+	return mb << 20
 }
