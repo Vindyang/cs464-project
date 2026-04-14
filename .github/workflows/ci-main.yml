@@ -69,8 +69,8 @@ jobs:
     secrets: inherit
     with:
       image_name: ${{ needs.pipeline-policy.outputs.image_namespace }}/omnishard-adapter
-      context: ./backend
-      dockerfile: ./backend/services/adapter/Dockerfile
+      context: ./backend/microservice
+      dockerfile: ./backend/microservice/services/adapter/Dockerfile
       image_tag: ${{ needs.pipeline-policy.outputs.image_tag }}
       checkout_ref: ${{ needs.pipeline-policy.outputs.checkout_ref }}
       push_image: ${{ needs.pipeline-policy.outputs.push_images == 'true' }}
@@ -83,8 +83,8 @@ jobs:
     secrets: inherit
     with:
       image_name: ${{ needs.pipeline-policy.outputs.image_namespace }}/omnishard-orchestrator
-      context: ./backend
-      dockerfile: ./backend/services/orchestrator/Dockerfile
+      context: ./backend/microservice
+      dockerfile: ./backend/microservice/services/orchestrator/Dockerfile
       image_tag: ${{ needs.pipeline-policy.outputs.image_tag }}
       checkout_ref: ${{ needs.pipeline-policy.outputs.checkout_ref }}
       push_image: ${{ needs.pipeline-policy.outputs.push_images == 'true' }}
@@ -97,8 +97,8 @@ jobs:
     secrets: inherit
     with:
       image_name: ${{ needs.pipeline-policy.outputs.image_namespace }}/omnishard-shardmap
-      context: ./backend
-      dockerfile: ./backend/services/shardmap/Dockerfile
+      context: ./backend/microservice
+      dockerfile: ./backend/microservice/services/shardmap/Dockerfile
       image_tag: ${{ needs.pipeline-policy.outputs.image_tag }}
       checkout_ref: ${{ needs.pipeline-policy.outputs.checkout_ref }}
       push_image: ${{ needs.pipeline-policy.outputs.push_images == 'true' }}
@@ -111,8 +111,8 @@ jobs:
     secrets: inherit
     with:
       image_name: ${{ needs.pipeline-policy.outputs.image_namespace }}/omnishard-sharding
-      context: ./backend
-      dockerfile: ./backend/services/sharding/Dockerfile
+      context: ./backend/microservice
+      dockerfile: ./backend/microservice/services/sharding/Dockerfile
       image_tag: ${{ needs.pipeline-policy.outputs.image_tag }}
       checkout_ref: ${{ needs.pipeline-policy.outputs.checkout_ref }}
       push_image: ${{ needs.pipeline-policy.outputs.push_images == 'true' }}
@@ -125,8 +125,22 @@ jobs:
     secrets: inherit
     with:
       image_name: ${{ needs.pipeline-policy.outputs.image_namespace }}/omnishard-gateway
-      context: ./backend
-      dockerfile: ./backend/services/gateway/Dockerfile
+      context: ./backend/microservice
+      dockerfile: ./backend/microservice/services/gateway/Dockerfile
+      image_tag: ${{ needs.pipeline-policy.outputs.image_tag }}
+      checkout_ref: ${{ needs.pipeline-policy.outputs.checkout_ref }}
+      push_image: ${{ needs.pipeline-policy.outputs.push_images == 'true' }}
+
+  deploy-monolith:
+    name: Deploy monolith image
+    needs: [pipeline-policy, ci]
+    if: always() && needs.ci.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && needs.ci.outputs.monolith == 'true'
+    uses: ./.github/workflows/reusable-docker-build-push.yml
+    secrets: inherit
+    with:
+      image_name: ${{ needs.pipeline-policy.outputs.image_namespace }}/omnishard-monolith
+      context: ./backend/monolith
+      dockerfile: ./backend/monolith/Dockerfile
       image_tag: ${{ needs.pipeline-policy.outputs.image_tag }}
       checkout_ref: ${{ needs.pipeline-policy.outputs.checkout_ref }}
       push_image: ${{ needs.pipeline-policy.outputs.push_images == 'true' }}

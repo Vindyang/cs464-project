@@ -12,6 +12,9 @@ on:
       shardmap:
         description: Whether shardmap service files changed.
         value: ${{ jobs.detect-changes.outputs.shardmap }}
+      monolith:
+        description: Whether monolith backend files changed.
+        value: ${{ jobs.detect-changes.outputs.monolith }}
       sharding:
         description: Whether sharding service files changed.
         value: ${{ jobs.detect-changes.outputs.sharding }}
@@ -49,6 +52,7 @@ jobs:
       adapter: ${{ steps.changes.outputs.adapter }}
       orchestrator: ${{ steps.changes.outputs.orchestrator }}
       shardmap: ${{ steps.changes.outputs.shardmap }}
+      monolith: ${{ steps.changes.outputs.monolith }}
       sharding: ${{ steps.changes.outputs.sharding }}
       shared: ${{ steps.changes.outputs.shared }}
       backend_tests: ${{ steps.changes.outputs.backend_tests }}
@@ -65,19 +69,21 @@ jobs:
         with:
           filters: |
             adapter:
-              - 'backend/services/adapter/**'
+              - 'backend/microservice/services/adapter/**'
             orchestrator:
-              - 'backend/services/orchestrator/**'
+              - 'backend/microservice/services/orchestrator/**'
             shardmap:
-              - 'backend/services/shardmap/**'
+              - 'backend/microservice/services/shardmap/**'
+            monolith:
+              - 'backend/monolith/**'
             sharding:
-              - 'backend/services/sharding/**'
+              - 'backend/microservice/services/sharding/**'
             gateway:
-              - 'backend/services/gateway/**'
+              - 'backend/microservice/services/gateway/**'
             shared:
-              - 'backend/services/shared/**'
+              - 'backend/microservice/services/shared/**'
             backend_tests:
-              - 'backend/tests/**'
+              - 'backend/microservice/tests/**'
             frontend:
               - 'frontend/**'
             backend_any:

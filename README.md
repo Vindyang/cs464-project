@@ -1,43 +1,86 @@
-# CS464 Project
+# CS464 Project | Omnishard
+
+![Go](https://img.shields.io/badge/Go-00ADD8?style=for-the-badge&logo=go&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=for-the-badge&logo=github-actions&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)
 
 Omnishard is a distributed cloud storage platform that shards files with Reed-Solomon encoding, stores shard data across external cloud providers, tracks placement and lifecycle metadata, and reconstructs files from any viable shard subset during download.
 
-The stack consists of a Next.js frontend, Go backend services, SQLite metadata stores, and an NGINX gateway.
+![Dashboard](docs/screens/dashboard.png)
+
+The repository currently supports two backend implementations behind the same frontend product surface:
+
+- `backend/microservice`: the split-service deployment with dedicated adapter, shardmap, sharding, orchestrator, and gateway services.
+- `backend/monolith`: the standalone single-process backend that serves the same external workflows without an NGINX gateway.
+
+## Backend Flavors
+
+| Flavor | Runtime shape | Public ports | Best fit |
+| --- | --- | --- | --- |
+| Full microservices | Separate frontend, adapter, shardmap, sharding, orchestrator, and gateway containers | `3000`, `8080`, `8081`, `8082`, `8083`, `8084` | Service-boundary debugging and multi-service development |
+| Backend-only microservices | Adapter, shardmap, sharding, orchestrator, and gateway without the frontend | `8080`, `8081`, `8082`, `8083`, `8084` | Backend-only local development |
+| Single-image microservices | Frontend plus one bundled `omnishard-all-in-one` image that runs the microservice stack internally | `3000`, `8080` | Pull-only deployment with microservice behavior |
+| Monolith | Frontend plus one `omnishard-monolith` backend process | `3000`, `8080` | Simplified deployment and monolith-specific development |
 
 ## Run Omnishard
 
-### Recommended: official OSS release assets
+### Official GitHub OSS release assets
 
-This is the recommended way to start the project if you want a ready-to-run deployment without building images locally.
+Use the GitHub Releases assets when you want a ready-to-run deployment without building images locally.
 
 Full microservices deployment:
 
 ```powershell
-wget -O docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.full-microservices.yml
+Invoke-WebRequest https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.full-microservices.yml -OutFile docker-compose.yml
 docker compose up -d
 ```
 
-Single-image deployment:
+```bash
+curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.full-microservices.yml
+docker compose up -d
+```
+
+Single-image microservices deployment:
 
 ```powershell
-wget -O docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.single-image-microservices.yml
+Invoke-WebRequest https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.single-image-microservices.yml -OutFile docker-compose.yml
 docker compose up -d
 ```
 
-Default endpoints:
+```bash
+curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.single-image-microservices.yml
+docker compose up -d
+```
 
-- Frontend UI: `http://localhost:3000`
-- Adapter API: `http://localhost:8080`
+Frontend plus monolith deployment:
 
-Stop the deployment:
+```powershell
+Invoke-WebRequest https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.single-image-monolith.yml -OutFile docker-compose.yml
+docker compose up -d
+```
+
+```bash
+curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.single-image-monolith.yml
+docker compose up -d
+```
+
+Default endpoints by release flavor:
+
+- Full microservices: frontend `http://localhost:3000`, adapter `http://localhost:8080`, shardmap `http://localhost:8081`, orchestrator `http://localhost:8082`, sharding `http://localhost:8083`, gateway `http://localhost:8084`.
+- Single-image microservices: frontend `http://localhost:3000`, bundled API surface `http://localhost:8080`.
+- Monolith: frontend `http://localhost:3000`, monolith API surface `http://localhost:8080`.
+
+Stop any downloaded release asset deployment with:
 
 ```powershell
 docker compose down
 ```
 
-### Local source-build workflow
+### Local source-build workflows
 
-Use this when developing from the repository checkout.
+Use the root `docker-compose.yml` when developing from the repository checkout.
 
 Prerequisites:
 
@@ -45,58 +88,89 @@ Prerequisites:
 - Bun `1.x`
 - Docker Desktop with the `docker compose` plugin
 
-Start the full stack from the project root:
+Full microservices stack from source:
 
 ```powershell
 docker compose --profile full up -d --build
 ```
 
-Default endpoints:
+Backend-only microservices stack from source:
 
-- Frontend UI: `http://localhost:3000`
-- Adapter: `http://localhost:8080`
-- Shardmap: `http://localhost:8081`
-- Orchestrator: `http://localhost:8082`
-- Sharding: `http://localhost:8083`
-- Gateway: `http://localhost:8084`
+```powershell
+docker compose --profile backend up -d --build
+```
 
-Stop the local stack:
+Frontend plus monolith from source:
+
+```powershell
+docker compose --profile monolith up -d --build monolith frontend-monolith
+```
+
+Monolith backend only from source:
+
+```powershell
+docker compose --profile monolith up -d --build monolith
+```
+
+Default endpoints by local profile:
+
+- `full`: frontend `http://localhost:3000`, adapter `http://localhost:8080`, shardmap `http://localhost:8081`, orchestrator `http://localhost:8082`, sharding `http://localhost:8083`, gateway `http://localhost:8084`.
+- `backend`: adapter `http://localhost:8080`, shardmap `http://localhost:8081`, orchestrator `http://localhost:8082`, sharding `http://localhost:8083`, gateway `http://localhost:8084`.
+- `monolith`: monolith API `http://localhost:8080`, and if `frontend-monolith` is started, frontend `http://localhost:3000`.
+
+Stop local source-build stacks:
 
 ```powershell
 docker compose --profile full down
+docker compose --profile backend down
+docker compose --profile monolith down
 ```
 
-Reset local persisted data:
+Reset persisted local data:
 
 ```powershell
 docker compose --profile full down -v
+docker compose --profile monolith down -v
 ```
 
-### Repo-local release manifests
+### Repo-local GHCR pull manifests
 
-These pull published images without using the official downloaded release asset.
+Use the manifests under `deploy/compose/` when you want to pull published images from GHCR without downloading the official release asset first.
 
-Full microservices manifest:
+Set the registry namespace and tag:
 
 ```powershell
 $env:IMAGE_NAMESPACE = "ghcr.io/vindyang"
 $env:OMNISHARD_TAG = "<release-tag-or-commit-sha>"
+```
+
+Run the full microservices pull-only manifest:
+
+```powershell
 docker compose -f deploy/compose/full-microservices.yml up -d
 ```
 
-Single-image manifest:
+Run the single-image microservices pull-only manifest:
 
 ```powershell
 docker compose -f deploy/compose/single-image-microservices.yml up -d
 ```
 
+Run the monolith pull-only manifest:
+
+```powershell
+docker compose -f deploy/compose/single-image-monolith.yml up -d
+```
+
 ## Documentation
 
-Further reference:
+Start with these references:
 
-- [docs/architecture.md](docs/architecture.md) for architecture, service boundaries, request flows, and database schema.
-- [docs/cicd.md](docs/cicd.md) for testing workflows, CI/CD pipelines, and release process details.
+- [backend/microservice/README.md](backend/microservice/README.md) for the microservice backend layout, APIs, run modes, and test commands.
+- [backend/monolith/README.md](backend/monolith/README.md) for the monolith backend layout, APIs, run modes, and test commands.
+- [docs/architecture.md](docs/architecture.md) for the shared system architecture and a comparison of the two backend topologies.
+- [docs/backend-microservice.md](docs/backend-microservice.md) for the deeper microservice architecture breakdown.
+- [docs/backend-monolith.md](docs/backend-monolith.md) for the deeper monolith architecture breakdown.
+- [docs/cicd.md](docs/cicd.md) for local validation, CI gates, publishing workflows, and release asset generation.
 - [DEVDOCS.md](DEVDOCS.md) for contributor notes and operator setup details.
 - [TODO.md](TODO.md) for the current project backlog.
-- [references/CS464 Proposal.md](references/CS464%20Proposal.md) for the original project proposal.
-- [references/service-breakdown.md](references/service-breakdown.md) for an additional service-level reference.

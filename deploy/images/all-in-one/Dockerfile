@@ -4,10 +4,10 @@ WORKDIR /src/backend
 
 RUN apk add --no-cache git
 
-COPY backend/go.mod backend/go.sum ./
+COPY backend/microservice/go.mod backend/microservice/go.sum ./
 RUN go mod download
 
-COPY backend/ ./
+COPY backend/microservice/ ./
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/adapter ./services/adapter/cmd/main.go && \
     CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/shardmap ./services/shardmap/cmd/main.go && \
@@ -71,7 +71,7 @@ COPY --from=frontend-builder /src/frontend/.next /app/frontend/.next
 COPY --from=frontend-builder /src/frontend/public /app/frontend/public
 COPY --from=frontend-builder /src/frontend/next.config.ts /app/frontend/next.config.ts
 
-COPY backend/services/gateway/docs /usr/share/nginx/html/docs
+COPY backend/microservice/services/gateway/docs /usr/share/nginx/html/docs
 COPY deploy/images/all-in-one/nginx.conf /etc/nginx/conf.d/default.conf
 COPY deploy/images/all-in-one/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY deploy/images/all-in-one/entrypoint.sh /entrypoint.sh

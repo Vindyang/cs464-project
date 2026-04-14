@@ -1,462 +1,142 @@
 # Architecture
 
-## System Overview
+## Overview
 
-Omnishard is composed of:
+Omnishard ships one frontend and two backend implementations.
 
-- A Next.js frontend for file management, credentials, providers, history, and settings.
-- A Go adapter service that manages provider connectivity, credentials, tokens, shard I/O, and application settings.
-- A Go shardmap service that owns file metadata, shard metadata, lifecycle history, and health state.
-- A Go sharding service that performs Reed-Solomon shard and reconstruct operations.
-- A Go orchestrator service that coordinates upload, download, delete, and health-refresh workflows.
-- An NGINX gateway that exposes a stable public API surface over the backend workflow services.
+- The frontend is a Next.js application for file management, provider onboarding, settings, lifecycle history, and download flows.
+- The microservice backend splits responsibilities across adapter, shardmap, sharding, orchestrator, and gateway services.
+- The monolith backend collapses those responsibilities into one Go process while preserving the same frontend-facing workflows.
 
-### Stored data
+Both backend variants use the same high-level storage model:
 
-- File metadata and shard placement live in the shardmap SQLite database.
-- Provider credentials, OAuth tokens, and app settings live in the adapter SQLite database.
-- Actual shard bytes live in external storage providers such as Google Drive, OneDrive, and AWS S3.
-- Upload, download, and delete lifecycle logs live in the shardmap SQLite database.
+- provider credentials, OAuth tokens, and app settings are stored in `Omnishard.db`
+- file metadata, shard placement, lifecycle history, and health state are stored in `Omnishard-shardmap.db`
+- shard bytes are stored in external providers such as Google Drive, OneDrive, and AWS S3
 
-## Service Topology
+## Shared System Shape
 
 ```text
 Browser
   |
-  |  UI + Next app routes
   v
 Frontend (3000)
+  |
+  +--> direct metadata/settings/provider calls
+  |
+  +--> workflow calls (upload, download, history, refresh)
+```
+
+The difference between the two backend variants is where those frontend calls terminate.
+
+## Backend Variant 1: Microservice Topology
+
+```text
+Frontend (3000)
   |                    \
-  | direct metadata      \ upload/download/history
+  | direct metadata      \ workflow routes
   v                       v
 Adapter (8080)         Gateway (8084)
   |                        |
-  | settings/creds/files   v
-  |                     Orchestrator (8082)
-  |                      /      |       \
-  |                     /       |        \
-  v                    v        v         v
-SQLite               Adapter  Shardmap  Sharding
-Omnishard.db         (8080)   (8081)    (8083)
-                                |
-                                v
-                         SQLite Omnishard-shardmap.db
+  |                        v
+  |                   Orchestrator (8082)
+  |                     /          \
+  v                    v            v
+Omnishard.db       Shardmap (8081) Sharding (8083)
+                        |
+                        v
+                Omnishard-shardmap.db
 ```
 
-## End-to-End Flows
+Characteristics:
 
-### Upload flow
+- Strict service ownership boundaries.
+- HTTP is used between backend services.
+- Gateway owns the public versioned API contract and docs surface.
+- Best fit when you need explicit service seams for debugging, testing, or deployment experimentation.
 
-1. The user uploads a file from the frontend.
-2. The frontend calls its internal upload route, which proxies to the gateway.
-3. The gateway forwards the request to the orchestrator.
-4. The orchestrator calls the sharding service to split the file into `n` shards with recovery threshold `k`.
-5. The orchestrator registers the file with the shardmap service.
-6. The orchestrator uploads shards to the adapter service, which writes them to the selected cloud providers.
-7. The orchestrator records shard placement metadata in shardmap.
-8. The orchestrator logs an upload lifecycle event in shardmap.
+Detailed microservice reference:
 
-### Download flow
+- [../backend/microservice/README.md](../backend/microservice/README.md)
+- [backend-microservice.md](backend-microservice.md)
 
-1. The user requests a download from the frontend.
-2. The frontend calls its internal download route, which proxies to the gateway.
-3. The gateway forwards the request to the orchestrator.
-4. The orchestrator queries shardmap for the file's shard map.
-5. The orchestrator downloads shards from the adapter service.
-6. Once at least `k` valid shards are available, the orchestrator reconstructs the original file through the sharding service.
-7. The orchestrator returns the file bytes and logs a download lifecycle event.
+## Backend Variant 2: Monolith Topology
 
-### Delete flow
+```text
+Frontend (3000)
+  |
+  v
+Monolith (8080)
+  |
+  +--> provider connectivity and credentials
+  +--> metadata persistence
+  +--> workflow orchestration
+  +--> sharding and reconstruction
+  +--> docs and health endpoints
+```
 
-1. The user deletes a file from the UI.
-2. The request goes to the adapter service.
-3. The adapter optionally deletes provider-side shards.
-4. The adapter deletes file and shard metadata through shardmap.
-5. The orchestrator or shardmap logs the delete lifecycle event.
+Internally, the monolith still preserves package-level separation for app wiring, shardmap persistence, sharding logic, and workflow orchestration, but those calls are in-process instead of HTTP hops.
 
-### Health refresh flow
+Characteristics:
 
-1. The user requests a health refresh for one file or all files.
-2. The frontend calls its internal API route or directly triggers backend refresh paths.
-3. The orchestrator probes shard existence through the adapter.
-4. The shardmap service updates shard status fields and file health summaries.
+- Single Go backend process with one public HTTP surface.
+- No NGINX gateway container is required.
+- The frontend points both metadata and workflow URLs at the same backend.
+- Best fit when you want a simpler deployment model or want to iterate on a standalone backend implementation.
 
-### Reset flow
+Detailed monolith reference:
 
-The settings danger-zone actions support:
+- [../backend/monolith/README.md](../backend/monolith/README.md)
+- [backend-monolith.md](backend-monolith.md)
 
-- deleting all file data,
-- deleting all credentials and provider tokens,
-- deleting all data, including lifecycle history.
+## Shared Functional Flows
 
-The `all_data` reset clears:
+### Upload
 
-- file metadata,
-- shard metadata,
-- provider-side shards when requested,
-- stored credentials,
-- provider tokens,
-- lifecycle history logs.
+1. The frontend receives a file from the user.
+2. The backend shards the file into `n` fragments with recovery threshold `k`.
+3. The backend registers file metadata before persisting shard placement.
+4. Shards are uploaded to one or more configured providers.
+5. Placement metadata and lifecycle history are recorded.
 
-## Services
+### Download
 
-### Service matrix
+1. The frontend requests file download by `fileId`.
+2. The backend resolves shard placement and provider ownership.
+3. The backend downloads enough viable shards to satisfy `k`.
+4. The original file is reconstructed and streamed back to the caller.
+5. A download lifecycle event is recorded.
 
-| Service | Port | Primary Role | Persistent Storage | Main Dependencies |
-| --- | --- | --- | --- | --- |
-| Frontend | `3000` | UI, SSR, internal proxy routes | none | Adapter, Gateway |
-| Adapter | `8080` | Provider connectivity, credentials, settings, shard I/O, metadata proxy | `Omnishard.db` | Shardmap, cloud providers |
-| Shardmap | `8081` | File metadata, shard metadata, lifecycle history, health state | `Omnishard-shardmap.db` | none |
-| Orchestrator | `8082` | Upload/download/delete/health workflows | none | Adapter, Shardmap, Sharding |
-| Sharding | `8083` | Reed-Solomon shard/reconstruct operations | none | none |
-| Gateway | `8084` | Stable public API contract and reverse proxy | none | Orchestrator, Adapter |
+### Health refresh
 
-### Frontend service
+1. The frontend requests a refresh for one file or all files.
+2. The backend probes shard availability through the active provider adapters.
+3. Shard health and file-level health summaries are updated in the metadata store.
 
-The frontend is a Next.js 16 app using React 19, TypeScript, Tailwind CSS, `next-themes`, `sonner`, and custom UI primitives.
+### Reset actions
 
-#### Main user-facing routes
+Settings reset flows can clear:
 
-- `/dashboard` for system overview, provider usage, recent files, degraded files, and credential banners.
-- `/files` for file listing and file-health views.
-- `/files/[fileId]` for file metadata, recent lifecycle activity, and shard maps.
-- `/history` for global lifecycle history.
-- `/providers` for provider management and upload entrypoints.
-- `/settings` for redundancy defaults, storage behaviors, and destructive resets.
-- `/credentials` for provider credential management.
+- file metadata and shard metadata
+- provider-side shards when requested
+- stored credentials and provider tokens
+- lifecycle history
 
-#### Frontend internal API routes
+## Frontend Integration Model
 
-- `POST /api/upload`
-- `GET /api/download/{fileId}`
-- `GET /api/history/{fileId}`
-- `DELETE /api/files/{fileId}`
-- `POST /api/files/health/refresh`
-- `POST /api/files/{fileId}/health/refresh`
+The frontend always runs on `http://localhost:3000`, but the backend URL map changes by deployment flavor:
 
-#### Backend communication model
+- Microservice profiles:
+  - `NEXT_PUBLIC_API_URL=http://localhost:8080`
+  - `API_INTERNAL_URL=http://adapter:8080`
+  - `GATEWAY_URL=http://gateway:8084`
+- Monolith profile:
+  - `NEXT_PUBLIC_API_URL=http://localhost:8080`
+  - `API_INTERNAL_URL=http://monolith:8080`
+  - `GATEWAY_URL=http://monolith:8080`
 
-- The frontend talks directly to the adapter service for settings, credentials, provider metadata, file metadata, and shard-map lookups.
-- It uses the gateway for upload, download, and lifecycle history routes that belong to workflow orchestration.
+## Further Reading
 
-Important environment variables:
-
-- `NEXT_PUBLIC_API_URL`, usually `http://localhost:8080`
-- `API_INTERNAL_URL`, usually `http://adapter:8080` in Docker
-- `GATEWAY_URL`, usually `http://gateway:8084`
-
-### Adapter service
-
-#### Default port
-
-- `8080`
-
-#### Responsibilities
-
-- Persist provider credentials and OAuth tokens.
-- Restore Google Drive, OneDrive, and S3 provider adapters on startup.
-- Expose shard upload, download, and delete APIs used by orchestrator.
-- Proxy file and shard metadata reads to shardmap.
-- Own app settings and destructive reset actions.
-
-#### Exposed APIs
-
-Core service:
-
-- `GET /health`
-- `GET /api/providers`
-
-Google Drive OAuth:
-
-- `GET /api/oauth/gdrive/authorize`
-- `GET /api/oauth/gdrive/callback`
-- `POST /api/oauth/gdrive/disconnect`
-
-OneDrive OAuth:
-
-- `GET /api/oauth/onedrive/authorize`
-- `GET /api/oauth/onedrive/callback`
-- `POST /api/oauth/onedrive/disconnect`
-
-AWS S3 provider management:
-
-- `POST /api/providers/awsS3/connect`
-- `POST /api/providers/awsS3/disconnect`
-
-Credentials and status:
-
-- `GET /api/credentials/status`
-- `GET /api/credentials`
-- `PUT /api/credentials/{providerId}`
-- `DELETE /api/credentials/{providerId}`
-- `GET /api/credentials/{providerId}/secret`
-
-Settings and reset:
-
-- `GET /api/settings`
-- `PUT /api/settings`
-- `POST /api/settings/reset`
-
-Shard I/O for orchestrator:
-
-- `POST /shards/upload`
-- `GET /shards/{remoteId}?provider={providerId}`
-- `DELETE /shards/{remoteId}?provider={providerId}`
-
-Metadata proxying to shardmap:
-
-- `GET /api/v1/files`
-- `GET /api/v1/files/{fileId}`
-- `DELETE /api/v1/files/{fileId}`
-- `GET /api/v1/shards/file/{fileId}`
-
-### Shardmap service
-
-#### Default port
-
-- `8081`
-
-#### Responsibilities
-
-- Register uploaded files before shards are persisted.
-- Record shard placement after provider upload succeeds.
-- Return file and shard metadata for download and UI workflows.
-- Track shard health and file-level health summaries.
-- Persist lifecycle logs for upload, download, and delete events.
-
-#### Exposed APIs
-
-- `GET /health`
-- `POST /api/v1/shards/register`
-- `POST /api/v1/shards/record`
-- `GET /api/v1/shards/file/{fileId}`
-- `GET /api/v1/shards/{shardId}`
-- `PUT /api/v1/shards/{shardId}/status`
-- `GET /api/v1/files`
-- `GET /api/v1/files/{fileId}`
-- `DELETE /api/v1/files/{fileId}`
-- `POST /api/v1/files/{fileId}/health-refresh`
-- `POST /api/v1/lifecycle`
-- `GET /api/v1/lifecycle`
-- `DELETE /api/v1/lifecycle`
-- `GET /api/v1/lifecycle/{fileId}`
-
-### Orchestrator service
-
-#### Default port
-
-- `8082`
-
-#### Responsibilities
-
-- Accept uploads and route them through sharding, provider I/O, and metadata recording.
-- Retrieve shard maps, fetch shards, and reconstruct files during download.
-- Refresh shard health across stored files.
-- Expose lifecycle history through the gateway-facing contract.
-
-#### Exposed APIs
-
-- `GET /health`
-- `POST /api/orchestrator/upload`
-- `GET /api/orchestrator/history`
-- `POST /api/orchestrator/files/health/refresh`
-- `POST /api/orchestrator/files/{fileId}/health/refresh`
-- `GET /api/orchestrator/files/{fileId}/download`
-- `GET /api/orchestrator/files/{fileId}/history`
-- `DELETE /api/orchestrator/files/{fileId}`
-
-### Sharding service
-
-#### Default port
-
-- `8083`
-
-#### Responsibilities
-
-- Shard an input file into `n` total shards with threshold `k`.
-- Reconstruct the original file from any viable set of shards.
-
-#### Exposed APIs
-
-- `GET /api/sharding/health`
-- `POST /api/sharding/shard`
-- `POST /api/sharding/reconstruct`
-
-### Gateway service
-
-#### Default port
-
-- `8084`
-
-#### Responsibilities
-
-- Route public API paths to the correct service.
-- Enforce request method boundaries.
-- Attach request IDs and structured logs.
-- Serve gateway documentation assets.
-
-#### Public APIs
-
-- `GET /`
-- `GET /api/v1/docs`
-- `GET /api/v1/openapi.yml`
-- `POST /api/v1/upload`
-- `GET /api/v1/download/{fileId}`
-- `GET /api/v1/history`
-- `GET /api/v1/history/{fileId}`
-- `POST /api/v1/files/health/refresh`
-- `POST /api/v1/files/{fileId}/health/refresh`
-- `DELETE /api/v1/files/{fileId}`
-- `GET /api/v1/providers`
-- `GET /api/v1/health`
-
-Legacy redirects also exist for:
-
-- `/upload`
-- `/download/{fileId}`
-- `/history`
-- `/history/{fileId}`
-- `/files/{fileId}`
-- `/providers`
-- `/health`
-
-## Persistence and Database Schema
-
-Omnishard uses two SQLite databases plus external provider object storage.
-
-### Adapter database
-
-Default path:
-
-- `Omnishard.db`
-
-Configured by:
-
-- `Omnishard_DB_PATH`
-
-#### `provider_tokens`
-
-Stores OAuth or provider session tokens.
-
-| Column | Type | Notes |
-| --- | --- | --- |
-| `provider_id` | `TEXT PRIMARY KEY` | logical provider identifier |
-| `access_token` | `TEXT NOT NULL` | active access token |
-| `refresh_token` | `TEXT NOT NULL DEFAULT ''` | refresh token when present |
-| `token_type` | `TEXT NOT NULL DEFAULT 'Bearer'` | token type |
-| `expiry` | `DATETIME` | token expiry |
-| `updated_at` | `DATETIME DEFAULT CURRENT_TIMESTAMP` | audit timestamp |
-
-#### `credentials`
-
-Stores provider client credentials or S3 connection details.
-
-| Column | Type | Notes |
-| --- | --- | --- |
-| `provider_id` | `TEXT PRIMARY KEY` | provider identifier |
-| `client_id` | `TEXT NOT NULL` | OAuth client id or access key id |
-| `client_secret` | `TEXT NOT NULL` | OAuth secret or S3 secret access key |
-| `redirect_uri` | `TEXT NOT NULL` | redirect URI or region depending on provider |
-| `updated_at` | `DATETIME DEFAULT CURRENT_TIMESTAMP` | audit timestamp |
-
-#### `provider_config`
-
-Stores general settings and provider-specific key-value configuration.
-
-| Column | Type | Notes |
-| --- | --- | --- |
-| `key` | `TEXT PRIMARY KEY` | config key |
-| `value` | `TEXT NOT NULL` | config value |
-| `updated_at` | `DATETIME DEFAULT CURRENT_TIMESTAMP` | audit timestamp |
-
-Common settings keys include:
-
-- `settings_redundancy`
-- `settings_encrypt_default`
-- `settings_auto_delete`
-
-### Shardmap database
-
-Default path:
-
-- `Omnishard-shardmap.db`
-
-Configured by:
-
-- `Omnishard_SHARDMAP_DB_PATH`
-
-#### `files`
-
-Stores canonical file metadata.
-
-| Column | Type | Notes |
-| --- | --- | --- |
-| `id` | `TEXT PRIMARY KEY` | file UUID |
-| `original_name` | `TEXT` | original filename |
-| `original_size` | `INTEGER NOT NULL` | original byte length |
-| `total_chunks` | `INTEGER NOT NULL` | total chunk count |
-| `n` | `INTEGER NOT NULL` | total shards per chunk |
-| `k` | `INTEGER NOT NULL` | minimum shards required to reconstruct |
-| `shard_size` | `INTEGER NOT NULL` | shard payload size |
-| `status` | `TEXT NOT NULL` | file health or workflow status |
-| `created_at` | `DATETIME NOT NULL` | creation timestamp |
-| `updated_at` | `DATETIME NOT NULL` | update timestamp |
-| `last_health_refresh_at` | `DATETIME` | most recent refresh timestamp |
-
-#### `shards`
-
-Stores shard placement and health state.
-
-| Column | Type | Notes |
-| --- | --- | --- |
-| `id` | `TEXT PRIMARY KEY` | shard UUID |
-| `file_id` | `TEXT NOT NULL` | foreign key to `files(id)` |
-| `chunk_index` | `INTEGER NOT NULL` | chunk number |
-| `shard_index` | `INTEGER NOT NULL` | shard number within chunk |
-| `shard_type` | `TEXT NOT NULL` | data or parity |
-| `remote_id` | `TEXT NOT NULL` | provider-side object identifier |
-| `provider` | `TEXT NOT NULL` | owning provider |
-| `checksum_sha256` | `TEXT NOT NULL` | shard checksum |
-| `status` | `TEXT NOT NULL` | shard health state |
-| `created_at` | `DATETIME NOT NULL` | creation timestamp |
-| `updated_at` | `DATETIME NOT NULL` | update timestamp |
-
-Indexes:
-
-- `idx_shards_file_id`
-- `idx_shards_file_chunk`
-
-#### `file_lifecycle_log`
-
-Stores workflow history for upload, download, and delete events.
-
-| Column | Type | Notes |
-| --- | --- | --- |
-| `id` | `INTEGER PRIMARY KEY AUTOINCREMENT` | event row id |
-| `file_id` | `TEXT NOT NULL` | file UUID |
-| `event_type` | `TEXT NOT NULL` | upload, download, or delete |
-| `file_name` | `TEXT` | filename snapshot |
-| `file_size` | `INTEGER` | byte length snapshot |
-| `shard_count` | `INTEGER` | shard count snapshot |
-| `providers` | `TEXT` | comma-separated providers |
-| `started_at` | `DATETIME NOT NULL` | workflow start |
-| `ended_at` | `DATETIME NOT NULL` | workflow end |
-| `duration_ms` | `INTEGER NOT NULL` | duration in milliseconds |
-| `status` | `TEXT NOT NULL` | success or failed |
-| `error_msg` | `TEXT` | failure details when present |
-| `created_at` | `DATETIME DEFAULT CURRENT_TIMESTAMP` | insertion time |
-
-Indexes:
-
-- `idx_lifecycle_file_id`
-- `idx_lifecycle_event_created`
-
-### External provider storage
-
-Shard bytes are persisted outside the application databases in whichever cloud provider owns the shard:
-
-- Google Drive
-- Microsoft OneDrive
-- AWS S3
-
-The application databases only store metadata and provider object identifiers, not the actual user file payloads.
+- [backend-microservice.md](backend-microservice.md)
+- [backend-monolith.md](backend-monolith.md)
+- [cicd.md](cicd.md)
