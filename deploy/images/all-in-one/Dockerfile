@@ -1,4 +1,4 @@
-FROM golang:1.25-alpine AS go-builder
+FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS go-builder
 
 WORKDIR /src/backend
 
@@ -9,10 +9,13 @@ RUN go mod download
 
 COPY backend/microservice/ ./
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/adapter ./services/adapter/cmd/main.go && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/shardmap ./services/shardmap/cmd/main.go && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/sharding ./services/sharding/cmd/main.go && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/orchestrator ./services/orchestrator/cmd/main.go
+ARG TARGETOS
+ARG TARGETARCH
+
+RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} go build -o /out/adapter ./services/adapter/cmd/main.go && \
+    CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} go build -o /out/shardmap ./services/shardmap/cmd/main.go && \
+    CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} go build -o /out/sharding ./services/sharding/cmd/main.go && \
+    CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} go build -o /out/orchestrator ./services/orchestrator/cmd/main.go
 
 FROM oven/bun:1 AS frontend-deps
 
