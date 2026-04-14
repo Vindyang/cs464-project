@@ -260,8 +260,8 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
 				</p>
 			</div>
 
-			<section className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
-				<div className="border border-neutral-200 p-4 dark:border-neutral-800 dark:bg-neutral-950">
+			<section className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+				<div className="min-w-0 border border-neutral-200 p-4 dark:border-neutral-800 dark:bg-neutral-950">
 					<h2 className="font-mono text-sm uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
 						Add or Update
 					</h2>
@@ -361,7 +361,7 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
 												href={link}
 												target="_blank"
 												rel="noreferrer"
-												className="font-mono text-sm leading-relaxed text-neutral-700 underline hover:text-neutral-950 dark:text-neutral-300 dark:hover:text-neutral-100"
+												className="break-all font-mono text-sm leading-relaxed text-neutral-700 underline hover:text-neutral-950 dark:text-neutral-300 dark:hover:text-neutral-100"
 											>
 												{link}
 											</a>
@@ -400,7 +400,7 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
 					</div>
 				</div>
 
-				<div className="border border-neutral-200 p-4 dark:border-neutral-800 dark:bg-neutral-950">
+				<div className="min-w-0 border border-neutral-200 p-4 dark:border-neutral-800 dark:bg-neutral-950">
 					<div className="mb-3 flex items-center justify-between">
 						<h2 className="font-mono text-sm uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
 							Stored Credentials
