@@ -39,6 +39,11 @@ on:
         required: false
         default: true
         type: boolean
+      platforms:
+        description: Target image platforms.
+        required: false
+        default: 'linux/amd64,linux/arm64'
+        type: string
       timeout_minutes:
         description: Job timeout in minutes.
         required: false
@@ -57,6 +62,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.checkout_ref != '' && inputs.checkout_ref || github.sha }}
+
+      - uses: docker/setup-qemu-action@v3
 
       - uses: docker/setup-buildx-action@v3
 
@@ -84,6 +91,7 @@ jobs:
           context: ${{ inputs.context }}
           file: ${{ inputs.dockerfile }}
           push: ${{ inputs.push_image }}
+          platforms: ${{ inputs.platforms }}
           build-args: ${{ inputs.build_args }}
           tags: ${{ steps.tags.outputs.tags }}
           labels: |
