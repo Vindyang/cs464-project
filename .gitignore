@@ -72,3 +72,7 @@ backend/.cache
 *.exe
 *.out
 *.all
+
+# Script outputs
+scripts/out/
+out/
