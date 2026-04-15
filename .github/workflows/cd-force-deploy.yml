@@ -48,6 +48,7 @@ jobs:
 
   publish-microservices:
     name: Publish Microservices images
+    timeout-minutes: 10
     runs-on: ubuntu-latest
     needs: validate-inputs
     if: inputs.deploy_microservices
@@ -116,6 +117,7 @@ jobs:
 
   publish-all-in-one-microservices:
     name: Publish All-in-one Microservices image
+    timeout-minutes: 10
     runs-on: ubuntu-latest
     needs: validate-inputs
     if: inputs.deploy_all_in_one_microservices
@@ -155,6 +157,7 @@ jobs:
 
   publish-monolith:
     name: Publish monolith image
+    timeout-minutes: 10
     runs-on: ubuntu-latest
     needs: validate-inputs
     if: inputs.deploy_monolith
@@ -192,6 +195,7 @@ jobs:
 
   publish-all-in-one-monolith:
     name: Publish all-in-one monolith image
+    timeout-minutes: 10
     runs-on: ubuntu-latest
     needs: validate-inputs
     if: inputs.deploy_monolith_all_in_one

@@ -12,14 +12,14 @@ ARG TARGETARCH
 
 RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} go build -o /out/monolith ./cmd/main.go
 
-FROM oven/bun:1-alpine AS frontend-deps
+FROM node:22-alpine AS frontend-deps
 
 WORKDIR /src/frontend
 
-COPY frontend/package.json frontend/bun.lock ./
-RUN bun install --frozen-lockfile
+COPY frontend/package.json ./
+RUN npm install --no-audit --no-fund
 
-FROM oven/bun:1-alpine AS frontend-builder
+FROM node:22-alpine AS frontend-builder
 
 WORKDIR /src/frontend
 
@@ -29,7 +29,7 @@ COPY frontend/ ./
 ARG NEXT_PUBLIC_API_URL=http://localhost:8080
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
-RUN bun run build
+RUN npm run build
 
 FROM node:22-alpine
 

@@ -1,11 +1,11 @@
-FROM oven/bun:1-alpine AS deps
+FROM node:22-alpine AS deps
 
 WORKDIR /app
 
-COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile
+COPY package.json ./
+RUN npm install --no-audit --no-fund
 
-FROM oven/bun:1-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -16,7 +16,7 @@ ARG NEXT_PUBLIC_API_URL=http://localhost:8080
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
 RUN touch .env
-RUN bun run build
+RUN npm run build
 
 FROM node:22-alpine AS runner
 

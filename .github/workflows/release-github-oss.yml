@@ -108,7 +108,7 @@ jobs:
       build_args: ${{ matrix.build_args }}
       push_image: true
       include_latest_tag: false
-      timeout_minutes: 45
+      timeout_minutes: 10
 
   prepare-release-assets:
     name: Render release compose assets
