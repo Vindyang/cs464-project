@@ -1,0 +1,4 @@
+"Image","Tag","CompressedArchiveBytes","CompressedArchiveMB","LocalUnpackedBytes","LocalUnpackedMB","LocalUnpackedDisplay","UniqueLocalBytes","UniqueLocalMB","UniqueLocalDisplay"
+"omnishard-all-in-one-monolith","metrics-smoke","120731270","120.73","492000000","492","492MB","121400000","121.4","121.4MB"
+"omnishard-frontend","metrics-smoke","60801523","60.8","258000000","258","258MB","61080000","61.08","61.08MB"
+"omnishard-monolith","metrics-smoke","23477517","23.48","76600000","76.6","76.6MB","23530000","23.53","23.53MB"

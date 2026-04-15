@@ -1,0 +1,90 @@
+services:
+  adapter:
+    image: ghcr.io/vindyang/omnishard-adapter:local-release
+    restart: unless-stopped
+    environment:
+      PORT: "8080"
+      SHARDMAP_URL: "http://shardmap:8081"
+      Omnishard_DB_PATH: "/app/data/Omnishard.db"
+    volumes:
+      - adapter_data:/app/data
+    ports:
+      - "8080:8080"
+
+  shardmap:
+    image: ghcr.io/vindyang/omnishard-shardmap:local-release
+    restart: unless-stopped
+    environment:
+      PORT: "8081"
+      Omnishard_SHARDMAP_DB_PATH: "/app/data/Omnishard-shardmap.db"
+    volumes:
+      - shardmap_data:/app/data
+    ports:
+      - "8081:8081"
+
+  sharding:
+    image: ghcr.io/vindyang/omnishard-sharding:local-release
+    restart: unless-stopped
+    environment:
+      PORT: "8083"
+    ports:
+      - "8083:8083"
+
+  orchestrator:
+    image: ghcr.io/vindyang/omnishard-orchestrator:local-release
+    restart: unless-stopped
+    environment:
+      PORT: "8082"
+      ADAPTER_URL: "http://adapter:8080"
+      SHARDMAP_URL: "http://shardmap:8081"
+      SHARDING_URL: "http://sharding:8083"
+    depends_on:
+      adapter:
+        condition: service_started
+      shardmap:
+        condition: service_started
+      sharding:
+        condition: service_started
+    ports:
+      - "8082:8082"
+
+  gateway:
+    image: ghcr.io/vindyang/omnishard-gateway:local-release
+    restart: unless-stopped
+    environment:
+      ORCHESTRATOR_URL: "http://orchestrator:8082"
+      ADAPTER_URL: "http://adapter:8080"
+    depends_on:
+      adapter:
+        condition: service_started
+      shardmap:
+        condition: service_started
+      sharding:
+        condition: service_started
+      orchestrator:
+        condition: service_started
+    ports:
+      - "8084:8084"
+
+  frontend:
+    image: ghcr.io/vindyang/omnishard-frontend:local-release
+    restart: unless-stopped
+    environment:
+      PORT: "3000"
+      NEXT_PUBLIC_API_URL: "http://localhost:8080"
+      API_INTERNAL_URL: "http://adapter:8080"
+      GATEWAY_URL: "http://gateway:8084"
+      NEXT_PUBLIC_BETTER_AUTH_URL: "http://localhost:3000"
+    depends_on:
+      adapter:
+        condition: service_started
+      orchestrator:
+        condition: service_started
+      gateway:
+        condition: service_started
+    ports:
+      - "3000:3000"
+
+volumes:
+  adapter_data:
+  shardmap_data:

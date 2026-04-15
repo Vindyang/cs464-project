@@ -23,6 +23,7 @@ The repository currently supports two backend implementations behind the same fr
 | Backend-only microservices | Adapter, shardmap, sharding, orchestrator, and gateway without the frontend | `8080`, `8081`, `8082`, `8083`, `8084` | Backend-only local development |
 | Single-image microservices | Frontend plus one bundled `omnishard-all-in-one` image that runs the microservice stack internally | `3000`, `8080` | Pull-only deployment with microservice behavior |
 | Monolith | Frontend plus one `omnishard-monolith` backend process | `3000`, `8080` | Simplified deployment and monolith-specific development |
+| All-in-one monolith | One bundled `omnishard-all-in-one-monolith` image that runs the monolith backend and frontend internally | `3000`, `8080` | Smallest pull-only deployment footprint |
 
 ## Run Omnishard
 
@@ -66,11 +67,24 @@ curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases
 docker compose up -d
 ```
 
+All-in-one monolith deployment:
+
+```powershell
+Invoke-WebRequest https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.all-in-one-monolith.yml -OutFile docker-compose.yml
+docker compose up -d
+```
+
+```bash
+curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.all-in-one-monolith.yml
+docker compose up -d
+```
+
 Default endpoints by release flavor:
 
 - Full microservices: frontend `http://localhost:3000`, adapter `http://localhost:8080`, shardmap `http://localhost:8081`, orchestrator `http://localhost:8082`, sharding `http://localhost:8083`, gateway `http://localhost:8084`.
 - Single-image microservices: frontend `http://localhost:3000`, bundled API surface `http://localhost:8080`.
 - Monolith: frontend `http://localhost:3000`, monolith API surface `http://localhost:8080`.
+- All-in-one monolith: frontend `http://localhost:3000`, bundled monolith API surface `http://localhost:8080`.
 
 Stop any downloaded release asset deployment with:
 
@@ -160,6 +174,12 @@ Run the monolith pull-only manifest:
 
 ```powershell
 docker compose -f deploy/compose/single-image-monolith.yml up -d
+```
+
+Run the all-in-one monolith pull-only manifest:
+
+```powershell
+docker compose -f deploy/compose/all-in-one-monolith.yml up -d
 ```
 
 ## Documentation

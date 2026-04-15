@@ -149,6 +149,18 @@ curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases
 docker compose up -d
 ```
 
+Download the published all-in-one monolith compose asset and run it:
+
+```powershell
+Invoke-WebRequest https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.all-in-one-monolith.yml -OutFile docker-compose.yml
+docker compose up -d
+```
+
+```bash
+curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.all-in-one-monolith.yml
+docker compose up -d
+```
+
 ### Repo-local GHCR pull manifest
 
 From the repository root:
@@ -157,6 +169,14 @@ From the repository root:
 $env:IMAGE_NAMESPACE = "ghcr.io/vindyang"
 $env:OMNISHARD_TAG = "<release-tag-or-commit-sha>"
 docker compose -f deploy/compose/single-image-monolith.yml up -d
+```
+
+For the all-in-one monolith image:
+
+```powershell
+$env:IMAGE_NAMESPACE = "ghcr.io/vindyang"
+$env:OMNISHARD_TAG = "<release-tag-or-commit-sha>"
+docker compose -f deploy/compose/all-in-one-monolith.yml up -d
 ```
 
 ## Tests

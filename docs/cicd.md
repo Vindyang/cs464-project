@@ -82,6 +82,7 @@ Published image targets from this pipeline:
 - `omnishard-monolith`
 - `omnishard-frontend`
 - `omnishard-all-in-one`
+- `omnishard-all-in-one-monolith`
 
 ### Official GitHub OSS release workflow
 
@@ -103,6 +104,7 @@ Official release assets produced by this workflow:
 - `docker-compose.full-microservices.yml`
 - `docker-compose.single-image-microservices.yml`
 - `docker-compose.single-image-monolith.yml`
+- `docker-compose.all-in-one-monolith.yml`
 
 ### Manual image republish workflow
 
@@ -115,6 +117,7 @@ Despite the historical name, this workflow now targets GHCR. It can republish:
 - the full microservices image set
 - the all-in-one microservices image
 - the monolith image
+- the all-in-one monolith image
 
 Those images are tagged with `latest` and the full commit SHA.
 
@@ -132,6 +135,7 @@ Current images:
 - `ghcr.io/vindyang/omnishard-monolith`
 - `ghcr.io/vindyang/omnishard-frontend`
 - `ghcr.io/vindyang/omnishard-all-in-one`
+- `ghcr.io/vindyang/omnishard-all-in-one-monolith`
 
 Repo-local pull-only compose manifests live under `deploy/compose/` and require:
 

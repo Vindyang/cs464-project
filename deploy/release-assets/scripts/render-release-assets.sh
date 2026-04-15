@@ -24,4 +24,9 @@ sed -e "s|__OMNISHARD_TAG__|$release_tag|g" \
   "$template_dir/docker-compose.single-image-monolith.yml.tpl" \
   > "$output_dir/docker-compose.single-image-monolith.yml"
 
+sed -e "s|__OMNISHARD_TAG__|$release_tag|g" \
+  -e "s|__IMAGE_NAMESPACE__|$image_namespace|g" \
+  "$template_dir/docker-compose.all-in-one-monolith.yml.tpl" \
+  > "$output_dir/docker-compose.all-in-one-monolith.yml"
+
 echo "Rendered release assets to $output_dir"

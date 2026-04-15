@@ -92,3 +92,4 @@ jobs:
               - '.github/workflows/**'
             all_in_one_assets:
               - 'deploy/images/all-in-one/**'
+              - 'deploy/images/all-in-one-monolith/**'
