@@ -67,7 +67,7 @@ const setupSections = [
       {
         label: "Run from latest GHCR images",
         type: "code" as const,
-        code: "curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.full-microservices.yml",
+        code: "curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.microservices.yml",
       },
       {
         label: "Start stack from GHCR compose file",

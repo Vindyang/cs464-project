@@ -140,12 +140,12 @@ docker compose --profile monolith down -v
 Download the published monolith compose asset and run it:
 
 ```powershell
-Invoke-WebRequest https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.single-image-monolith.yml -OutFile docker-compose.yml
+Invoke-WebRequest https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.monolith.yml -OutFile docker-compose.yml
 docker compose up -d
 ```
 
 ```bash
-curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.single-image-monolith.yml
+curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.monolith.yml
 docker compose up -d
 ```
 
@@ -168,7 +168,7 @@ From the repository root:
 ```powershell
 $env:IMAGE_NAMESPACE = "ghcr.io/vindyang"
 $env:OMNISHARD_TAG = "<release-tag-or-commit-sha>"
-docker compose -f deploy/compose/single-image-monolith.yml up -d
+docker compose -f deploy/compose/monolith.yml up -d
 ```
 
 For the all-in-one monolith image:

@@ -76,3 +76,4 @@ backend/.cache
 # Script outputs
 scripts/out/
 out/
+deploy/release-assets/dist-local/

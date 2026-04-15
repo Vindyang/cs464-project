@@ -101,9 +101,9 @@ This manually triggered workflow:
 
 Official release assets produced by this workflow:
 
-- `docker-compose.full-microservices.yml`
-- `docker-compose.single-image-microservices.yml`
-- `docker-compose.single-image-monolith.yml`
+- `docker-compose.microservices.yml`
+- `docker-compose.all-in-one-microservices.yml`
+- `docker-compose.monolith.yml`
 - `docker-compose.all-in-one-monolith.yml`
 
 ### Manual image republish workflow
@@ -114,7 +114,7 @@ Workflow:
 
 Despite the historical name, this workflow now targets GHCR. It can republish:
 
-- the full microservices image set
+- the microservices image set
 - the all-in-one microservices image
 - the monolith image
 - the all-in-one monolith image

@@ -1,6 +1,6 @@
 # Omnishard Microservice Backend
 
-This directory contains the split-service Omnishard backend. It is the service-oriented implementation used by the `full`, `backend`, `full-microservices`, and `single-image-microservices` deployment flavors.
+This directory contains the split-service Omnishard backend. It is the service-oriented implementation used by the `full`, `backend`, `microservices`, and `all-in-one-microservices` deployment flavors.
 
 The microservice version keeps strict ownership boundaries between workflow orchestration, provider I/O, metadata persistence, erasure coding, and the public gateway.
 
@@ -170,24 +170,24 @@ The `full` profile starts the frontend and all backend services. The `backend` p
 Download one of the published release assets, save it locally as `docker-compose.yml`, and start it:
 
 ```powershell
-Invoke-WebRequest https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.full-microservices.yml -OutFile docker-compose.yml
+Invoke-WebRequest https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.microservices.yml -OutFile docker-compose.yml
 docker compose up -d
 ```
 
 ```bash
-curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.full-microservices.yml
+curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.microservices.yml
 docker compose up -d
 ```
 
 or
 
 ```powershell
-Invoke-WebRequest https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.single-image-microservices.yml -OutFile docker-compose.yml
+Invoke-WebRequest https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.all-in-one-microservices.yml -OutFile docker-compose.yml
 docker compose up -d
 ```
 
 ```bash
-curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.single-image-microservices.yml
+curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.all-in-one-microservices.yml
 docker compose up -d
 ```
 
@@ -198,8 +198,8 @@ From the repository root:
 ```powershell
 $env:IMAGE_NAMESPACE = "ghcr.io/vindyang"
 $env:OMNISHARD_TAG = "<release-tag-or-commit-sha>"
-docker compose -f deploy/compose/full-microservices.yml up -d
-docker compose -f deploy/compose/single-image-microservices.yml up -d
+docker compose -f deploy/compose/microservices.yml up -d
+docker compose -f deploy/compose/all-in-one-microservices.yml up -d
 ```
 
 ## Environment Variables

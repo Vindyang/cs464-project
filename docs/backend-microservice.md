@@ -7,9 +7,9 @@ The microservice backend is the service-oriented Omnishard implementation under 
 This version is used by:
 
 - the source-build `full` and `backend` Docker Compose profiles
-- the GHCR pull-only `deploy/compose/full-microservices.yml` manifest
-- the GHCR pull-only `deploy/compose/single-image-microservices.yml` manifest
-- the official GitHub OSS release assets `docker-compose.full-microservices.yml` and `docker-compose.single-image-microservices.yml`
+- the GHCR pull-only `deploy/compose/microservices.yml` manifest
+- the GHCR pull-only `deploy/compose/all-in-one-microservices.yml` manifest
+- the official GitHub OSS release assets `docker-compose.microservices.yml` and `docker-compose.all-in-one-microservices.yml`
 
 ## Service Breakdown
 
@@ -129,8 +129,8 @@ docker compose --profile backend up -d --build gateway
 ```powershell
 $env:IMAGE_NAMESPACE = "ghcr.io/vindyang"
 $env:OMNISHARD_TAG = "<release-tag-or-commit-sha>"
-docker compose -f deploy/compose/full-microservices.yml up -d
-docker compose -f deploy/compose/single-image-microservices.yml up -d
+docker compose -f deploy/compose/microservices.yml up -d
+docker compose -f deploy/compose/all-in-one-microservices.yml up -d
 ```
 
 ## Testing

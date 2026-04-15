@@ -128,9 +128,9 @@ jobs:
         with:
           name: release-compose-assets
           path: |
-            ./deploy/release-assets/dist/docker-compose.full-microservices.yml
-            ./deploy/release-assets/dist/docker-compose.single-image-microservices.yml
-            ./deploy/release-assets/dist/docker-compose.single-image-monolith.yml
+            ./deploy/release-assets/dist/docker-compose.microservices.yml
+            ./deploy/release-assets/dist/docker-compose.all-in-one-microservices.yml
+            ./deploy/release-assets/dist/docker-compose.monolith.yml
             ./deploy/release-assets/dist/docker-compose.all-in-one-monolith.yml
 
   create-github-release:
@@ -150,7 +150,7 @@ jobs:
           generate_release_notes: true
           prerelease: ${{ contains(inputs.release_tag, '-') }}
           files: |
-            ./release-assets/docker-compose.full-microservices.yml
-            ./release-assets/docker-compose.single-image-microservices.yml
-            ./release-assets/docker-compose.single-image-monolith.yml
+            ./release-assets/docker-compose.microservices.yml
+            ./release-assets/docker-compose.all-in-one-microservices.yml
+            ./release-assets/docker-compose.monolith.yml
             ./release-assets/docker-compose.all-in-one-monolith.yml

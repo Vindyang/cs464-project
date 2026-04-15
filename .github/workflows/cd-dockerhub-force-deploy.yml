@@ -3,13 +3,13 @@ name: CD - Force Publish Registry Images
 on:
   workflow_dispatch:
     inputs:
-      deploy_full_microservices:
-        description: Build and push all microservices images (adapter, shardmap, sharding, orchestrator, gateway, frontend)
+      deploy_microservices:
+        description: Build and push the Microservices image set (adapter, shardmap, sharding, orchestrator, gateway, frontend)
         required: false
         default: false
         type: boolean
-      deploy_all_in_one:
-        description: Build and push all-in-one image
+      deploy_all_in_one_microservices:
+        description: Build and push the All-in-one Microservices image
         required: false
         default: false
         type: boolean
@@ -41,16 +41,16 @@ jobs:
 
       - name: Require at least one release target
         run: |
-          if [ "${{ inputs.deploy_full_microservices }}" != "true" ] && [ "${{ inputs.deploy_all_in_one }}" != "true" ] && [ "${{ inputs.deploy_monolith }}" != "true" ] && [ "${{ inputs.deploy_monolith_all_in_one }}" != "true" ]; then
+          if [ "${{ inputs.deploy_microservices }}" != "true" ] && [ "${{ inputs.deploy_all_in_one_microservices }}" != "true" ] && [ "${{ inputs.deploy_monolith }}" != "true" ] && [ "${{ inputs.deploy_monolith_all_in_one }}" != "true" ]; then
             echo "Select at least one release target to publish."
             exit 1
           fi
 
-  publish-full-microservices:
-    name: Publish full microservices images
+  publish-microservices:
+    name: Publish Microservices images
     runs-on: ubuntu-latest
     needs: validate-inputs
-    if: inputs.deploy_full_microservices
+    if: inputs.deploy_microservices
     strategy:
       fail-fast: false
       matrix:
@@ -114,11 +114,11 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-  publish-all-in-one:
-    name: Publish all-in-one image
+  publish-all-in-one-microservices:
+    name: Publish All-in-one Microservices image
     runs-on: ubuntu-latest
     needs: validate-inputs
-    if: inputs.deploy_all_in_one
+    if: inputs.deploy_all_in_one_microservices
     env:
       IMAGE_NAME: ${{ needs.validate-inputs.outputs.image_namespace }}/omnishard-all-in-one
     steps:

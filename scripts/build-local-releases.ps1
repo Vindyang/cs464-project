@@ -201,12 +201,24 @@ try {
 
     if (-not $SkipRenderAssets) {
         $assetDir = Join-Path $repoRoot $ReleaseAssetsOutputDir
+        $legacyOutputs = @(
+            "docker-compose.full-microservices.yml"
+            "docker-compose.single-image-microservices.yml"
+            "docker-compose.single-image-monolith.yml"
+        )
         $templates = @(
-            [pscustomobject]@{ Template = "deploy/release-assets/templates/docker-compose.full-microservices.yml.tpl"; Output = "docker-compose.full-microservices.yml" }
-            [pscustomobject]@{ Template = "deploy/release-assets/templates/docker-compose.single-image-microservices.yml.tpl"; Output = "docker-compose.single-image-microservices.yml" }
-            [pscustomobject]@{ Template = "deploy/release-assets/templates/docker-compose.single-image-monolith.yml.tpl"; Output = "docker-compose.single-image-monolith.yml" }
+            [pscustomobject]@{ Template = "deploy/release-assets/templates/docker-compose.microservices.yml.tpl"; Output = "docker-compose.microservices.yml" }
+            [pscustomobject]@{ Template = "deploy/release-assets/templates/docker-compose.all-in-one-microservices.yml.tpl"; Output = "docker-compose.all-in-one-microservices.yml" }
+            [pscustomobject]@{ Template = "deploy/release-assets/templates/docker-compose.monolith.yml.tpl"; Output = "docker-compose.monolith.yml" }
             [pscustomobject]@{ Template = "deploy/release-assets/templates/docker-compose.all-in-one-monolith.yml.tpl"; Output = "docker-compose.all-in-one-monolith.yml" }
         )
+
+        foreach ($legacyOutput in $legacyOutputs) {
+            $legacyPath = Join-Path $assetDir $legacyOutput
+            if (Test-Path -Path $legacyPath) {
+                Remove-Item -Path $legacyPath -Force
+            }
+        }
 
         foreach ($asset in $templates) {
             Render-Template -TemplatePath (Join-Path $repoRoot $asset.Template) -OutputPath (Join-Path $assetDir $asset.Output) -ReleaseTag $ImageTag -Namespace $ImageNamespace
@@ -250,9 +262,9 @@ try {
     }
 
     $releaseMatrix = @(
-        [pscustomobject]@{ Release = "full-microservices"; Images = @("omnishard-frontend", "omnishard-adapter", "omnishard-shardmap", "omnishard-sharding", "omnishard-orchestrator", "omnishard-gateway") }
-        [pscustomobject]@{ Release = "single-image-microservices"; Images = @("omnishard-all-in-one") }
-        [pscustomobject]@{ Release = "single-image-monolith"; Images = @("omnishard-frontend", "omnishard-monolith") }
+        [pscustomobject]@{ Release = "microservices"; Images = @("omnishard-frontend", "omnishard-adapter", "omnishard-shardmap", "omnishard-sharding", "omnishard-orchestrator", "omnishard-gateway") }
+        [pscustomobject]@{ Release = "all-in-one-microservices"; Images = @("omnishard-all-in-one") }
+        [pscustomobject]@{ Release = "monolith"; Images = @("omnishard-frontend", "omnishard-monolith") }
         [pscustomobject]@{ Release = "all-in-one-monolith"; Images = @("omnishard-all-in-one-monolith") }
     )
 
