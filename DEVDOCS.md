@@ -35,17 +35,17 @@ Before you start: there are **2 supported ways** to run the app.
 
 Current backend layout:
 
-- `backend/microservice` contains the split-service backend used by the `full`, `backend`, `full-microservices`, and `single-image-microservices` deployment flavors.
-- `backend/monolith` contains the standalone single-process backend used by the `monolith` and `single-image-monolith` deployment flavors.
+- `backend/microservice` contains the split-service backend used by the `full`, `backend`, `microservices`, and `all-in-one-microservices` deployment flavors.
+- `backend/monolith` contains the standalone single-process backend used by the `monolith` and `all-in-one-monolith` deployment flavors.
 
 ### Run from latest GHCR images
 
 Download one of the official release assets:
 
 ```bash
-curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.full-microservices.yml
-curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.single-image-microservices.yml
-curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.single-image-monolith.yml
+curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.microservices.yml
+curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.all-in-one-microservices.yml
+curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.monolith.yml
 ```
 
 Start the selected stack:

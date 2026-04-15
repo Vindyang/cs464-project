@@ -3,18 +3,23 @@ name: CD - Force Publish Registry Images
 on:
   workflow_dispatch:
     inputs:
-      deploy_full_microservices:
-        description: Build and push all microservices images (adapter, shardmap, sharding, orchestrator, gateway, frontend)
+      deploy_microservices:
+        description: Build and push the Microservices image set (adapter, shardmap, sharding, orchestrator, gateway, frontend)
         required: false
         default: false
         type: boolean
-      deploy_all_in_one:
-        description: Build and push all-in-one image
+      deploy_all_in_one_microservices:
+        description: Build and push the All-in-one Microservices image
         required: false
         default: false
         type: boolean
       deploy_monolith:
         description: Build and push monolith backend image
+        required: false
+        default: false
+        type: boolean
+      deploy_monolith_all_in_one:
+        description: Build and push all-in-one monolith image
         required: false
         default: false
         type: boolean
@@ -36,16 +41,16 @@ jobs:
 
       - name: Require at least one release target
         run: |
-          if [ "${{ inputs.deploy_full_microservices }}" != "true" ] && [ "${{ inputs.deploy_all_in_one }}" != "true" ] && [ "${{ inputs.deploy_monolith }}" != "true" ]; then
+          if [ "${{ inputs.deploy_microservices }}" != "true" ] && [ "${{ inputs.deploy_all_in_one_microservices }}" != "true" ] && [ "${{ inputs.deploy_monolith }}" != "true" ] && [ "${{ inputs.deploy_monolith_all_in_one }}" != "true" ]; then
             echo "Select at least one release target to publish."
             exit 1
           fi
 
-  publish-full-microservices:
-    name: Publish full microservices images
+  publish-microservices:
+    name: Publish Microservices images
     runs-on: ubuntu-latest
     needs: validate-inputs
-    if: inputs.deploy_full_microservices
+    if: inputs.deploy_microservices
     strategy:
       fail-fast: false
       matrix:
@@ -109,11 +114,11 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-  publish-all-in-one:
-    name: Publish all-in-one image
+  publish-all-in-one-microservices:
+    name: Publish All-in-one Microservices image
     runs-on: ubuntu-latest
     needs: validate-inputs
-    if: inputs.deploy_all_in_one
+    if: inputs.deploy_all_in_one_microservices
     env:
       IMAGE_NAME: ${{ needs.validate-inputs.outputs.image_namespace }}/omnishard-all-in-one
     steps:
@@ -182,5 +187,44 @@ jobs:
           file: ./backend/monolith/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  publish-all-in-one-monolith:
+    name: Publish all-in-one monolith image
+    runs-on: ubuntu-latest
+    needs: validate-inputs
+    if: inputs.deploy_monolith_all_in_one
+    env:
+      IMAGE_NAME: ${{ needs.validate-inputs.outputs.image_namespace }}/omnishard-all-in-one-monolith
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-qemu-action@v3
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest
+            type=raw,value=${{ github.sha }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./deploy/images/all-in-one-monolith/Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            NEXT_PUBLIC_API_URL=http://localhost:8080
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

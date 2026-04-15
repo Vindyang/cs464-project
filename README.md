@@ -19,10 +19,11 @@ The repository currently supports two backend implementations behind the same fr
 
 | Flavor | Runtime shape | Public ports | Best fit |
 | --- | --- | --- | --- |
-| Full microservices | Separate frontend, adapter, shardmap, sharding, orchestrator, and gateway containers | `3000`, `8080`, `8081`, `8082`, `8083`, `8084` | Service-boundary debugging and multi-service development |
+| Microservices | Separate frontend, adapter, shardmap, sharding, orchestrator, and gateway containers | `3000`, `8080`, `8081`, `8082`, `8083`, `8084` | Service-boundary debugging and multi-service development |
 | Backend-only microservices | Adapter, shardmap, sharding, orchestrator, and gateway without the frontend | `8080`, `8081`, `8082`, `8083`, `8084` | Backend-only local development |
-| Single-image microservices | Frontend plus one bundled `omnishard-all-in-one` image that runs the microservice stack internally | `3000`, `8080` | Pull-only deployment with microservice behavior |
+| All-in-one Microservices | Frontend plus one bundled `omnishard-all-in-one` image that runs the microservice stack internally | `3000`, `8080` | Pull-only deployment with microservice behavior |
 | Monolith | Frontend plus one `omnishard-monolith` backend process | `3000`, `8080` | Simplified deployment and monolith-specific development |
+| All-in-one Monolith | One bundled `omnishard-all-in-one-monolith` image that runs the monolith backend and frontend internally | `3000`, `8080` | Smallest pull-only deployment footprint |
 
 ## Run Omnishard
 
@@ -30,53 +31,99 @@ The repository currently supports two backend implementations behind the same fr
 
 Use the GitHub Releases assets when you want a ready-to-run deployment without building images locally.
 
-Full microservices deployment:
+Microservices deployment:
+
+Windows (PowerShell):
 
 ```powershell
-Invoke-WebRequest https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.full-microservices.yml -OutFile docker-compose.yml
+Invoke-WebRequest https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.microservices.yml -OutFile docker-compose.yml
 docker compose up -d
 ```
+
+macOS/Linux (bash):
 
 ```bash
-curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.full-microservices.yml
+curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.microservices.yml
 docker compose up -d
 ```
 
-Single-image microservices deployment:
+All-in-one Microservices deployment:
+
+Windows (PowerShell):
 
 ```powershell
-Invoke-WebRequest https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.single-image-microservices.yml -OutFile docker-compose.yml
+Invoke-WebRequest https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.all-in-one-microservices.yml -OutFile docker-compose.yml
 docker compose up -d
 ```
+
+macOS/Linux (bash):
 
 ```bash
-curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.single-image-microservices.yml
+curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.all-in-one-microservices.yml
 docker compose up -d
 ```
 
-Frontend plus monolith deployment:
+Monolith deployment:
+
+Windows (PowerShell):
 
 ```powershell
-Invoke-WebRequest https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.single-image-monolith.yml -OutFile docker-compose.yml
+Invoke-WebRequest https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.monolith.yml -OutFile docker-compose.yml
 docker compose up -d
 ```
 
+macOS/Linux (bash):
+
 ```bash
-curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.single-image-monolith.yml
+curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.monolith.yml
+docker compose up -d
+```
+
+All-in-one monolith deployment:
+
+Windows (PowerShell):
+
+```powershell
+Invoke-WebRequest https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.all-in-one-monolith.yml -OutFile docker-compose.yml
+docker compose up -d
+```
+
+macOS/Linux (bash):
+
+```bash
+curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.all-in-one-monolith.yml
 docker compose up -d
 ```
 
 Default endpoints by release flavor:
 
-- Full microservices: frontend `http://localhost:3000`, adapter `http://localhost:8080`, shardmap `http://localhost:8081`, orchestrator `http://localhost:8082`, sharding `http://localhost:8083`, gateway `http://localhost:8084`.
-- Single-image microservices: frontend `http://localhost:3000`, bundled API surface `http://localhost:8080`.
+- Microservices: frontend `http://localhost:3000`, adapter `http://localhost:8080`, shardmap `http://localhost:8081`, orchestrator `http://localhost:8082`, sharding `http://localhost:8083`, gateway `http://localhost:8084`.
+- All-in-one Microservices: frontend `http://localhost:3000`, bundled API surface `http://localhost:8080`.
 - Monolith: frontend `http://localhost:3000`, monolith API surface `http://localhost:8080`.
+- All-in-one Monolith: frontend `http://localhost:3000`, bundled monolith API surface `http://localhost:8080`.
 
 Stop any downloaded release asset deployment with:
 
 ```powershell
 docker compose down
 ```
+
+Reference release size breakdown from a local `linux/amd64` run of `.\scripts\build-local-releases.ps1 -ImageTag readme-metrics`:
+
+| Flavor | Images | Archive MB | Unpacked MB | Unique MB |
+| --- | --- | --- | --- | --- |
+| Microservices | 6 | `135.70` | `505.80` | `160.79` |
+| All-in-one Microservices | 1 | `117.84` | `452.00` | `280.10` |
+| Monolith | 2 | `84.28` | `334.60` | `150.76` |
+| All-in-one Monolith | 1 | `98.75` | `399.00` | `226.60` |
+
+Metric definitions:
+
+- `Archive MB`: gzip-compressed `docker image save` size.
+- `Unpacked MB`: local unpacked image size reported by Docker.
+- `Unique MB`: local disk usage that is not shared with other cached images on the machine.
+
+Use `scripts/build-local-releases.ps1` when you want to recompute these numbers locally or compare a subset of release images.
 
 ### Local source-build workflows
 
@@ -88,7 +135,7 @@ Prerequisites:
 - Bun `1.x`
 - Docker Desktop with the `docker compose` plugin
 
-Full microservices stack from source:
+Microservices stack from source:
 
 ```powershell
 docker compose --profile full up -d --build
@@ -144,22 +191,28 @@ $env:IMAGE_NAMESPACE = "ghcr.io/vindyang"
 $env:OMNISHARD_TAG = "<release-tag-or-commit-sha>"
 ```
 
-Run the full microservices pull-only manifest:
+Run the Microservices pull-only manifest:
 
 ```powershell
-docker compose -f deploy/compose/full-microservices.yml up -d
+docker compose -f deploy/compose/microservices.yml up -d
 ```
 
-Run the single-image microservices pull-only manifest:
+Run the All-in-one Microservices pull-only manifest:
 
 ```powershell
-docker compose -f deploy/compose/single-image-microservices.yml up -d
+docker compose -f deploy/compose/all-in-one-microservices.yml up -d
 ```
 
 Run the monolith pull-only manifest:
 
 ```powershell
-docker compose -f deploy/compose/single-image-monolith.yml up -d
+docker compose -f deploy/compose/monolith.yml up -d
+```
+
+Run the all-in-one monolith pull-only manifest:
+
+```powershell
+docker compose -f deploy/compose/all-in-one-monolith.yml up -d
 ```
 
 ## Documentation

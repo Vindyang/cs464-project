@@ -176,3 +176,19 @@ jobs:
       build_args: |
         NEXT_PUBLIC_API_URL=http://localhost:8080
       push_image: ${{ needs.pipeline-policy.outputs.push_images == 'true' }}
+
+  deploy-all-in-one-monolith:
+    name: Deploy all-in-one monolith image
+    needs: [pipeline-policy, ci]
+    if: always() && needs.ci.result == 'success' && needs.pipeline-policy.outputs.deploy_enabled == 'true' && (needs.ci.outputs.monolith == 'true' || needs.ci.outputs.frontend == 'true' || needs.ci.outputs.all_in_one_assets == 'true')
+    uses: ./.github/workflows/reusable-docker-build-push.yml
+    secrets: inherit
+    with:
+      image_name: ${{ needs.pipeline-policy.outputs.image_namespace }}/omnishard-all-in-one-monolith
+      context: .
+      dockerfile: ./deploy/images/all-in-one-monolith/Dockerfile
+      image_tag: ${{ needs.pipeline-policy.outputs.image_tag }}
+      checkout_ref: ${{ needs.pipeline-policy.outputs.checkout_ref }}
+      build_args: |
+        NEXT_PUBLIC_API_URL=http://localhost:8080
+      push_image: ${{ needs.pipeline-policy.outputs.push_images == 'true' }}

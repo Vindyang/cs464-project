@@ -72,3 +72,8 @@ backend/.cache
 *.exe
 *.out
 *.all
+
+# Script outputs
+scripts/out/
+out/
+deploy/release-assets/dist-local/

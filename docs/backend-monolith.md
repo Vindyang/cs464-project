@@ -7,8 +7,8 @@ The monolith backend lives under `backend/monolith` and runs the Omnishard backe
 This version is used by:
 
 - the source-build `monolith` Docker Compose profile
-- the GHCR pull-only `deploy/compose/single-image-monolith.yml` manifest
-- the official GitHub OSS release asset `docker-compose.single-image-monolith.yml`
+- the GHCR pull-only `deploy/compose/monolith.yml` manifest
+- the official GitHub OSS release asset `docker-compose.monolith.yml`
 
 ## Internal Breakdown
 
@@ -130,7 +130,7 @@ docker compose --profile monolith up -d --build monolith
 ```powershell
 $env:IMAGE_NAMESPACE = "ghcr.io/vindyang"
 $env:OMNISHARD_TAG = "<release-tag-or-commit-sha>"
-docker compose -f deploy/compose/single-image-monolith.yml up -d
+docker compose -f deploy/compose/monolith.yml up -d
 ```
 
 ## Testing
