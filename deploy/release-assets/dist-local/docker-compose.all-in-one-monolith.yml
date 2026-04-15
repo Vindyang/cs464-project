@@ -1,6 +1,6 @@
 services:
   omnishard:
-    image: ghcr.io/vindyang/omnishard-all-in-one-monolith:local-release
+    image: ghcr.io/vindyang/omnishard-all-in-one-monolith:readme-metrics
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_API_URL: "http://localhost:8080"

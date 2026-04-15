@@ -33,10 +33,14 @@ Use the GitHub Releases assets when you want a ready-to-run deployment without b
 
 Microservices deployment:
 
+Windows (PowerShell):
+
 ```powershell
 Invoke-WebRequest https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.microservices.yml -OutFile docker-compose.yml
 docker compose up -d
 ```
+
+macOS/Linux (bash):
 
 ```bash
 curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.microservices.yml
@@ -45,10 +49,14 @@ docker compose up -d
 
 All-in-one Microservices deployment:
 
+Windows (PowerShell):
+
 ```powershell
 Invoke-WebRequest https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.all-in-one-microservices.yml -OutFile docker-compose.yml
 docker compose up -d
 ```
+
+macOS/Linux (bash):
 
 ```bash
 curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.all-in-one-microservices.yml
@@ -57,10 +65,14 @@ docker compose up -d
 
 Monolith deployment:
 
+Windows (PowerShell):
+
 ```powershell
 Invoke-WebRequest https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.monolith.yml -OutFile docker-compose.yml
 docker compose up -d
 ```
+
+macOS/Linux (bash):
 
 ```bash
 curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.monolith.yml
@@ -69,10 +81,14 @@ docker compose up -d
 
 All-in-one monolith deployment:
 
+Windows (PowerShell):
+
 ```powershell
 Invoke-WebRequest https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.all-in-one-monolith.yml -OutFile docker-compose.yml
 docker compose up -d
 ```
+
+macOS/Linux (bash):
 
 ```bash
 curl -L -o docker-compose.yml https://github.com/Vindyang/cs464-project/releases/latest/download/docker-compose.all-in-one-monolith.yml
@@ -91,6 +107,23 @@ Stop any downloaded release asset deployment with:
 ```powershell
 docker compose down
 ```
+
+Reference release size breakdown from a local `linux/amd64` run of `.\scripts\build-local-releases.ps1 -ImageTag readme-metrics`:
+
+| Flavor | Images | Archive MB | Unpacked MB | Unique MB |
+| --- | --- | --- | --- | --- |
+| Microservices | 6 | `135.70` | `505.80` | `160.79` |
+| All-in-one Microservices | 1 | `117.84` | `452.00` | `280.10` |
+| Monolith | 2 | `84.28` | `334.60` | `150.76` |
+| All-in-one Monolith | 1 | `98.75` | `399.00` | `226.60` |
+
+Metric definitions:
+
+- `Archive MB`: gzip-compressed `docker image save` size.
+- `Unpacked MB`: local unpacked image size reported by Docker.
+- `Unique MB`: local disk usage that is not shared with other cached images on the machine.
+
+Use `scripts/build-local-releases.ps1` when you want to recompute these numbers locally or compare a subset of release images.
 
 ### Local source-build workflows
 

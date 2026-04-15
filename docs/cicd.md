@@ -110,9 +110,9 @@ Official release assets produced by this workflow:
 
 Workflow:
 
-- `.github/workflows/cd-dockerhub-force-deploy.yml`
+- `.github/workflows/cd-force-deploy.yml`
 
-Despite the historical name, this workflow now targets GHCR. It can republish:
+This workflow targets GHCR. It can republish:
 
 - the microservices image set
 - the all-in-one microservices image
