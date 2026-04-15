@@ -17,14 +17,14 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} go build -
     CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} go build -o /out/sharding ./services/sharding/cmd/main.go && \
     CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} go build -o /out/orchestrator ./services/orchestrator/cmd/main.go
 
-FROM oven/bun:1 AS frontend-deps
+FROM oven/bun:1-alpine AS frontend-deps
 
 WORKDIR /src/frontend
 
 COPY frontend/package.json frontend/bun.lock ./
 RUN bun install --frozen-lockfile
 
-FROM oven/bun:1 AS frontend-builder
+FROM oven/bun:1-alpine AS frontend-builder
 
 WORKDIR /src/frontend
 
@@ -36,9 +36,7 @@ ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
 RUN bun run build
 
-FROM oven/bun:1 AS bun-runtime
-
-FROM debian:bookworm-slim
+FROM node:22-bookworm-slim
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ca-certificates nginx supervisor && \
@@ -60,29 +58,22 @@ ENV SHARDING_URL=http://127.0.0.1:8083
 ENV ORCHESTRATOR_URL=http://127.0.0.1:8082
 ENV Omnishard_DB_PATH=/app/data/Omnishard.db
 ENV Omnishard_SHARDMAP_DB_PATH=/app/data/Omnishard-shardmap.db
-ENV PATH=/app/frontend/node_modules/.bin:$PATH
 
-COPY --from=go-builder /out/adapter /app/bin/adapter
-COPY --from=go-builder /out/shardmap /app/bin/shardmap
-COPY --from=go-builder /out/sharding /app/bin/sharding
-COPY --from=go-builder /out/orchestrator /app/bin/orchestrator
+COPY --from=go-builder --chown=app:app /out/adapter /app/bin/adapter
+COPY --from=go-builder --chown=app:app /out/shardmap /app/bin/shardmap
+COPY --from=go-builder --chown=app:app /out/sharding /app/bin/sharding
+COPY --from=go-builder --chown=app:app /out/orchestrator /app/bin/orchestrator
 
-COPY --from=bun-runtime /usr/local/bin/bun /usr/local/bin/bun
-COPY --from=frontend-builder /src/frontend/package.json /app/frontend/package.json
-COPY --from=frontend-builder /src/frontend/node_modules /app/frontend/node_modules
-COPY --from=frontend-builder /src/frontend/.next /app/frontend/.next
-COPY --from=frontend-builder /src/frontend/public /app/frontend/public
-COPY --from=frontend-builder /src/frontend/next.config.ts /app/frontend/next.config.ts
+COPY --from=frontend-builder --chown=app:app /src/frontend/.next/standalone /app/frontend
+COPY --from=frontend-builder --chown=app:app /src/frontend/.next/static /app/frontend/.next/static
+COPY --from=frontend-builder --chown=app:app /src/frontend/public /app/frontend/public
 
 COPY backend/microservice/services/gateway/docs /usr/share/nginx/html/docs
 COPY deploy/images/all-in-one/nginx.conf /etc/nginx/conf.d/default.conf
 COPY deploy/images/all-in-one/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-COPY deploy/images/all-in-one/entrypoint.sh /entrypoint.sh
 
-RUN chmod +x /entrypoint.sh && \
-    chown -R app:app /app/frontend && \
-    rm -f /etc/nginx/sites-enabled/default
+RUN rm -f /etc/nginx/sites-enabled/default
 
 EXPOSE 3000 8080
 
-ENTRYPOINT ["/entrypoint.sh"]
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
