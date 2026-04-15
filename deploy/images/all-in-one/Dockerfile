@@ -36,13 +36,12 @@ ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
 RUN bun run build
 
-FROM node:22-bookworm-slim
+FROM node:22-alpine
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends ca-certificates nginx supervisor && \
-    rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache ca-certificates nginx supervisor tzdata
 
-RUN useradd --system --create-home --shell /usr/sbin/nologin app && \
+RUN addgroup -S app && \
+    adduser -S app -G app && \
     mkdir -p /app/bin /app/data /app/frontend /var/log/supervisor /run/nginx && \
     chown -R app:app /app /var/log/supervisor
 
@@ -69,7 +68,7 @@ COPY --from=frontend-builder --chown=app:app /src/frontend/.next/static /app/fro
 COPY --from=frontend-builder --chown=app:app /src/frontend/public /app/frontend/public
 
 COPY backend/microservice/services/gateway/docs /usr/share/nginx/html/docs
-COPY deploy/images/all-in-one/nginx.conf /etc/nginx/conf.d/default.conf
+COPY deploy/images/all-in-one/nginx.conf /etc/nginx/http.d/default.conf
 COPY deploy/images/all-in-one/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 RUN rm -f /etc/nginx/sites-enabled/default

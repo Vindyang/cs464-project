@@ -31,13 +31,12 @@ ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
 RUN bun run build
 
-FROM node:22-bookworm-slim
+FROM node:22-alpine
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends ca-certificates supervisor tzdata && \
-    rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache ca-certificates supervisor tzdata
 
-RUN useradd --system --create-home --shell /usr/sbin/nologin app && \
+RUN addgroup -S app && \
+    adduser -S app -G app && \
     mkdir -p /app/bin /app/data /app/frontend /var/log/supervisor && \
     chown -R app:app /app /var/log/supervisor
 
