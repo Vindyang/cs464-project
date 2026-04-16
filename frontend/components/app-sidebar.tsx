@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Database,
+  FileCode2,
   FileText,
   FolderOpen,
   HelpCircle,
@@ -54,7 +55,10 @@ const navSections = [
   },
   {
     label: "Documentation",
-    items: [{ title: "Help", href: "/help", icon: HelpCircle }],
+    items: [
+      { title: "API Endpoints", href: "/api-endpoints", icon: FileCode2 },
+      { title: "Help", href: "/help", icon: HelpCircle },
+    ],
   },
 ];
 
