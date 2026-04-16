@@ -1,13 +1,13 @@
 # CS464 Project TODO
 
 ### Application
-- [ ] Refactor as monolith / Repackage as monolith
-- [ ] Introduce concurrent deletion
-- [ ] Optimize frontend (currently 150MB)
-- [ ] Batch upload documents
+- [x] Refactor as monolith / Repackage as monolith
+- [x] Introduce concurrent deletion
+- [x] Optimize frontend (currently 150MB)
+- [x] Batch upload documents
 - [ ] Add more storage providers (using SSH into NAS/local lab)
 - [ ] Add more cloud providers (possibly automatically)
-- [ ] Increase file size upload limit/provide explicit limit
+- [x] Provide explicit limit
 <!-- - [ ] MAJOR: Develop script to automatically fetch cloud provider-specific secrets/tokens (agentic flow?)
 - [ ] MAJOR: Develop cloud-native version
 - [ ] MAJOR: Add smart provider selection strategy
@@ -22,11 +22,10 @@
 
 
 ### Docs
-- [ ] Add developer-oriented documentation to play around with the app
-- [ ] Add steps to retrieve cloud provider-specific secrets/tokens
+- [x] Add developer-oriented documentation to play around with the app
+- [x] Add steps to retrieve cloud provider-specific secrets/tokens
 
 ### DevOps
-- [ ] Migrate from Dockerhub to Github Packages
-- [ ] Introduce branch protection
-- [ ] Trim branches
+- [x] Migrate from Dockerhub to Github Packages
+- [x] Trim branches
 - [x] Rename microservices branch to dev branch
