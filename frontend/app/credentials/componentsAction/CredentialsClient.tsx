@@ -119,6 +119,10 @@ const PROVIDER_DOCS: Record<
 	},
 }
 
+function containsDisallowedClientIdLink(value: string) {
+	return /https?:\/\//i.test(value)
+}
+
 interface CredentialsClientProps {
 	initialCredentials: ProviderCredential[]
 }
@@ -147,6 +151,11 @@ export function CredentialsClient({ initialCredentials }: CredentialsClientProps
 	async function handleSave() {
 		if (!clientId || !clientSecret || !redirectUri) {
 			toast.error(`${fields.field1.label}, ${fields.field2.label}, and ${fields.field3.label} are required`)
+			return
+		}
+
+		if (containsDisallowedClientIdLink(clientId)) {
+			toast.error(`${fields.field1.label} must be the raw ID value only. Do not paste links or URLs.`)
 			return
 		}
 
