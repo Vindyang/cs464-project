@@ -141,7 +141,54 @@ export const metadata = {
     "Contributor and operator setup guide for running Omnishard with Docker and configuring provider credentials.",
 }
 
-export default function QuickStartPage() {
+async function isReachable(url: string): Promise<boolean> {
+  if (!url) return false
+
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 1200)
+
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      cache: "no-store",
+      signal: controller.signal,
+    })
+    return response.ok
+  } catch {
+    return false
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
+async function resolveDocsUrl(): Promise<string> {
+  const gatewayUrl = process.env.GATEWAY_URL ?? ""
+  const internalApiUrl = process.env.API_INTERNAL_URL ?? ""
+
+  if (internalApiUrl.includes("monolith")) {
+    return "http://localhost:8080/api/v1/docs"
+  }
+
+  if (gatewayUrl.includes("gateway:8084")) {
+    return "http://localhost:8084/api/v1/docs"
+  }
+
+  if (await isReachable(`${gatewayUrl}/api/v1/docs`)) {
+    const publicGatewayBase = gatewayUrl.includes(":8084")
+      ? "http://localhost:8084"
+      : "http://localhost:8080"
+    return `${publicGatewayBase}/api/v1/docs`
+  }
+
+  if (await isReachable(`${internalApiUrl}/api/v1/docs`)) {
+    return "http://localhost:8080/api/v1/docs"
+  }
+
+  return "http://localhost:8080/api/v1/docs"
+}
+
+export default async function QuickStartPage() {
+  const docsUrl = await resolveDocsUrl()
   const tocItems = setupSections.map((entry) => ({
     id: entry.code.toLowerCase(),
     label: entry.title,
@@ -227,26 +274,36 @@ export default function QuickStartPage() {
                     )}
 
                     {content.type === "endpoints" && (
-                      <ul className="space-y-2">
-                        {endpoints.map((endpoint) => (
-                          <li key={endpoint.label} className="flex gap-3">
-                            <span className="pt-0.5 font-mono text-[11px] text-neutral-400 dark:text-neutral-500">
-                              •
-                            </span>
-                            <span className="font-mono text-sm leading-relaxed text-neutral-700 dark:text-neutral-300">
-                              {endpoint.label}:{" "}
-                              <a
-                                href={endpoint.url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="underline hover:text-neutral-950 dark:hover:text-neutral-100"
-                              >
-                                {endpoint.url}
-                              </a>
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
+                      <div className="space-y-4">
+                        <a
+                          href={docsUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex border border-sky-600 bg-sky-600 px-4 py-2 font-mono text-[11px] uppercase tracking-[0.08em] text-white transition-colors hover:bg-sky-700"
+                        >
+                          Open Swagger UI
+                        </a>
+                        <ul className="space-y-2">
+                          {endpoints.map((endpoint) => (
+                            <li key={endpoint.label} className="flex gap-3">
+                              <span className="pt-0.5 font-mono text-[11px] text-neutral-400 dark:text-neutral-500">
+                                •
+                              </span>
+                              <span className="font-mono text-sm leading-relaxed text-neutral-700 dark:text-neutral-300">
+                                {endpoint.label}:{" "}
+                                <a
+                                  href={endpoint.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="underline hover:text-neutral-950 dark:hover:text-neutral-100"
+                                >
+                                  {endpoint.url}
+                                </a>
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     )}
                   </div>
                 ))}
