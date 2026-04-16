@@ -14,6 +14,61 @@ Both backend variants use the same high-level storage model:
 - file metadata, shard placement, lifecycle history, and health state are stored in `Omnishard-shardmap.db`
 - shard bytes are stored in external providers such as Google Drive, OneDrive, and AWS S3
 
+## Database Schema
+
+Both backend variants use the same two-file SQLite layout. The microservice deployment splits ownership across the adapter and shardmap services, while the monolith opens both databases inside one process.
+
+### `Omnishard.db`
+
+This database stores provider onboarding state and runtime configuration.
+
+| Table | Primary key | Purpose | Key columns |
+| --- | --- | --- | --- |
+| `provider_tokens` | `provider_id` | Stores the active OAuth token set for a provider. | `access_token`, `refresh_token`, `token_type`, `expiry`, `updated_at` |
+| `credentials` | `provider_id` | Stores provider OAuth client credentials configured through the UI or environment-backed setup. | `client_id`, `client_secret`, `redirect_uri`, `updated_at` |
+| `provider_config` | `key` | Stores app-level provider configuration and settings values. | `value`, `updated_at` |
+
+Operational notes:
+
+- `provider_id` identifies a concrete storage provider integration such as Google Drive or OneDrive.
+- Token and credential rows are upserted, so reconnecting or reconfiguring a provider replaces the existing record.
+- This database does not store shard bytes or file placement metadata.
+
+### `Omnishard-shardmap.db`
+
+This database stores file metadata, shard placement, lifecycle history, and health refresh timestamps.
+
+| Table | Primary key | Purpose | Key columns |
+| --- | --- | --- | --- |
+| `files` | `id` | One row per uploaded logical file. | `original_name`, `original_size`, `total_chunks`, `n`, `k`, `shard_size`, `status`, `created_at`, `updated_at`, `last_health_refresh_at` |
+| `shards` | `id` | One row per persisted shard fragment. | `file_id`, `chunk_index`, `shard_index`, `shard_type`, `remote_id`, `provider`, `checksum_sha256`, `status`, `created_at`, `updated_at` |
+| `file_lifecycle_log` | `id` | Append-only history of upload, download, refresh, and related workflow events. | `file_id`, `event_type`, `file_name`, `file_size`, `shard_count`, `providers`, `started_at`, `ended_at`, `duration_ms`, `status`, `error_msg`, `created_at` |
+
+Relationship notes:
+
+- `files.id` is the parent identifier for logical file state.
+- `shards.file_id` references `files.id` with `ON DELETE CASCADE`, so deleting a file record also removes its shard placement rows.
+- `file_lifecycle_log.file_id` links lifecycle events back to the logical file, but serves as an audit/history stream rather than placement state.
+- `last_health_refresh_at` on `files` captures the most recent health probe time, while shard-level `status` captures fragment availability.
+
+### Logical ER View
+
+```text
+Omnishard.db
+  provider_tokens (provider_id PK)
+  credentials     (provider_id PK)
+  provider_config (key PK)
+
+Omnishard-shardmap.db
+  files               (id PK)
+      |
+      +----< shards              (id PK, file_id FK -> files.id)
+      |
+      +----< file_lifecycle_log  (id PK, file_id -> files.id)
+```
+
+The result is a clean split: provider connection state lives in `Omnishard.db`, durable file and shard metadata lives in `Omnishard-shardmap.db`, and the actual shard payloads remain external in the configured cloud providers.
+
 ## Shared System Shape
 
 ```text
